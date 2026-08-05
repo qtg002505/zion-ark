@@ -19,14 +19,19 @@
 - 문서: README · CLAUDE.md · ARCHITECTURE · CONTRIBUTING
 - 이전 프로젝트(church-ai-dashboard) 문서는 `_archive/`로 이동 보관
 
-### 원문 이관 대기 (파일 수령 후 교체)
+### 원문 이관 상태
 
-| 대상 | 파일 | 위치 |
+| 대상 | 상태 | 위치 |
 | --- | --- | --- |
-| 초등 23강 교안 원문 | 원 저장소 elementary-lessons.ts | `src/content/lessons.ts` |
-| 에니어그램 원문 | 원 저장소 enneagram-guides.ts | `src/content/enneagram.ts` |
-| 요한계시록 본문 | 요한계시록의_실상_UTF-8_Markdown/ | `src/content/revelation.ts` |
-| 총회장님 어록 | 리드 보유 파일 | 스토어 시드 교체 |
+| 초등 23강 교안 원문 | ✅ 이관 완료 (2026-08-05, 원 저장소 main ZIP에서) | `src/content/elementary-lessons.ts` |
+| 에니어그램 9유형 원문 | ✅ 이관 완료 (〃) | `src/content/enneagram-guides.ts` |
+| 요한계시록 본문 | ⏳ 대기 — 원 저장소 main ZIP에 없음 (다른 브랜치 추정) | `src/content/revelation.ts` |
+| 천지창조 · 예그행 | ⏳ 대기 (〃) | — |
+| 총회장님 어록 | ⏳ 대기 (〃) | 스토어 시드 교체 |
+
+원 저장소(qtg002505/church-ai-dashboard)는 **비공개** — 에이전트 직접 접근 불가.
+main 브랜치 ZIP은 사용자 다운로드로 수령(2026-08-05). 계시록·천지창조·예그행·어록은
+main에 없었음 — 리드가 업로드 위치(브랜치·경로) 확인 후 재수령 필요.
 
 ### 다음 작업 (우선순위)
 

@@ -1,5 +1,5 @@
-import { ELEMENTARY_LESSONS } from "../content/lessons";
-import { ENNEAGRAM_GUIDES } from "../content/enneagram";
+import { elementaryLessons } from "../content/elementary-lessons";
+import { enneagramGuides } from "../content/enneagram-guides";
 import { REVELATION_SERIES } from "../content/revelation";
 import type { LibraryMaterial, WorkspaceEntry } from "./types";
 
@@ -34,26 +34,30 @@ export function searchSite(
   if (q.length < 2) return [];
   const hits: SearchHit[] = [];
 
-  for (const lesson of ELEMENTARY_LESSONS) {
-    const text = lesson.title + " " + (lesson.detail ? Object.values(lesson.detail).join(" ") : "");
+  for (const lesson of elementaryLessons) {
+    const text =
+      lesson.title +
+      " " +
+      lesson.sections.map((s) => s.label + " " + s.items.join(" ")).join(" ");
     if (text.includes(q)) {
       hits.push({
-        source: `초등 교안 ${lesson.no}강`,
+        source: `초등 교안 ${lesson.lessonNo}강 — ${lesson.title}`,
         sourceType: "교안",
-        title: lesson.title,
+        title: `${lesson.lessonNo}강 — ${lesson.title}`,
         snippet: snippetOf(text, q),
         href: "/lessons",
       });
     }
   }
 
-  for (const g of ENNEAGRAM_GUIDES) {
-    const text = `${g.type}유형 ${g.name} ${g.keyword} ${g.growth} ${g.schoolTips} ${g.improvement}`;
+  for (const g of enneagramGuides) {
+    const text =
+      g.title + " " + g.sections.map((s) => s.label + " " + s.items.join(" ")).join(" ");
     if (text.includes(q)) {
       hits.push({
-        source: `에니어그램 ${g.type}유형(${g.name})`,
+        source: `에니어그램 ${g.typeNo}번 유형 — ${g.title}`,
         sourceType: "에니어그램",
-        title: `${g.type}유형 — ${g.name}`,
+        title: `${g.typeNo}번 유형 — ${g.title}`,
         snippet: snippetOf(text, q),
         href: "/enneagram",
       });

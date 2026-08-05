@@ -11,6 +11,19 @@ export function SeriesReader() {
   const [query, setQuery] = useState("");
 
   const coming = COMING_SERIES.find((s) => s.id === seriesId);
+
+  const series = REVELATION_SERIES;
+  const currentId = params.get("ch") ?? series.chapters[0].id;
+  const current = series.chapters.find((c) => c.id === currentId) ?? series.chapters[0];
+
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    if (!q) return series.chapters;
+    return series.chapters.filter(
+      (c) => c.label.includes(q) || c.title.includes(q) || (c.body ?? "").includes(q),
+    );
+  }, [series, query]);
+
   if (coming) {
     return (
       <div>
@@ -29,18 +42,6 @@ export function SeriesReader() {
       </div>
     );
   }
-
-  const series = REVELATION_SERIES;
-  const currentId = params.get("ch") ?? series.chapters[0].id;
-  const current = series.chapters.find((c) => c.id === currentId) ?? series.chapters[0];
-
-  const filtered = useMemo(() => {
-    const q = query.trim();
-    if (!q) return series.chapters;
-    return series.chapters.filter(
-      (c) => c.label.includes(q) || c.title.includes(q) || (c.body ?? "").includes(q),
-    );
-  }, [series, query]);
 
   return (
     <div>
