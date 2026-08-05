@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  /* 시온 아크 브랜드 토큰 — 정식 브랜드 hex 확보 시 여기만 수정 */
+  --color-zion-50: #f3f6fb;
+  --color-zion-100: #e4ebf5;
+  --color-zion-200: #c5d4e8;
+  --color-zion-300: #9ab4d4;
+  --color-zion-400: #6890bc;
+  --color-zion-500: #4672a3;
+  --color-zion-600: #345a88;
+  --color-zion-700: #2b4a6f;
+  --color-zion-800: #23406e;
+  --color-zion-900: #16233a;
+  --color-zion-950: #0e1726;
+
+  --color-gold-100: #f7f0dd;
+  --color-gold-300: #e3cd96;
+  --color-gold-500: #c9a961;
+  --color-gold-600: #b08d3f;
+  --color-gold-700: #8f7130;
+
+  --color-surface: #f6f7f9;
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+}
+
+html {
+  font-family: var(--font-sans);
+}
+
+body {
+  background: var(--color-surface);
+  color: #1c2433;
+}
+
+/* 본문 스크롤 시 스크롤바 안정화 */
+html {
+  scrollbar-gutter: stable;
+}

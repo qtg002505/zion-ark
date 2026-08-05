@@ -1,0 +1,45 @@
+# HANDOFF
+
+## 현재 상태 (2026-08-05)
+
+프로젝트 최초 구축 세션 완료. React 19 + Vite 6 + TS strict + Tailwind 4.
+`tsc -b --noEmit` 통과, `vite build` 성공.
+
+### 끝낸 것
+
+- 프로젝트 스캐폴드 + 셸 (사이드바 272px/238px · Ask AI 바 · 시범 로고)
+- 시범 로그인 — 역할 7종, 전도사는 담당 분반 선택. 세션은 `src/lib/auth.tsx` 한 곳
+- 전체 현황 — 출석률 **분포** 차트(이중 구조 노출) · 대면 시간대 · 고정 공지
+- 기수 현황 3탭 (요약/출석/분반) · 수강생 관리 (상태·분반 필터, 전도사=담당 분반만)
+- 자료실 — 카테고리 3종 등록·열람·검색, 우수 교안 지정(headquarters_admin만)
+- 시리즈 리더 — 요한계시록 총론+22장 동선 완성 (본문은 원문 이관 대기 placeholder)
+- 공지 — notice_hq/notice_tribe 권한 분리, 지파 공지는 소속 지파만 조회
+- 어록 — 카테고리 5종(말씀·사명·신앙·교육·리더십) 검색·등록 (샘플 데이터)
+- Ask AI — 로컬 검색 + 출처 표시, aria-live 상시 렌더
+- 문서: README · CLAUDE.md · ARCHITECTURE · CONTRIBUTING
+- 이전 프로젝트(church-ai-dashboard) 문서는 `_archive/`로 이동 보관
+
+### 원문 이관 대기 (파일 수령 후 교체)
+
+| 대상 | 파일 | 위치 |
+| --- | --- | --- |
+| 초등 23강 교안 원문 | 원 저장소 elementary-lessons.ts | `src/content/lessons.ts` |
+| 에니어그램 원문 | 원 저장소 enneagram-guides.ts | `src/content/enneagram.ts` |
+| 요한계시록 본문 | 요한계시록의_실상_UTF-8_Markdown/ | `src/content/revelation.ts` |
+| 총회장님 어록 | 리드 보유 파일 | 스토어 시드 교체 |
+
+### 다음 작업 (우선순위)
+
+1. 원문 콘텐츠 이관 (위 표 — 파일 수령 시)
+2. 예그행 소스 결정(마태 MD vs 교수안) 후 시리즈 본문 탑재
+3. AI 질문 실제 API 연결 (`src/lib/search.ts` 교체 — 출처 표시·개인정보 미입력 유지)
+4. 백엔드 연동 (`store.tsx` → API, `auth.tsx` → 휴대전화 인증/SSO)
+5. 2단계 심화: 다기수 집계, 수강생 차트/상담 (권한·감사 로그 설계 선행)
+
+### 함정·주의
+
+- 프로토타입 데이터는 localStorage — 브라우저 바꾸면 초기화됨. 운영 전환 시 D1/API로 교체
+  (원 저장소 불변식 "D1을 브라우저 스토리지로 대체 금지"는 운영 코드에 적용되는 규칙,
+  이 프로토타입은 임시 상태임을 인지할 것)
+- 목업 수강생 17명은 전원 가상 인물. 실존 정보 절대 투입 금지
+- `_archive/`는 이전 프로젝트 보관 — 수정 금지
