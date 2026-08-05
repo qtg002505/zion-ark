@@ -25,18 +25,34 @@ const js = readFileSync(join(DIST, "assets", jsFile), "utf8");
 const css = readFileSync(join(DIST, "assets", cssFile), "utf8");
 
 /**
- * 스크립트는 base64 data URI 로 싣는다.
- * 본문에 그대로 인라인하면 감싸는 문서의 charset 을 따라가는데, 그 문서에
- * `<meta charset>` 이 없으면 한글이 깨져 정규식·문자열이 망가진다.
- * data URI 에 charset 을 박아 두면 인코딩이 고정된다.
+ * 비ASCII 문자를 `\uXXXX` 로 바꿔 순수 ASCII 스크립트로 만든다.
+ *
+ * 왜: 감싸는 문서에 `<meta charset>` 이 없으면 인라인 스크립트의 한글이 깨져
+ * 정규식·문자열이 망가진다. data URI 로 charset 을 고정하는 방법도 있지만
+ * 호스팅의 콘텐츠 보안 정책이 외부 소스로 취급해 막을 수 있어, 문서 인코딩과
+ * 무관한 ASCII 로 만들어 그대로 인라인하는 편이 안전하다.
  */
-const jsDataUri = `data:text/javascript;charset=utf-8;base64,${Buffer.from(js, "utf8").toString("base64")}`;
+function toAscii(source) {
+  return source.replace(/[-￿]/g, (ch) =>
+    "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0"),
+  );
+}
+
+/** 인라인 시 `</script>` 문자열이 태그를 조기 종료하지 않도록 끊어 준다 */
+const safeJs = toAscii(js).replace(/<\/script/gi, "<\\/script");
+
+const nonAsciiCss = css.match(/[-￿]/g);
+if (nonAsciiCss) {
+  console.warn(`주의: CSS에 비ASCII 문자 ${nonAsciiCss.length}개 — 표시가 깨지면 확인하세요.`);
+}
 
 const html = `<div id="root"></div>
 <style>
 ${css}
 </style>
-<script type="module" src="${jsDataUri}"></script>
+<script type="module">
+${safeJs}
+</script>
 `;
 
 mkdirSync(OUT_DIR, { recursive: true });
