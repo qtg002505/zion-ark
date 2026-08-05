@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ExternalLink, Plus, Search, Star, X } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { BookOpenText, ExternalLink, Plus, Search, Star, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canToggleFeatured, canWriteLibrary } from "../lib/permissions";
@@ -67,21 +67,19 @@ export function Library() {
         }
       />
 
-      {/* 말씀광장 외부 링크 (확정 결정 6) */}
-      <div className="mb-5 flex gap-2">
+      {/* 말씀광장 (확정 결정 6) — 사이트 안 뷰어에서 연다 */}
+      <div className="mb-5 flex flex-wrap gap-2">
         {[
-          ["온라인 성경", "https://www.wordsquare.org/bible-forest/bible"],
-          ["성경사전", "https://www.wordsquare.org/bible-forest/dictionary"],
-        ].map(([label, href]) => (
-          <a
-            key={href}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
+          ["온라인 성경", "/external/bible"],
+          ["성경사전", "/external/dictionary"],
+        ].map(([label, to]) => (
+          <Link
+            key={to}
+            to={to}
             className="flex items-center gap-1.5 rounded-lg border border-zion-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zion-700 transition hover:border-zion-500"
           >
-            <ExternalLink size={13} /> 말씀광장 {label}
-          </a>
+            <BookOpenText size={13} /> 말씀광장 {label}
+          </Link>
         ))}
       </div>
 

@@ -46,7 +46,13 @@
 | 전도사 도우미 | 분반·보강 자료 / 에니어그램 가이드 | `/library?tab=class_material` `/enneagram` |
 | 공지사항 | 총회 공지 / 지파 공지 (하위 없는 단독 대주제) | `/notices` |
 | 총회장님 어록 | 검색·뽑기 / 전체 주제 (하위 없는 단독 대주제) | `/quotes` |
-| 말씀광장 | 온라인 성경 / 성경사전 (외부 새 탭) | wordsquare.org |
+| 말씀광장 | 온라인 성경 / 성경사전 (내부 뷰어) | `/external/bible` `/external/dictionary` |
+| 천지일보 | 최근 이슈 / 종교·개신교 (내부 뷰어) | `/external/news` `/external/news-religion` |
+
+**외부 자료는 사이트 안에서 연다** (`src/pages/ExternalViewer.tsx` + `src/content/external-links.ts`).
+하이퍼링크로 내보내지 않고 iframe으로 띄우며, 상단에 새로고침·새 탭 버튼을 둔다.
+말씀광장·천지일보 모두 임베드 차단이 없음을 확인했지만, 상대 사이트가 언제든 켤 수 있으므로
+8초 안에 로드 신호가 없으면 "새 탭으로 열기" 안내로 바꾼다. 링크가 늘면 `external-links.ts`에만 추가한다.
 
 내비 정의는 `src/shell/nav.ts` 한 곳. 새 화면은 여기에 항목을 추가한다.
 

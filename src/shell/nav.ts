@@ -10,7 +10,7 @@ import {
   HeartHandshake,
   Megaphone,
   Quote,
-  ExternalLink,
+  BookOpenText,
   Newspaper,
   Gauge,
   Presentation,
@@ -132,25 +132,21 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Quote,
     to: "/quotes",
   },
+  // 외부 매체는 사이트 안 뷰어(/external/:id)에서 연다 — 하이퍼링크로 내보내지 않는다
   {
     label: "말씀광장",
     icon: Church,
     items: [
-      { to: "https://www.wordsquare.org/bible-forest/bible", label: "온라인 성경", icon: ExternalLink, external: true },
-      { to: "https://www.wordsquare.org/bible-forest/dictionary", label: "성경사전", icon: ExternalLink, external: true },
+      { to: "/external/bible", label: "온라인 성경", icon: BookOpenText },
+      { to: "/external/dictionary", label: "성경사전", icon: BookOpenText },
     ],
   },
   {
     label: "천지일보",
     icon: Rss,
     items: [
-      { to: "https://www.newscj.com/", label: "최근 이슈", icon: Newspaper, external: true },
-      {
-        to: "https://www.newscj.com/news/articleList.html?sc_sub_section_code=S2N53&sc_section_code=S1N7&view_type=sm",
-        label: "종교 · 개신교",
-        icon: Newspaper,
-        external: true,
-      },
+      { to: "/external/news", label: "최근 이슈", icon: Newspaper },
+      { to: "/external/news-religion", label: "종교 · 개신교", icon: Newspaper },
     ],
   },
 ];
