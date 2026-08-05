@@ -35,15 +35,121 @@
     "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   반응형·크로스 브라우징 기반
+   PC(Chrome/Edge) · Android(Chrome) · iOS(Safari/웹뷰)에서 같게 보이도록
+   여기서 한 번에 잡는다. 화면 파일마다 되풀이하지 않는다.
+   ═══════════════════════════════════════════════════════════ */
+
 html {
   font-family: var(--font-sans);
-  /* 본문 스크롤 시 스크롤바 안정화 */
+  /* 본문 스크롤 시 스크롤바 안정화 (데스크톱) */
   scrollbar-gutter: stable;
+
+  /* iOS는 가로로 돌리면 글자를 제멋대로 키운다 — 그러면 폭 계산이 어긋나
+     텍스트가 영역을 넘는다. 자동 확대를 끄고 우리가 정한 크기를 지킨다. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   background: var(--color-surface);
   color: var(--color-ink);
+
+  /* 어떤 요소가 삐져나가도 페이지 전체가 옆으로 밀리지는 않게 하는 최후 방어.
+     표·탭처럼 일부러 옆으로 넘기는 곳은 그 안에서 따로 스크롤한다. */
+  overflow-x: hidden;
+
+  /* 한글은 낱말 단위로 끊어야 읽기 좋다. 다만 끊을 자리가 없는 긴 문자열
+     (URL·성구 표기 등)은 그대로 두면 영역을 뚫고 나가므로 강제로 끊는다.
+     이 두 줄이 없으면 좁은 폭에서 글자가 세로로 한 줄씩 늘어져 보인다. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+
+  -webkit-font-smoothing: antialiased;
+  /* 모바일에서 눌렀을 때 생기는 회색 박스 제거 (Android 웹뷰) */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* flex·grid 자식은 기본값(min-width:auto) 때문에 제 콘텐츠보다 작아지지 못한다.
+   그래서 긴 문장이 든 칸이 부모를 밀어내고, 옆 칸은 폭 0에 가깝게 찌그러져
+   글자가 세로로 쌓인다. 자식이 줄어들 수 있게 풀어 준다.
+   `:where()`라 우선순위가 0이므로 개별 클래스로 언제든 덮을 수 있다. */
+:where(.flex, .grid) > * {
+  min-width: 0;
+}
+
+/* 이미지·아이콘이 부모보다 커지지 않게 */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 표는 페이지를 밀지 않고 자기 영역 안에서만 넘긴다 */
+table {
+  border-collapse: collapse;
+}
+
+/* iOS 웹뷰에서 관성 스크롤이 끊기지 않게 */
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 노치·홈 인디케이터를 피한다 (iPhone 가로 모드에서 특히 필요) */
+@supports (padding: env(safe-area-inset-left)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* iOS Safari는 입력칸 글자가 16px보다 작으면 누를 때 화면을 확대한다.
+   그 순간 레이아웃이 통째로 틀어져 "깨졌다"고 보인다.
+   확대를 막으려면 16px 이상이어야 해서, 터치 기기에서만 키운다.
+   (Android는 이런 동작이 없어 영향받지 않는다.) */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* 목록 패널 높이 — iOS는 주소창까지 포함해 vh를 계산하므로 실제 화면보다 커진다.
+   지원하는 곳에서는 dvh(실제 보이는 높이)를 쓰고, 아니면 vh로 되돌아간다. */
+.doc-list-scroll {
+  max-height: 42vh;
+}
+@supports (height: 100dvh) {
+  .doc-list-scroll {
+    max-height: 42dvh;
+  }
+}
+@media (min-width: 1024px) {
+  .doc-list-scroll {
+    max-height: 70vh;
+  }
+  @supports (height: 100dvh) {
+    .doc-list-scroll {
+      max-height: 70dvh;
+    }
+  }
+}
+
+/* 움직임을 줄여 달라는 설정을 존중한다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 화면 진입 시 살짝 떠오르는 등장 — 시안의 slideInUp */

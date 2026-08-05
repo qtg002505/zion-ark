@@ -80,6 +80,8 @@ export function Sidebar({
         "transition-transform duration-300 lg:translate-x-0 " +
         (drawerOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full")
       }
+      /* 가로 모드 노치를 피한다 (본문은 body에서 처리하지만 이 패널은 fixed라 따로 준다) */
+      style={{ paddingLeft: "env(safe-area-inset-left)" }}
     >
       <div className="flex items-center gap-3 px-5 py-5">
         <ZionLogo />

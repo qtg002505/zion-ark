@@ -64,7 +64,7 @@ export function SeriesReader() {
               className="w-full bg-transparent text-[12px] outline-none"
             />
           </div>
-          <nav aria-label="장 목록" className="max-h-[42vh] lg:max-h-[70vh] overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm">
+          <nav aria-label="장 목록" className="doc-list-scroll overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm">
             {groups.map((g, gi) => (
               <div key={gi}>
                 {g.name && (

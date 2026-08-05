@@ -35,6 +35,10 @@
 - 출석 표는 표 자체만 가로 스크롤(`min-w-[560px]`) — 페이지 본문은 절대 옆으로 밀리지 않는다
 - 검증: 전 화면에서 `document.body.scrollWidth === clientWidth` (가로 넘침 0) 확인
 
+**공통 규칙은 `src/index.css`에 한 번만 둔다** — 한글 줄바꿈, flex/grid 자식의 `min-width` 해제,
+iOS 입력 확대·`vh`·노치 대응 등. 화면 파일에서 되풀이하지 않는다.
+상세한 규칙과 확인 방법은 [RESPONSIVE.md](RESPONSIVE.md).
+
 ## 화면 구조 (정보구조 6개 카테고리)
 
 | 카테고리 | 화면 | 경로 |
