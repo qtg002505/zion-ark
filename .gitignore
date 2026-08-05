@@ -3,8 +3,13 @@ dist
 *.tsbuildinfo
 dist-ssr
 *.local
+
+# 비밀값 — 실제 키가 담기는 파일은 절대 올리지 않는다.
+# 새 이름(.env.production 등)이 생겨도 걸리도록 넓게 막고, 비밀이 없는 두 파일만 예외로 둔다.
 .env
-.env.local
+.env.*
+!.env.example
+!.env.preview
 .dev.vars
 
 # 로그

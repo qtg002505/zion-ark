@@ -11,13 +11,18 @@
 
 ```bash
 npm install
+cp .env.example .env
 npm run dev        # http://localhost:5173
 ```
 
 ```bash
-npm run build      # 프로덕션 빌드 (tsc + vite)
-npm run typecheck  # 타입 검사만
+npm run build          # 프로덕션 빌드 (tsc + vite)
+npm run typecheck      # 타입 검사만
+npm run build:preview  # 팀 공유용 단일 HTML (preview/)
 ```
+
+`.env`는 git에 올라가지 않는다. **API 키는 파일로 올리지 않고 배포처(Vercel) 환경 변수에
+등록한다** — 자세한 내용은 [docs/DEPLOY.md](docs/DEPLOY.md).
 
 로그인 화면에서 **역할을 선택해 시범 로그인**하면 역할별 메뉴·권한·조회 범위를 확인할 수
 있다 (시범 조직: 요한 지파 · 과천교회 · 113기 — 목업 데이터, 실제 개인정보 아님).
@@ -46,10 +51,11 @@ _archive/       # 이전 프로젝트(church-ai-dashboard) 기획 문서 보관
 
 ## 문서
 
-- [CLAUDE.md](CLAUDE.md) — AI 세션 작업 지침 (불변식 · 데이터 계약 · 함정)
-- [docs/HANDOFF.md](docs/HANDOFF.md) — 세션 핸드오프: 끝낸 것 · 다음 작업
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 화면 구조 · 권한 모델 · 백엔드 연동 경계
-- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — 공동작업자 온보딩 · 브랜치 규칙
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — **공동작업자는 여기부터** (설치 · 규칙 · 브랜치)
+- [CLAUDE.md](CLAUDE.md) — AI 세션 작업 지침 (불변식 · 데이터 계약 · 화면 규칙)
+- [docs/HANDOFF.md](docs/HANDOFF.md) — 세션 핸드오프: 끝낸 것 · 다음 작업 · 함정
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 화면 구조 · 권한 모델 · 디자인 시스템 · 교체 경계
+- [docs/DEPLOY.md](docs/DEPLOY.md) — 환경 변수 · Vercel 배포
 
 ## 구현 상태 (1단계 자료 제공 중심)
 
