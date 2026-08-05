@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Plus, Quote as QuoteIcon, Search, X } from "lucide-react";
+import { Check, Copy, Plus, Quote as QuoteIcon, Search, Sparkles, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteWorkspace } from "../lib/permissions";
 import type { QuoteCategory } from "../lib/types";
 import { QUOTE_ITEMS, QUOTE_TOPIC_LIST } from "../content/quotes-data";
+import { pickQuotes, popularTopics, toPlainText, type PickResult } from "../lib/quote-picker";
 import { PageHeader, Card } from "./common";
 
 const QUOTE_CATEGORIES: QuoteCategory[] = ["말씀", "사명", "신앙", "교육", "리더십"];
@@ -146,6 +147,8 @@ export function Quotes() {
         )}
       </Card>
 
+      <QuotePicker />
+
       {formOpen && writable && (
         <QuoteForm
           onClose={() => setFormOpen(false)}
@@ -165,6 +168,154 @@ export function Quotes() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * 주제로 어록 뽑기 — "○○ 관련 어록 뽑아줘" 요청을 받아 관련 어록을 모아 준다.
+ * 어록 본문은 원문 그대로 인용하며 요약·재작성하지 않는다.
+ */
+function QuotePicker() {
+  const [input, setInput] = useState("");
+  const [limit, setLimit] = useState(20);
+  const [asked, setAsked] = useState<{ keywords: string[]; results: PickResult[] } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const topics = useMemo(() => popularTopics(8), []);
+
+  function run(text: string, take = 20) {
+    const trimmed = text.trim();
+    setInput(trimmed);
+    setLimit(take);
+    setCopied(false);
+    setAsked(trimmed ? pickQuotes(trimmed, take) : null);
+  }
+
+  async function copy() {
+    if (!asked) return;
+    const text = toPlainText(asked.keywords, asked.results);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // 클립보드가 막힌 환경 대비
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <Card className="mt-5 border-gold-300 bg-gold-100/40">
+      <div className="flex items-center gap-2">
+        <Sparkles size={16} className="text-gold-600" />
+        <h2 className="text-[15px] font-bold text-zion-900">주제로 어록 뽑기</h2>
+      </div>
+      <p className="mt-1 text-[12px] text-gray-500">
+        강의·모임에 쓸 어록을 주제로 모읍니다. 예: <span className="text-zion-700">전도 관련 어록 뽑아줘</span> ·{" "}
+        <span className="text-zion-700">청년 교육</span> — 원문 그대로 인용하며 요약하지 않습니다.
+      </p>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(input);
+        }}
+        className="mt-3 flex gap-2"
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="어떤 주제의 어록이 필요하신가요?"
+          aria-label="어록 주제 입력"
+          className="flex-1 rounded-lg border border-zion-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+        />
+        <button
+          type="submit"
+          className="shrink-0 rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700"
+        >
+          뽑기
+        </button>
+      </form>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-gray-400">자주 찾는 주제</span>
+        {topics.map((t) => (
+          <button
+            key={t}
+            onClick={() => run(t)}
+            className="rounded-full border border-zion-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zion-700 transition hover:border-zion-400"
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <div aria-live="polite" className="sr-only">
+        {asked ? `${asked.results.length}건을 찾았습니다` : ""}
+      </div>
+
+      {asked && (
+        <div className="mt-4 border-t border-gold-300 pt-3">
+          {asked.keywords.length === 0 ? (
+            <p className="py-4 text-center text-[13px] text-gray-500">
+              주제어를 두 글자 이상 넣어 주세요 (예: 전도, 기도, 청년).
+            </p>
+          ) : asked.results.length === 0 ? (
+            <p className="py-4 text-center text-[13px] text-gray-500">
+              <strong className="text-zion-800">{asked.keywords.join(" · ")}</strong> 관련 어록을 찾지 못했습니다.
+              다른 표현으로 찾아보시거나 위 주제 버튼을 눌러 보세요.
+            </p>
+          ) : (
+            <>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-[13px] font-semibold text-zion-900">
+                  <span className="text-gold-700">{asked.keywords.join(" · ")}</span> 관련 어록{" "}
+                  {asked.results.length}건
+                </span>
+                <button
+                  onClick={copy}
+                  className="flex shrink-0 items-center gap-1 rounded-lg border border-zion-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  {copied ? "복사됨" : "전체 복사"}
+                </button>
+              </div>
+
+              <ol className="space-y-2">
+                {asked.results.map((r, i) => (
+                  <li key={`${r.item.category}-${r.item.no}-${i}`} className="rounded-lg bg-white p-3">
+                    <div className="flex gap-2">
+                      <span className="shrink-0 text-[12px] font-bold text-gold-600">{i + 1}</span>
+                      <div className="min-w-0">
+                        <blockquote className="text-[14px] leading-relaxed text-gray-800">
+                          {r.item.text}
+                        </blockquote>
+                        <div className="mt-1 text-[11px] text-gray-400">
+                          출처: 총회장님 어록 — {r.item.category} {r.item.no}번
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              {asked.results.length >= limit && (
+                <button
+                  onClick={() => run(input, limit + 20)}
+                  className="mt-3 w-full rounded-lg border border-zion-200 bg-white py-2 text-[13px] font-semibold text-zion-700 transition hover:bg-zion-50"
+                >
+                  더 뽑기
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
