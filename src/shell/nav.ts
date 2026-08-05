@@ -12,6 +12,13 @@ import {
   Quote,
   ExternalLink,
   Newspaper,
+  Gauge,
+  Presentation,
+  Library,
+  Sprout,
+  Bell,
+  Church,
+  Rss,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,12 +40,15 @@ export interface NavItem {
 
 export interface NavGroup {
   label: string;
+  /** 대주제 아이콘 — 사이드바에서 그룹을 한눈에 구분한다 */
+  icon: LucideIcon;
   items: NavItem[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "현황",
+    icon: Gauge,
     items: [
       { to: "/", label: "전체 현황", icon: LayoutDashboard },
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
@@ -47,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "강사 도우미",
+    icon: Presentation,
     items: [
       { to: "/library", label: "자료실", icon: BookOpen },
       { to: "/library?tab=excellent_plan", label: "우수 교안", icon: Star },
@@ -56,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "자료실 시리즈",
+    icon: Library,
     items: [
       { to: "/series/revelation", label: "요한계시록의 실상", icon: ScrollText },
       { to: "/series/creation", label: "천지창조", icon: ScrollText },
@@ -64,6 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "전도사 도우미",
+    icon: Sprout,
     items: [
       { to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen },
       { to: "/enneagram", label: "에니어그램 가이드", icon: HeartHandshake },
@@ -71,6 +84,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "공지·어록",
+    icon: Bell,
     items: [
       { to: "/notices", label: "공지사항", icon: Megaphone },
       { to: "/quotes", label: "총회장님 어록", icon: Quote },
@@ -78,6 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "말씀광장",
+    icon: Church,
     items: [
       { to: "https://www.wordsquare.org/bible-forest/bible", label: "온라인 성경", icon: ExternalLink, external: true },
       { to: "https://www.wordsquare.org/bible-forest/dictionary", label: "성경사전", icon: ExternalLink, external: true },
@@ -85,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "천지일보",
+    icon: Rss,
     items: [
       { to: "https://www.newscj.com/", label: "최근 이슈", icon: Newspaper, external: true },
       {

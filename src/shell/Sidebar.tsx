@@ -121,34 +121,44 @@ function NavGroupBlock({
   currentFull: string;
   onToggle: () => void;
 }) {
+  const GroupIcon = group.icon;
   return (
-    <div className="mt-1.5 first:mt-0">
+    <div className="mt-1 first:mt-0">
       <button
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="flex w-full items-center gap-1.5 rounded-lg px-2 py-2 text-left transition hover:bg-zion-50"
+        className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-zion-50"
       >
-        <ChevronDown
-          size={13}
-          className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-0" : "-rotate-90")}
-        />
+        {/* 대주제 아이콘 — 활성 그룹은 채워서 눈에 띄게 */}
         <span
           className={
-            "flex-1 text-[10px] font-semibold uppercase tracking-wider " +
-            (hasActive ? "text-zion-700" : "text-ink-soft")
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition " +
+            (hasActive ? "bg-zion-700 text-white shadow-sm shadow-zion-700/25" : "bg-zion-50 text-zion-600")
+          }
+        >
+          <GroupIcon size={15} />
+        </span>
+        <span
+          className={
+            "flex-1 text-[14px] font-bold tracking-tight " +
+            (hasActive ? "text-zion-700" : "text-ink")
           }
         >
           {group.label}
         </span>
-        {/* 접힌 그룹 안에 현재 화면이 있으면 점으로 알린다 */}
+        {/* 접힌 그룹은 항목 수를, 그 안에 현재 화면이 있으면 점으로 알린다 */}
         {!isOpen && hasActive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zion-600" />}
         {!isOpen && !hasActive && (
-          <span className="text-[10px] text-zion-300">{group.items.length}</span>
+          <span className="text-[11px] text-zion-300">{group.items.length}</span>
         )}
+        <ChevronDown
+          size={14}
+          className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-0" : "-rotate-90")}
+        />
       </button>
 
       {isOpen && (
-        <ul className="mt-0.5 space-y-0.5 pl-2">
+        <ul className="mt-0.5 space-y-0.5 border-l border-zion-100 pb-1 pl-3 ml-[22px]">
           {group.items.map((item) => {
             const Icon = item.icon;
             if (item.external) {
