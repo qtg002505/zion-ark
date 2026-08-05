@@ -86,7 +86,7 @@ export function Library() {
       </div>
 
       <div className="mb-4 flex items-center gap-2">
-        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="자료실 카테고리">
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="자료실 카테고리">
           {CATEGORIES.map((c) => (
             <button
               key={c}
@@ -94,7 +94,7 @@ export function Library() {
               aria-selected={tab === c}
               onClick={() => switchTab(c)}
               className={
-                "rounded-lg px-4 py-2 text-[13px] font-semibold transition " +
+                "rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
                 (tab === c ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
               }
             >

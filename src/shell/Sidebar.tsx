@@ -1,22 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, ChevronRight, LogOut, X } from "lucide-react";
 import { useAuth, useSession } from "../lib/auth";
 import { ROLE_LABELS } from "../lib/types";
 import { studentScopeLabel } from "../lib/permissions";
-import { visibleNavGroups, type NavGroup, type NavItem } from "./nav";
+import { visibleNavGroups, groupItems, type NavGroup, type NavItem, type NavSubGroup } from "./nav";
 import { ZionLogo } from "./ZionLogo";
 
-const OPEN_KEY = "zion_ark_nav_open";
+const OPEN_SUB_KEY = "zion_ark_nav_open_sub";
 
 /** 쿼리를 포함한 항목은 전체 URL로, 그 외에는 경로로 활성 판정 */
-function isActive(item: NavItem, pathname: string, full: string): boolean {
+function isActive(item: { to: string; external?: boolean }, pathname: string, full: string): boolean {
   if (item.external) return false;
   if (item.to.includes("?")) return full === item.to;
   return pathname === item.to && !full.includes("?");
 }
 
-export function Sidebar() {
+export function Sidebar({
+  drawerOpen = false,
+  onClose,
+}: {
+  /** 좁은 화면에서 드로어가 열려 있는지 */
+  drawerOpen?: boolean;
+  onClose?: () => void;
+} = {}) {
   const session = useSession();
   const { logout } = useAuth();
   const location = useLocation();
@@ -24,49 +31,69 @@ export function Sidebar() {
 
   const currentFull = location.pathname + location.search;
 
-  /** 현재 보고 있는 화면이 속한 그룹 — 항상 펼쳐 둔다 */
+  /** 현재 보고 있는 화면이 속한 대주제 */
   const activeGroup = useMemo(() => {
-    const hit = groups.find((g) => g.items.some((i) => isActive(i, location.pathname, currentFull)));
-    return hit?.label ?? groups.find((g) => g.items.some((i) => i.to === location.pathname))?.label ?? null;
+    const hit = groups.find(
+      (g) =>
+        (g.to && isActive({ to: g.to }, location.pathname, currentFull)) ||
+        groupItems(g).some((i) => isActive(i, location.pathname, currentFull)),
+    );
+    return hit?.label ?? null;
   }, [groups, location.pathname, currentFull]);
 
-  const [open, setOpen] = useState<Set<string>>(() => {
+  /** 대주제는 한 번에 하나만 연다 — 다른 대주제를 누르면 이전 것이 닫힌다 */
+  const [openGroup, setOpenGroup] = useState<string | null>(activeGroup ?? "현황");
+
+  /** 하위 묶음(초등·중등·고등)은 여럿 열려 있어도 된다 */
+  const [openSubs, setOpenSubs] = useState<Set<string>>(() => {
     try {
-      const raw = localStorage.getItem(OPEN_KEY);
+      const raw = localStorage.getItem(OPEN_SUB_KEY);
       if (raw) return new Set(JSON.parse(raw) as string[]);
     } catch {
       /* 손상 시 기본값 */
     }
-    return new Set(["현황"]);
+    return new Set();
   });
 
-  // 다른 그룹의 화면으로 이동하면 그 그룹을 펼친다
+  // 다른 대주제의 화면으로 이동하면 그 대주제를 연다
   useEffect(() => {
-    if (!activeGroup) return;
-    setOpen((prev) => (prev.has(activeGroup) ? prev : new Set(prev).add(activeGroup)));
+    if (activeGroup) setOpenGroup(activeGroup);
   }, [activeGroup]);
 
   useEffect(() => {
-    localStorage.setItem(OPEN_KEY, JSON.stringify([...open]));
-  }, [open]);
+    localStorage.setItem(OPEN_SUB_KEY, JSON.stringify([...openSubs]));
+  }, [openSubs]);
 
-  function toggle(label: string) {
-    setOpen((prev) => {
+  function toggleSub(key: string) {
+    setOpenSubs((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[272px] flex-col border-r border-zion-100 bg-white max-lg:w-[238px]">
+    <aside
+      className={
+        "fixed inset-y-0 left-0 z-40 flex w-[272px] max-w-[85vw] flex-col border-r border-zion-100 bg-white " +
+        "transition-transform duration-300 lg:translate-x-0 " +
+        (drawerOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full")
+      }
+    >
       <div className="flex items-center gap-3 px-5 py-5">
         <ZionLogo />
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-[15px] font-bold tracking-wide text-ink">시온 아크</div>
           <div className="text-[11px] text-ink-soft">만국 소성 플랫폼</div>
         </div>
+        <button
+          onClick={onClose}
+          aria-label="메뉴 닫기"
+          className="shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-zion-50 lg:hidden"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="주 메뉴">
@@ -74,11 +101,13 @@ export function Sidebar() {
           <NavGroupBlock
             key={group.label}
             group={group}
-            isOpen={open.has(group.label)}
+            isOpen={openGroup === group.label}
             hasActive={group.label === activeGroup}
+            openSubs={openSubs}
             pathname={location.pathname}
             currentFull={currentFull}
-            onToggle={() => toggle(group.label)}
+            onToggle={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
+            onToggleSub={toggleSub}
           />
         ))}
       </nav>
@@ -105,23 +134,62 @@ export function Sidebar() {
   );
 }
 
-/** 대주제 한 덩어리 — 제목을 누르면 소주제가 열린다 */
+/** 대주제 한 덩어리 — 제목을 누르면 열리고, 다른 대주제를 누르면 닫힌다 */
 function NavGroupBlock({
   group,
   isOpen,
   hasActive,
+  openSubs,
   pathname,
   currentFull,
   onToggle,
+  onToggleSub,
 }: {
   group: NavGroup;
   isOpen: boolean;
   hasActive: boolean;
+  openSubs: Set<string>;
   pathname: string;
   currentFull: string;
   onToggle: () => void;
+  onToggleSub: (key: string) => void;
 }) {
   const GroupIcon = group.icon;
+
+  const iconBox = (
+    <span
+      className={
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition " +
+        (hasActive ? "bg-zion-700 text-white shadow-sm shadow-zion-700/25" : "bg-zion-50 text-zion-600")
+      }
+    >
+      <GroupIcon size={15} />
+    </span>
+  );
+
+  const labelClass =
+    "flex-1 text-[14px] font-bold tracking-tight " + (hasActive ? "text-zion-700" : "text-ink");
+
+  // 하위가 없는 단독 대주제(공지사항·총회장님 어록)는 바로 이동한다
+  if (group.to) {
+    return (
+      <div className="mt-1 first:mt-0">
+        <NavLink
+          to={group.to}
+          className={
+            "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition " +
+            (hasActive ? "bg-zion-50" : "hover:bg-zion-50")
+          }
+        >
+          {iconBox}
+          <span className={labelClass}>{group.label}</span>
+        </NavLink>
+      </div>
+    );
+  }
+
+  const count = groupItems(group).length;
+
   return (
     <div className="mt-1 first:mt-0">
       <button
@@ -129,28 +197,10 @@ function NavGroupBlock({
         aria-expanded={isOpen}
         className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-zion-50"
       >
-        {/* 대주제 아이콘 — 활성 그룹은 채워서 눈에 띄게 */}
-        <span
-          className={
-            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition " +
-            (hasActive ? "bg-zion-700 text-white shadow-sm shadow-zion-700/25" : "bg-zion-50 text-zion-600")
-          }
-        >
-          <GroupIcon size={15} />
-        </span>
-        <span
-          className={
-            "flex-1 text-[14px] font-bold tracking-tight " +
-            (hasActive ? "text-zion-700" : "text-ink")
-          }
-        >
-          {group.label}
-        </span>
-        {/* 접힌 그룹은 항목 수를, 그 안에 현재 화면이 있으면 점으로 알린다 */}
+        {iconBox}
+        <span className={labelClass}>{group.label}</span>
         {!isOpen && hasActive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zion-600" />}
-        {!isOpen && !hasActive && (
-          <span className="text-[11px] text-zion-300">{group.items.length}</span>
-        )}
+        {!isOpen && !hasActive && <span className="text-[11px] text-zion-300">{count}</span>}
         <ChevronDown
           size={14}
           className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-0" : "-rotate-90")}
@@ -158,50 +208,137 @@ function NavGroupBlock({
       </button>
 
       {isOpen && (
-        <ul className="mt-0.5 space-y-0.5 border-l border-zion-100 pb-1 pl-3 ml-[22px]">
-          {group.items.map((item) => {
-            const Icon = item.icon;
-            if (item.external) {
-              return (
-                <li key={item.to}>
-                  <a
-                    href={item.to}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-ink-soft transition duration-300 hover:translate-x-1 hover:bg-zion-50 hover:text-ink"
-                  >
-                    <Icon size={16} className="shrink-0 text-zion-400" />
-                    <span className="flex-1">{item.label}</span>
-                    <span className="text-[10px] text-zion-300">새 탭</span>
-                  </a>
-                </li>
-              );
-            }
-            const active = isActive(item, pathname, currentFull);
-            return (
-              <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  className={
-                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition duration-300 " +
-                    (active
-                      ? "bg-zion-700 font-semibold text-white shadow-lg shadow-zion-700/20"
-                      : "text-ink-soft hover:translate-x-1 hover:bg-zion-50 hover:text-ink")
-                  }
-                >
-                  <Icon size={16} className={"shrink-0 " + (active ? "text-white" : "text-zion-400")} />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span className="rounded bg-zion-100 px-1.5 py-0.5 text-[10px] text-zion-700">
-                      {item.badge}
-                    </span>
-                  )}
-                </NavLink>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="ml-[22px] border-l border-zion-100 pb-1 pl-3">
+          {group.items && group.items.length > 0 && (
+            <ItemList items={group.items} pathname={pathname} currentFull={currentFull} />
+          )}
+
+          {group.subGroups?.map((sub) => (
+            <SubGroupBlock
+              key={sub.label}
+              group={group}
+              sub={sub}
+              isOpen={openSubs.has(`${group.label}/${sub.label}`)}
+              pathname={pathname}
+              currentFull={currentFull}
+              onToggle={() => onToggleSub(`${group.label}/${sub.label}`)}
+            />
+          ))}
+        </div>
       )}
     </div>
+  );
+}
+
+/** 대주제 안의 중간 묶음 — 여럿이 동시에 열려 있어도 된다 */
+function SubGroupBlock({
+  group,
+  sub,
+  isOpen,
+  pathname,
+  currentFull,
+  onToggle,
+}: {
+  group: NavGroup;
+  sub: NavSubGroup;
+  isOpen: boolean;
+  pathname: string;
+  currentFull: string;
+  onToggle: () => void;
+}) {
+  const SubIcon = sub.icon;
+  const hasActive = sub.items.some((i) => isActive(i, pathname, currentFull));
+
+  return (
+    <div className="mt-0.5 first:mt-0" data-group={group.label}>
+      <button
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className={
+          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-zion-50 " +
+          (hasActive ? "bg-zion-50" : "")
+        }
+      >
+        <SubIcon size={14} className={"shrink-0 " + (hasActive ? "text-zion-700" : "text-zion-400")} />
+        <span
+          className={
+            "flex-1 text-[13px] font-semibold " + (hasActive ? "text-zion-700" : "text-ink")
+          }
+        >
+          {sub.label}
+        </span>
+        <ChevronRight
+          size={13}
+          className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-90" : "")}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="ml-[7px] border-l border-zion-100 pl-2.5">
+          <ItemList items={sub.items} pathname={pathname} currentFull={currentFull} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ItemList({
+  items,
+  pathname,
+  currentFull,
+}: {
+  items: NavItem[];
+  pathname: string;
+  currentFull: string;
+}) {
+  return (
+    <ul className="mt-0.5 space-y-0.5">
+      {items.map((item) => {
+        const Icon = item.icon;
+        if (item.external) {
+          return (
+            <li key={item.to}>
+              <a
+                href={item.to}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-ink-soft transition duration-300 hover:translate-x-1 hover:bg-zion-50 hover:text-ink"
+              >
+                <Icon size={16} className="shrink-0 text-zion-400" />
+                <span className="flex-1">{item.label}</span>
+                <span className="text-[10px] text-zion-300">새 탭</span>
+              </a>
+            </li>
+          );
+        }
+        const active = isActive(item, pathname, currentFull);
+        return (
+          <li key={item.to + item.label}>
+            <NavLink
+              to={item.to}
+              className={
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition duration-300 " +
+                (active
+                  ? "bg-zion-700 font-semibold text-white shadow-lg shadow-zion-700/20"
+                  : "text-ink-soft hover:translate-x-1 hover:bg-zion-50 hover:text-ink")
+              }
+            >
+              <Icon size={16} className={"shrink-0 " + (active ? "text-white" : "text-zion-400")} />
+              <span className="flex-1">{item.label}</span>
+              {item.badge && (
+                <span
+                  className={
+                    "rounded px-1.5 py-0.5 text-[10px] " +
+                    (active ? "bg-white/20 text-white" : "bg-zion-100 text-zion-700")
+                  }
+                >
+                  {item.badge}
+                </span>
+              )}
+            </NavLink>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

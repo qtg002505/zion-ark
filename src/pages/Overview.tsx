@@ -89,15 +89,17 @@ export function Overview() {
             수강생이 상·하위 두 그룹으로 갈리고 <strong className="text-zion-800">50~96% 구간이 비어 있습니다</strong>.
             초반에 이탈하면 돌아오지 않는 구조 — 평균({cumRate}%)만 보면 이 사실이 가려집니다.
           </p>
-          <div className="flex items-end gap-1.5" role="img" aria-label="출석률 10퍼센트포인트 구간별 수강생 수 분포">
+          <div className="flex items-end gap-1 sm:gap-1.5" role="img" aria-label="출석률 10퍼센트포인트 구간별 수강생 수 분포">
             {buckets.map((b) => (
-              <div key={b.label} className="group flex flex-1 flex-col items-center gap-1" title={`${b.label} — ${b.count}명`}>
+              <div key={b.label} className="group flex min-w-0 flex-1 flex-col items-center gap-1" title={`${b.label} — ${b.count}명`}>
                 <span className="text-[11px] font-semibold text-zion-800">{b.count > 0 ? b.count : ""}</span>
                 <div
                   className="w-full rounded-t bg-zion-700 transition group-hover:bg-zion-500"
                   style={{ height: `${(b.count / maxBucket) * 120 + (b.count > 0 ? 4 : 1)}px` }}
                 />
-                <span className="text-[9px] text-ink-soft">{b.label.replace("~", "–").replace("%", "")}</span>
+                <span className="text-[8px] leading-tight text-ink-soft sm:text-[9px]">
+                  {b.label.replace("~", "–").replace("%", "")}
+                </span>
               </div>
             ))}
           </div>
@@ -133,7 +135,7 @@ export function Overview() {
       </div>
 
       <Card className="mt-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-[14px] font-bold text-zion-900">다음 동선</div>
             <p className="mt-0.5 text-[12px] text-ink-soft">
@@ -142,7 +144,7 @@ export function Overview() {
           </div>
           <Link
             to="/students"
-            className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700"
+            className="shrink-0 rounded-lg bg-zion-800 px-4 py-2 text-center text-[13px] font-semibold text-white transition hover:bg-zion-700"
           >
             수강생 관리로 이동
           </Link>

@@ -53,7 +53,7 @@ export function Notices() {
         }
       />
 
-      <div className="mb-4 flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="공지 구분">
+      <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="공지 구분">
         {(
           [
             ["notice_hq", "총회 공지"],
@@ -66,7 +66,7 @@ export function Notices() {
             aria-selected={tab === id}
             onClick={() => setTab(id)}
             className={
-              "flex-1 rounded-lg px-4 py-2 text-[13px] font-semibold transition " +
+              "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
               (tab === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
             }
           >

@@ -38,8 +38,8 @@ export function AskAiBar() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="교안·에니어그램·공지·어록에서 질문해 보세요 (예: 예언, 3유형, 보강)"
-            className="w-full bg-transparent text-[13px] outline-none placeholder:text-ink-soft"
+            placeholder="교안·어록에서 질문해 보세요"
+            className="w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-ink-soft"
             aria-label="질문 입력"
           />
           <button

@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
-type Course = "elementary" | "high";
+type Course = "elementary" | "middle" | "high";
+
+function toCourse(v: string | null): Course {
+  return v === "high" || v === "middle" ? v : "elementary";
+}
 
 /**
  * 강의 교안 — 초등 23강(7항목 구조) · 고등 계시록 22장(원문 문서).
@@ -15,7 +19,7 @@ type Course = "elementary" | "high";
  */
 export function Lessons() {
   const [params, setParams] = useSearchParams();
-  const course: Course = params.get("course") === "high" ? "high" : "elementary";
+  const course: Course = toCourse(params.get("course"));
   const [query, setQuery] = useState("");
   const [pickedEl, setPickedEl] = useState<number>(elementaryLessons[0].lessonNo);
   const [pickedHigh, setPickedHigh] = useState(HIGH_LESSONS[0]?.id ?? "");
@@ -76,16 +80,19 @@ export function Lessons() {
         desc={
           course === "elementary"
             ? "초등 23강 — 강 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
-            : "고등 계시록 22장 — 강 1건당 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
+            : course === "high"
+              ? "고등 계시록 22장 — 강 1건당 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
+              : "중등 강의자료 — 원본 확보 후 초등·고등과 같은 구조로 탑재됩니다."
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="과정 선택">
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="과정 선택">
           {(
             [
               ["elementary", `초등 (${elementaryLessons.length}강)`],
-              ["high", `고등 계시록 (${HIGH_LESSONS.length}강)`],
+              ["middle", "중등"],
+              ["high", `고등 (${HIGH_LESSONS.length}강)`],
             ] as [Course, string][]
           ).map(([id, label]) => (
             <button
@@ -94,7 +101,7 @@ export function Lessons() {
               aria-selected={course === id}
               onClick={() => switchCourse(id)}
               className={
-                "rounded-lg px-4 py-2 text-[13px] font-semibold transition " +
+                "rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
                 (course === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
               }
             >
@@ -102,24 +109,36 @@ export function Lessons() {
             </button>
           ))}
         </div>
-        <span className="text-[11px] text-ink-soft">중등 교안은 원본 확보 후 추가됩니다</span>
-        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
-          <Search size={13} className="text-ink-soft" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="강 제목·내용 검색"
-            aria-label="강 검색"
-            className="w-36 bg-transparent text-[12px] outline-none"
-          />
-        </div>
+        {course !== "middle" && (
+          <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
+            <Search size={13} className="text-ink-soft" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="강 제목·내용 검색"
+              aria-label="강 검색"
+              className="w-36 bg-transparent text-[12px] outline-none"
+            />
+          </div>
+        )}
       </div>
 
+      {course === "middle" ? (
+        <Card>
+          <div className="flex flex-col items-center py-16 text-center">
+            <Hourglass size={32} className="text-zion-300" />
+            <p className="mt-4 text-[15px] font-semibold text-zion-900">중등 강의자료는 준비 중입니다</p>
+            <p className="mt-1 max-w-sm text-[13px] text-ink-soft">
+              원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다.
+            </p>
+          </div>
+        </Card>
+      ) : (
       <div className="grid grid-cols-4 gap-4 max-md:grid-cols-1">
         <div className="col-span-1">
           <nav
             aria-label="강 목록"
-            className="max-h-[70vh] overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm"
+            className="max-h-[42vh] lg:max-h-[70vh] overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm"
           >
             {course === "elementary"
               ? elList.map((l) => (
@@ -182,6 +201,7 @@ export function Lessons() {
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }

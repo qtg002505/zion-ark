@@ -15,13 +15,13 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex animate-slide-in-up items-end justify-between gap-4">
-      <div>
+    <div className="mb-5 flex animate-slide-in-up flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+      <div className="min-w-0">
         <div className="text-[12px] font-medium text-ink-soft">{crumb}</div>
-        <h1 className="mt-0.5 text-[24px] font-bold tracking-tight text-ink">{title}</h1>
-        {desc && <p className="mt-1 max-w-2xl text-[13px] text-ink-soft">{desc}</p>}
+        <h1 className="mt-0.5 text-[20px] font-bold tracking-tight text-ink sm:text-[24px]">{title}</h1>
+        {desc && <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-ink-soft">{desc}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

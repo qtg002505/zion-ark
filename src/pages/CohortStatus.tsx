@@ -28,7 +28,7 @@ export function CohortStatus() {
         desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 진도 ${TOTAL_SESSIONS}회 (시범 목업 데이터)`}
       />
 
-      <div className="mb-5 flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="기수 현황 탭">
+      <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="기수 현황 탭">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -36,7 +36,7 @@ export function CohortStatus() {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={
-              "flex-1 rounded-lg px-4 py-2 text-[13px] font-semibold transition " +
+              "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
               (tab === t.id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
             }
           >
@@ -63,7 +63,9 @@ export function CohortStatus() {
 
       {tab === "attendance" && (
         <Card>
-          <table className="w-full text-[13px]">
+          {/* 좁은 화면에서는 표만 가로로 넘긴다 — 본문이 옆으로 밀리지 않게 */}
+          <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[560px] text-[13px]">
             <thead>
               <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
                 <th className="pb-2 font-medium">이름</th>
@@ -100,6 +102,7 @@ export function CohortStatus() {
                 ))}
             </tbody>
           </table>
+          </div>
           <p className="mt-3 text-[11px] text-ink-soft">
             출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음 동기화를
             기다립니다.
