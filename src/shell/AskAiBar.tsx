@@ -32,14 +32,14 @@ export function AskAiBar() {
   return (
     <div className="relative">
       <form onSubmit={submit} role="search" aria-label="사이트 자료 검색">
-        <div className="flex items-center gap-2 rounded-xl border border-zion-200 bg-white px-3.5 py-2 shadow-sm focus-within:border-zion-500">
-          <Sparkles size={16} className="shrink-0 text-gold-600" />
+        <div className="flex items-center gap-2 rounded-card border border-zion-100 bg-white px-3.5 py-2 shadow-sm transition-shadow duration-300 focus-within:border-zion-400 focus-within:shadow-lg focus-within:shadow-zion-700/10">
+          <Sparkles size={16} className="shrink-0 text-zion-600" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="교안·에니어그램·공지·어록에서 질문해 보세요 (예: 예언, 3유형, 보강)"
-            className="w-full bg-transparent text-[13px] outline-none placeholder:text-gray-400"
+            className="w-full bg-transparent text-[13px] outline-none placeholder:text-ink-soft"
             aria-label="질문 입력"
           />
           <button
@@ -61,20 +61,20 @@ export function AskAiBar() {
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[12px] font-semibold text-zion-800">
               사이트 자료 기반 결과 {hits.length}건
-              <span className="ml-2 font-normal text-gray-400">
+              <span className="ml-2 font-normal text-ink-soft">
                 AI 응답 연결 전 — 로컬 자료 검색으로 동작 중
               </span>
             </div>
-            <button onClick={close} aria-label="결과 닫기" className="rounded p-1 text-gray-400 hover:bg-gray-100">
+            <button onClick={close} aria-label="결과 닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
               <X size={14} />
             </button>
           </div>
           {hits.length === 0 ? (
-            <p className="py-3 text-center text-[13px] text-gray-500">
+            <p className="py-3 text-center text-[13px] text-ink-soft">
               일치하는 자료가 없습니다. 두 글자 이상, 자료에 있는 표현으로 검색해 보세요.
             </p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-zion-100">
               {hits.map((h, i) => (
                 <li key={i}>
                   <Link to={h.href} onClick={close} className="block px-1 py-2 hover:bg-zion-50">
@@ -82,9 +82,9 @@ export function AskAiBar() {
                       <span className="rounded bg-zion-100 px-1.5 py-0.5 text-[10px] font-semibold text-zion-700">
                         {h.sourceType}
                       </span>
-                      <span className="text-[13px] font-medium text-gray-900">{h.title}</span>
+                      <span className="text-[13px] font-medium text-ink">{h.title}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-[12px] text-gray-500">{h.snippet}</p>
+                    <p className="mt-0.5 truncate text-[12px] text-ink-soft">{h.snippet}</p>
                     <p className="mt-0.5 text-[11px] text-gold-700">출처: {h.source}</p>
                   </Link>
                 </li>

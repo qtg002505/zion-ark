@@ -65,7 +65,7 @@ export function CohortStatus() {
         <Card>
           <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-[12px] text-gray-500">
+              <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
                 <th className="pb-2 font-medium">이름</th>
                 <th className="pb-2 font-medium">분반</th>
                 <th className="pb-2 font-medium">출석</th>
@@ -79,9 +79,9 @@ export function CohortStatus() {
                 .sort((a, b) => a.attendanceRate - b.attendanceRate)
                 .map((s) => (
                   <tr key={s.key} className="border-b border-gray-50 last:border-0">
-                    <td className="py-2.5 font-medium text-gray-900">{s.name}</td>
-                    <td className="py-2.5 text-gray-600">{s.division}</td>
-                    <td className="py-2.5 text-gray-600">
+                    <td className="py-2.5 font-medium text-ink">{s.name}</td>
+                    <td className="py-2.5 text-ink-soft">{s.division}</td>
+                    <td className="py-2.5 text-ink-soft">
                       {s.presentCount}/{s.totalSessions}회
                     </td>
                     <td className="py-2.5">
@@ -92,7 +92,7 @@ export function CohortStatus() {
                         <span className="font-semibold text-zion-800">{s.attendanceRate}%</span>
                       </div>
                     </td>
-                    <td className="py-2.5 text-gray-500">{s.lastAttended ?? "—"}</td>
+                    <td className="py-2.5 text-ink-soft">{s.lastAttended ?? "—"}</td>
                     <td className="py-2.5">
                       <StatusBadge status={s.status} />
                     </td>
@@ -100,7 +100,7 @@ export function CohortStatus() {
                 ))}
             </tbody>
           </table>
-          <p className="mt-3 text-[11px] text-gray-400">
+          <p className="mt-3 text-[11px] text-ink-soft">
             출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음 동기화를
             기다립니다.
           </p>
@@ -116,20 +116,20 @@ export function CohortStatus() {
               <Card key={d}>
                 <div className="flex items-center justify-between">
                   <div className="text-[15px] font-bold text-zion-900">{d}</div>
-                  <div className="text-[12px] text-gray-500">{group.length}명</div>
+                  <div className="text-[12px] text-ink-soft">{group.length}명</div>
                 </div>
                 <div className="mt-3 space-y-1.5">
                   {group.map((s) => (
                     <div key={s.key} className="flex items-center justify-between text-[13px]">
-                      <span className="text-gray-800">{s.name}</span>
+                      <span className="text-ink">{s.name}</span>
                       <span className="flex items-center gap-2">
-                        <span className="text-gray-500">{s.attendanceRate}%</span>
+                        <span className="text-ink-soft">{s.attendanceRate}%</span>
                         <StatusBadge status={s.status} />
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 border-t border-gray-100 pt-2 text-[12px] text-gray-500">
+                <div className="mt-3 border-t border-zion-100 pt-2 text-[12px] text-ink-soft">
                   유지 {active} · 위기·중단 {group.length - active}
                 </div>
               </Card>

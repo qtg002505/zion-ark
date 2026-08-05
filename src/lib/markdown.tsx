@@ -46,7 +46,7 @@ export function MarkdownLite({ text }: { text: string }) {
       L.ordered ? (
         <ol key={key++} className="my-2 list-decimal space-y-1.5 pl-6">
           {L.items.map((it, i) => (
-            <li key={i} className="text-[14px] leading-relaxed text-gray-700">
+            <li key={i} className="text-[14px] leading-relaxed text-ink">
               {inline(it)}
             </li>
           ))}
@@ -54,7 +54,7 @@ export function MarkdownLite({ text }: { text: string }) {
       ) : (
         <ul key={key++} className="my-2 space-y-1.5">
           {L.items.map((it, i) => (
-            <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
+            <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-ink">
               <span className="mt-[8px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
               <span>{inline(it)}</span>
             </li>
@@ -68,7 +68,7 @@ export function MarkdownLite({ text }: { text: string }) {
   function flushPara() {
     if (para.length === 0) return;
     blocks.push(
-      <p key={key++} className="my-2 text-[14px] leading-relaxed text-gray-700">
+      <p key={key++} className="my-2 text-[14px] leading-relaxed text-ink">
         {inline(para.join(" "))}
       </p>,
     );
@@ -92,13 +92,13 @@ export function MarkdownLite({ text }: { text: string }) {
       const content = heading[2];
       if (level <= 2) {
         blocks.push(
-          <h3 key={key++} className="mt-6 border-b border-gold-300 pb-1 text-[15px] font-bold text-zion-900 first:mt-0">
+          <h3 key={key++} className="mt-6 border-b border-zion-200 pb-1 text-[15px] font-bold text-zion-900 first:mt-0">
             {inline(content)}
           </h3>,
         );
       } else {
         blocks.push(
-          <h4 key={key++} className="mt-4 text-[14px] font-bold text-gold-700">
+          <h4 key={key++} className="mt-4 text-[14px] font-bold text-zion-700">
             {inline(content)}
           </h4>,
         );
@@ -109,7 +109,7 @@ export function MarkdownLite({ text }: { text: string }) {
     if (/^(---+|\*\*\*+)$/.test(line)) {
       flushList();
       flushPara();
-      blocks.push(<hr key={key++} className="my-4 border-gray-200" />);
+      blocks.push(<hr key={key++} className="my-4 border-zion-100" />);
       continue;
     }
 

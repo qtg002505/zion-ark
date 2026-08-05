@@ -17,3 +17,6 @@ npm-debug.log*
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# 디자인 시안 원본 (참조용 — 빌드·배포에 포함되지 않음)
+/Design

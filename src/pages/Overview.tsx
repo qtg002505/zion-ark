@@ -65,18 +65,18 @@ export function Overview() {
             <Link
               key={n.id}
               to="/notices"
-              className="flex items-center gap-3 rounded-xl border border-gold-300 bg-gold-100 px-4 py-3 transition hover:border-gold-500"
+              className="flex items-center gap-3 rounded-xl border border-zion-200 bg-zion-50 px-4 py-3 transition hover:border-zion-500"
             >
-              <Megaphone size={16} className="shrink-0 text-gold-700" />
+              <Megaphone size={16} className="shrink-0 text-zion-700" />
               <span className="text-[13px] font-semibold text-zion-900">{n.title}</span>
-              <span className="ml-auto shrink-0 text-[11px] text-gold-700">총회 공지 · 고정</span>
+              <span className="ml-auto shrink-0 text-[11px] text-zion-700">총회 공지 · 고정</span>
             </Link>
           ))}
         </div>
       )}
 
       <div className="grid grid-cols-4 gap-3 max-md:grid-cols-2">
-        <StatTile label="수강생" value={`${total}명`} sub={`${divisions.length}개 분반`} />
+        <StatTile label="수강생" value={`${total}명`} sub={`${divisions.length}개 분반`} accent />
         <StatTile label="누적 출석률" value={`${cumRate}%`} sub={`진도 ${TOTAL_SESSIONS}회 기준`} />
         <StatTile label="수강 중" value={`${activeCount}명`} sub="출석률 97% 이상 그룹" />
         <StatTile label="위기·중단" value={`${riskCount}명`} sub="출석률 50% 미만 그룹" />
@@ -85,7 +85,7 @@ export function Overview() {
       <div className="mt-5 grid grid-cols-5 gap-4 max-md:grid-cols-1">
         <Card className="col-span-3 max-md:col-span-1">
           <div className="mb-1 text-[14px] font-bold text-zion-900">출석률 분포</div>
-          <p className="mb-4 text-[12px] text-gray-500">
+          <p className="mb-4 text-[12px] text-ink-soft">
             수강생이 상·하위 두 그룹으로 갈리고 <strong className="text-zion-800">50~96% 구간이 비어 있습니다</strong>.
             초반에 이탈하면 돌아오지 않는 구조 — 평균({cumRate}%)만 보면 이 사실이 가려집니다.
           </p>
@@ -97,16 +97,16 @@ export function Overview() {
                   className="w-full rounded-t bg-zion-700 transition group-hover:bg-zion-500"
                   style={{ height: `${(b.count / maxBucket) * 120 + (b.count > 0 ? 4 : 1)}px` }}
                 />
-                <span className="text-[9px] text-gray-400">{b.label.replace("~", "–").replace("%", "")}</span>
+                <span className="text-[9px] text-ink-soft">{b.label.replace("~", "–").replace("%", "")}</span>
               </div>
             ))}
           </div>
-          <div className="mt-2 text-right text-[11px] text-gray-400">구간: 출석률(%) · 막대: 수강생 수</div>
+          <div className="mt-2 text-right text-[11px] text-ink-soft">구간: 출석률(%) · 막대: 수강생 수</div>
         </Card>
 
         <Card className="col-span-2 max-md:col-span-1">
           <div className="mb-1 text-[14px] font-bold text-zion-900">대면 시간대</div>
-          <p className="mb-4 text-[12px] text-gray-500">
+          <p className="mb-4 text-[12px] text-ink-soft">
             저녁 대면이 전체의 <strong className="text-zion-800">{eveningPct}%</strong> — 보강 편성 시 저녁 시간대를
             우선 검토할 신호입니다.
           </p>
@@ -119,7 +119,7 @@ export function Overview() {
           ).map(([label, v]) => (
             <div key={label} className="mb-2.5" title={`${label} ${v}회`}>
               <div className="mb-1 flex justify-between text-[12px]">
-                <span className="text-gray-600">{label}</span>
+                <span className="text-ink-soft">{label}</span>
                 <span className="font-semibold text-zion-800">
                   {v}회 · {Math.round((v / slotSum) * 100)}%
                 </span>
@@ -136,7 +136,7 @@ export function Overview() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[14px] font-bold text-zion-900">다음 동선</div>
-            <p className="mt-0.5 text-[12px] text-gray-500">
+            <p className="mt-0.5 text-[12px] text-ink-soft">
               위기·중단 {riskCount}명의 명단과 분반별 현황은 수강생 관리에서 확인합니다.
             </p>
           </div>

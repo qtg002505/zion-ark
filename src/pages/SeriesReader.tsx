@@ -54,8 +54,8 @@ export function SeriesReader() {
 
       <div className="grid grid-cols-4 gap-4 max-md:grid-cols-1">
         <div className="col-span-1">
-          <div className="mb-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
-            <Search size={13} className="text-gray-400" />
+          <div className="mb-2 flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
+            <Search size={13} className="text-ink-soft" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -68,7 +68,7 @@ export function SeriesReader() {
             {groups.map((g, gi) => (
               <div key={gi}>
                 {g.name && (
-                  <div className="mt-2 px-3 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-gold-700 first:mt-0">
+                  <div className="mt-2 px-3 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-zion-700 first:mt-0">
                     {g.name}
                   </div>
                 )}
@@ -80,7 +80,7 @@ export function SeriesReader() {
                       "block w-full rounded-lg px-3 py-2 text-left text-[12px] leading-snug transition " +
                       (current && c.id === current.id
                         ? "bg-zion-800 font-semibold text-white"
-                        : "text-gray-700 hover:bg-zion-50")
+                        : "text-ink hover:bg-zion-50")
                     }
                   >
                     {c.label}
@@ -89,7 +89,7 @@ export function SeriesReader() {
               </div>
             ))}
             {filtered.length === 0 && (
-              <p className="px-3 py-4 text-center text-[12px] text-gray-400">검색 결과 없음</p>
+              <p className="px-3 py-4 text-center text-[12px] text-ink-soft">검색 결과 없음</p>
             )}
           </nav>
         </div>
@@ -99,7 +99,7 @@ export function SeriesReader() {
             {current ? (
               <>
                 {current.group && (
-                  <div className="text-[12px] font-semibold text-gold-700">{current.group}</div>
+                  <div className="text-[12px] font-semibold text-zion-700">{current.group}</div>
                 )}
                 <h2 className="mt-0.5 mb-3 text-[19px] font-bold text-zion-900">{current.title}</h2>
                 {items.length > 0 ? (
@@ -112,13 +112,13 @@ export function SeriesReader() {
                     <Accordion items={items} resetKey={current.id} />
                   </>
                 ) : (
-                  <div className="border-t border-gray-100 pt-3">
+                  <div className="border-t border-zion-100 pt-3">
                     <MarkdownLite text={current.body} />
                   </div>
                 )}
               </>
             ) : (
-              <p className="py-12 text-center text-[13px] text-gray-400">장을 선택해 주세요.</p>
+              <p className="py-12 text-center text-[13px] text-ink-soft">장을 선택해 주세요.</p>
             )}
           </Card>
         </div>

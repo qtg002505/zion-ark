@@ -51,7 +51,7 @@ export function Lessons() {
     content: (
       <ul className="space-y-1.5">
         {sec.items.map((item, i) => (
-          <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
+          <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-ink">
             <span className="mt-[8px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
             <span className="whitespace-pre-wrap">{item}</span>
           </li>
@@ -102,9 +102,9 @@ export function Lessons() {
             </button>
           ))}
         </div>
-        <span className="text-[11px] text-gray-400">중등 교안은 원본 확보 후 추가됩니다</span>
-        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
-          <Search size={13} className="text-gray-400" />
+        <span className="text-[11px] text-ink-soft">중등 교안은 원본 확보 후 추가됩니다</span>
+        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
+          <Search size={13} className="text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -130,7 +130,7 @@ export function Lessons() {
                       "block w-full rounded-lg px-3 py-2 text-left text-[12px] leading-snug transition " +
                       (l.lessonNo === elCurrent.lessonNo
                         ? "bg-zion-800 font-semibold text-white"
-                        : "text-gray-700 hover:bg-zion-50")
+                        : "text-ink hover:bg-zion-50")
                     }
                   >
                     {l.lessonNo}강 — {l.title}
@@ -144,7 +144,7 @@ export function Lessons() {
                       "block w-full rounded-lg px-3 py-2 text-left text-[12px] leading-snug transition " +
                       (highCurrent && l.id === highCurrent.id
                         ? "bg-zion-800 font-semibold text-white"
-                        : "text-gray-700 hover:bg-zion-50")
+                        : "text-ink hover:bg-zion-50")
                     }
                   >
                     <span className="block font-semibold">{l.label}</span>
@@ -152,7 +152,7 @@ export function Lessons() {
                   </button>
                 ))}
             {(course === "elementary" ? elList : highList).length === 0 && (
-              <p className="px-3 py-4 text-center text-[12px] text-gray-400">검색 결과 없음</p>
+              <p className="px-3 py-4 text-center text-[12px] text-ink-soft">검색 결과 없음</p>
             )}
           </nav>
         </div>
@@ -161,13 +161,13 @@ export function Lessons() {
           <Card>
             {course === "elementary" ? (
               <>
-                <div className="text-[12px] font-semibold text-gold-700">{elCurrent.lessonNo}강</div>
+                <div className="text-[12px] font-semibold text-zion-700">{elCurrent.lessonNo}강</div>
                 <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{elCurrent.title}</h2>
                 <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
               </>
             ) : highCurrent ? (
               <>
-                <div className="text-[12px] font-semibold text-gold-700">{highCurrent.label}</div>
+                <div className="text-[12px] font-semibold text-zion-700">{highCurrent.label}</div>
                 <h2 className="mt-0.5 mb-3 text-[19px] font-bold text-zion-900">{highCurrent.title}</h2>
                 {highParsed.lead && (
                   <div className="mb-3 rounded-lg bg-zion-50 px-3 py-2">
@@ -177,7 +177,7 @@ export function Lessons() {
                 <Accordion items={highItems} resetKey={`high-${highCurrent.id}`} />
               </>
             ) : (
-              <p className="py-12 text-center text-[13px] text-gray-400">교안을 선택해 주세요.</p>
+              <p className="py-12 text-center text-[13px] text-ink-soft">교안을 선택해 주세요.</p>
             )}
           </Card>
         </div>

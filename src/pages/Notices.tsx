@@ -46,7 +46,7 @@ export function Notices() {
               <Plus size={15} /> 공지 작성
             </button>
           ) : (
-            <span className="text-[11px] text-gray-400">
+            <span className="text-[11px] text-ink-soft">
               작성 권한: {tab === "notice_hq" ? "총회 신학부장 · 콘텐츠 관리자" : "해당 지파 신학부장"}
             </span>
           )
@@ -78,21 +78,21 @@ export function Notices() {
       <div className="space-y-3">
         {list.length === 0 && (
           <Card>
-            <p className="py-8 text-center text-[13px] text-gray-400">등록된 공지가 없습니다.</p>
+            <p className="py-8 text-center text-[13px] text-ink-soft">등록된 공지가 없습니다.</p>
           </Card>
         )}
         {list.map((n) => (
           <Card key={n.id}>
             <div className="flex items-center gap-2">
               {n.pinned && (
-                <span className="flex items-center gap-1 rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-700">
+                <span className="flex items-center gap-1 rounded-full bg-zion-50 px-2 py-0.5 text-[11px] font-semibold text-zion-700">
                   <Pin size={11} /> 고정
                 </span>
               )}
               <h2 className="text-[15px] font-bold text-zion-900">{n.title}</h2>
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-gray-700">{n.body}</p>
-            <div className="mt-3 border-t border-gray-100 pt-2 text-[11px] text-gray-400">
+            <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{n.body}</p>
+            <div className="mt-3 border-t border-zion-100 pt-2 text-[11px] text-ink-soft">
               {n.createdBy} ({ROLE_LABELS[n.createdByRole]}) · {n.createdAt.slice(0, 10)}
             </div>
           </Card>
@@ -152,28 +152,28 @@ function NoticeForm({
           <h2 className="text-[16px] font-bold text-zion-900">
             {kind === "notice_hq" ? "총회 공지 작성" : "지파 공지 작성"}
           </h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-gray-400 hover:bg-gray-100">
+          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
             <X size={16} />
           </button>
         </div>
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">제목</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">본문</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">본문</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={6}
-          className="mb-3 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
         {kind === "notice_hq" && (
-          <label className="mb-4 flex items-center gap-2 text-[13px] text-gray-700">
+          <label className="mb-4 flex items-center gap-2 text-[13px] text-ink">
             <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
             전체 현황 상단에 고정
           </label>
@@ -182,7 +182,7 @@ function NoticeForm({
         {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
             취소
           </button>
           <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">

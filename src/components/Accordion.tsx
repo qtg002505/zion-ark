@@ -51,7 +51,7 @@ export function Accordion({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[11px] text-gray-400">
+        <span className="text-[11px] text-ink-soft">
           소주제 {items.length}개 — 제목을 누르면 내용이 열립니다
         </span>
         <button
@@ -97,14 +97,14 @@ export function Accordion({
                     {item.title}
                   </span>
                   {!isOpen && item.hint && (
-                    <span className="mt-0.5 block truncate text-[12px] font-normal text-gray-400">
+                    <span className="mt-0.5 block truncate text-[12px] font-normal text-ink-soft">
                       {item.hint}
                     </span>
                   )}
                 </span>
               </button>
               {isOpen && (
-                <div className={"border-t border-gray-100 " + (compact ? "px-3 py-2.5" : "px-4 py-3")}>
+                <div className={"border-t border-zion-100 " + (compact ? "px-3 py-2.5" : "px-4 py-3")}>
                   {item.content}
                 </div>
               )}

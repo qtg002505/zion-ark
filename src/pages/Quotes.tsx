@@ -19,11 +19,11 @@ function TopicQuoteList({ items }: { items: QuoteItem[] }) {
 
   return (
     <>
-      <ol className="divide-y divide-gray-50">
+      <ol className="divide-y divide-zion-100">
         {shown.map((it, i) => (
           <li key={`${it.category}-${it.no}-${i}`} className="py-2.5">
-            <blockquote className="text-[14px] leading-relaxed text-gray-800">{it.text}</blockquote>
-            <div className="mt-1 text-[11px] text-gray-400">{it.no}번</div>
+            <blockquote className="text-[14px] leading-relaxed text-ink">{it.text}</blockquote>
+            <div className="mt-1 text-[11px] text-ink-soft">{it.no}번</div>
           </li>
         ))}
       </ol>
@@ -72,12 +72,12 @@ export function Quotes() {
         title: `사이트 추가 등록 (${added.length})`,
         hint: added[0]?.title,
         content: (
-          <ol className="divide-y divide-gray-50">
+          <ol className="divide-y divide-zion-100">
             {added.map((q) => (
               <li key={q.id} className="py-2.5">
-                <blockquote className="text-[14px] leading-relaxed text-gray-800">{q.title}</blockquote>
-                {q.body && <p className="mt-1 text-[12px] text-gray-500">{q.body}</p>}
-                <div className="mt-1 text-[11px] text-gray-400">
+                <blockquote className="text-[14px] leading-relaxed text-ink">{q.title}</blockquote>
+                {q.body && <p className="mt-1 text-[12px] text-ink-soft">{q.body}</p>}
+                <div className="mt-1 text-[11px] text-ink-soft">
                   {q.quoteCategory ?? "미분류"}
                   {q.meta ? ` · ${q.meta}` : ""} · {q.createdBy}
                 </div>
@@ -105,7 +105,7 @@ export function Quotes() {
               <Plus size={15} /> 어록 등록
             </button>
           ) : (
-            <span className="text-[11px] text-gray-400">등록 권한: 콘텐츠 관리자 · 총회 신학부장</span>
+            <span className="text-[11px] text-ink-soft">등록 권한: 콘텐츠 관리자 · 총회 신학부장</span>
           )
         }
       />
@@ -114,9 +114,9 @@ export function Quotes() {
 
       <Card className="mt-5">
         <div className="mb-3 flex items-center gap-2">
-          <QuoteIcon size={16} className="text-gold-500" />
+          <QuoteIcon size={16} className="text-zion-600" />
           <h2 className="text-[15px] font-bold text-zion-900">전체 주제 보기</h2>
-          <span className="text-[12px] text-gray-400">
+          <span className="text-[12px] text-ink-soft">
             주제 {QUOTE_TOPIC_LIST.length}개 · 어록 {QUOTE_ITEMS.length.toLocaleString()}건
           </span>
         </div>
@@ -183,12 +183,12 @@ function QuotePicker() {
   }
 
   return (
-    <Card className="border-gold-300 bg-gold-100/40">
+    <Card className="border-zion-200 bg-zion-50">
       <div className="flex items-center gap-2">
-        <Sparkles size={16} className="text-gold-600" />
+        <Sparkles size={16} className="text-zion-600" />
         <h2 className="text-[15px] font-bold text-zion-900">어록 검색 · 주제로 뽑기</h2>
       </div>
-      <p className="mt-1 text-[12px] text-gray-500">
+      <p className="mt-1 text-[12px] text-ink-soft">
         찾는 주제를 넣으면 관련 어록을 모아 줍니다. 예:{" "}
         <span className="text-zion-700">전도 관련 어록 뽑아줘</span> ·{" "}
         <span className="text-zion-700">청년 교육</span> — 원문 그대로 인용하며 요약하지 않습니다.
@@ -217,7 +217,7 @@ function QuotePicker() {
       </form>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] text-gray-400">자주 찾는 주제</span>
+        <span className="text-[11px] text-ink-soft">자주 찾는 주제</span>
         {topics.map((t) => (
           <button
             key={t}
@@ -234,13 +234,13 @@ function QuotePicker() {
       </div>
 
       {asked && (
-        <div className="mt-4 border-t border-gold-300 pt-3">
+        <div className="mt-4 border-t border-zion-200 pt-3">
           {asked.keywords.length === 0 ? (
-            <p className="py-4 text-center text-[13px] text-gray-500">
+            <p className="py-4 text-center text-[13px] text-ink-soft">
               주제어를 두 글자 이상 넣어 주세요 (예: 전도, 기도, 청년).
             </p>
           ) : asked.results.length === 0 ? (
-            <p className="py-4 text-center text-[13px] text-gray-500">
+            <p className="py-4 text-center text-[13px] text-ink-soft">
               <strong className="text-zion-800">{asked.keywords.join(" · ")}</strong> 관련 어록을 찾지 못했습니다.
               다른 표현으로 찾아보시거나 위 주제 버튼을 눌러 보세요.
             </p>
@@ -248,7 +248,7 @@ function QuotePicker() {
             <>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[13px] font-semibold text-zion-900">
-                  <span className="text-gold-700">{asked.keywords.join(" · ")}</span> 관련 어록{" "}
+                  <span className="text-zion-700">{asked.keywords.join(" · ")}</span> 관련 어록{" "}
                   {asked.results.length}건
                 </span>
                 <button
@@ -264,12 +264,12 @@ function QuotePicker() {
                 {asked.results.map((r, i) => (
                   <li key={`${r.item.category}-${r.item.no}-${i}`} className="rounded-lg bg-white p-3">
                     <div className="flex gap-2">
-                      <span className="shrink-0 text-[12px] font-bold text-gold-600">{i + 1}</span>
+                      <span className="shrink-0 text-[12px] font-bold text-zion-600">{i + 1}</span>
                       <div className="min-w-0">
-                        <blockquote className="text-[14px] leading-relaxed text-gray-800">
+                        <blockquote className="text-[14px] leading-relaxed text-ink">
                           {r.item.text}
                         </blockquote>
-                        <div className="mt-1 text-[11px] text-gray-400">
+                        <div className="mt-1 text-[11px] text-ink-soft">
                           출처: 총회장님 어록 — {r.item.category} {r.item.no}번
                         </div>
                       </div>
@@ -321,34 +321,34 @@ function QuoteForm({
       <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-[16px] font-bold text-zion-900">어록 등록</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-gray-400 hover:bg-gray-100">
+          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
             <X size={16} />
           </button>
         </div>
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">어록</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">어록</label>
         <textarea
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           rows={3}
-          className="mb-3 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">해설·맥락 (선택)</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">해설·맥락 (선택)</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
-          className="mb-3 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-gray-700">카테고리</label>
+            <label className="mb-1 block text-[12px] font-semibold text-ink">카테고리</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as QuoteCategory)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
             >
               {QUOTE_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -358,12 +358,12 @@ function QuoteForm({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-gray-700">출처 (선택)</label>
+            <label className="mb-1 block text-[12px] font-semibold text-ink">출처 (선택)</label>
             <input
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder="예: 2025 지도자 교육"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
             />
           </div>
         </div>
@@ -371,7 +371,7 @@ function QuoteForm({
         {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
             취소
           </button>
           <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">

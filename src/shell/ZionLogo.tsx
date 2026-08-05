@@ -9,10 +9,10 @@ export function ZionLogo({ size = 36 }: { size?: number }) {
       role="img"
       aria-label="시온 아크 로고"
     >
-      <rect width="48" height="48" rx="12" fill="#23406e" />
-      <path d="M10 30 L24 12 L38 30 Z" fill="#c9a961" opacity="0.9" />
-      <path d="M8 33 h32 l-4 7 h-24 z" fill="#e4ebf5" />
-      <circle cx="24" cy="24" r="3" fill="#f6f7f9" />
+      <rect width="48" height="48" rx="14" className="fill-zion-700" />
+      <path d="M10 30 L24 12 L38 30 Z" className="fill-white" opacity="0.35" />
+      <path d="M8 33 h32 l-4 7 h-24 z" className="fill-white" />
+      <circle cx="24" cy="23" r="3" className="fill-white" />
     </svg>
   );
 }

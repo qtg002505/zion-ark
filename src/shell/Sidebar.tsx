@@ -60,12 +60,12 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[272px] flex-col bg-zion-900 text-zion-100 max-lg:w-[238px]">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[272px] flex-col border-r border-zion-100 bg-white max-lg:w-[238px]">
       <div className="flex items-center gap-3 px-5 py-5">
         <ZionLogo />
         <div>
-          <div className="text-[15px] font-bold tracking-wide text-white">시온 아크</div>
-          <div className="text-[11px] text-zion-300">만국 소성 플랫폼</div>
+          <div className="text-[15px] font-bold tracking-wide text-ink">시온 아크</div>
+          <div className="text-[11px] text-ink-soft">만국 소성 플랫폼</div>
         </div>
       </div>
 
@@ -83,19 +83,19 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-zion-800 px-4 py-3.5">
+      <div className="border-t border-zion-100 px-4 py-3.5">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold text-white">
-              {session.name} <span className="font-normal text-zion-300">· {ROLE_LABELS[session.roleCode]}</span>
+            <div className="truncate text-[13px] font-semibold text-ink">
+              {session.name} <span className="font-normal text-ink-soft">· {ROLE_LABELS[session.roleCode]}</span>
             </div>
-            <div className="truncate text-[11px] text-zion-400">담당 범위: {studentScopeLabel(session)}</div>
+            <div className="truncate text-[11px] text-ink-soft">담당 범위: {studentScopeLabel(session)}</div>
           </div>
           <button
             onClick={logout}
             title="로그아웃"
             aria-label="로그아웃"
-            className="shrink-0 rounded-lg p-2 text-zion-300 transition hover:bg-zion-800 hover:text-white"
+            className="shrink-0 rounded-lg p-2 text-ink-soft transition hover:bg-zion-50 hover:text-zion-700"
           >
             <LogOut size={16} />
           </button>
@@ -126,24 +126,24 @@ function NavGroupBlock({
       <button
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="flex w-full items-center gap-1.5 rounded-lg px-2 py-2 text-left transition hover:bg-zion-800"
+        className="flex w-full items-center gap-1.5 rounded-lg px-2 py-2 text-left transition hover:bg-zion-50"
       >
         <ChevronDown
           size={13}
-          className={"shrink-0 text-zion-500 transition-transform " + (isOpen ? "rotate-0" : "-rotate-90")}
+          className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-0" : "-rotate-90")}
         />
         <span
           className={
-            "flex-1 text-[11px] font-semibold uppercase tracking-wider " +
-            (hasActive ? "text-gold-500" : "text-zion-400")
+            "flex-1 text-[10px] font-semibold uppercase tracking-wider " +
+            (hasActive ? "text-zion-700" : "text-ink-soft")
           }
         >
           {group.label}
         </span>
         {/* 접힌 그룹 안에 현재 화면이 있으면 점으로 알린다 */}
-        {!isOpen && hasActive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold-500" />}
+        {!isOpen && hasActive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zion-600" />}
         {!isOpen && !hasActive && (
-          <span className="text-[10px] text-zion-600">{group.items.length}</span>
+          <span className="text-[10px] text-zion-300">{group.items.length}</span>
         )}
       </button>
 
@@ -158,11 +158,11 @@ function NavGroupBlock({
                     href={item.to}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-zion-200 transition hover:bg-zion-800 hover:text-white"
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-ink-soft transition duration-300 hover:translate-x-1 hover:bg-zion-50 hover:text-ink"
                   >
                     <Icon size={16} className="shrink-0 text-zion-400" />
                     <span className="flex-1">{item.label}</span>
-                    <span className="text-[10px] text-zion-400">새 탭</span>
+                    <span className="text-[10px] text-zion-300">새 탭</span>
                   </a>
                 </li>
               );
@@ -173,16 +173,16 @@ function NavGroupBlock({
                 <NavLink
                   to={item.to}
                   className={
-                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition " +
+                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition duration-300 " +
                     (active
-                      ? "bg-zion-700 font-semibold text-white"
-                      : "text-zion-200 hover:bg-zion-800 hover:text-white")
+                      ? "bg-zion-700 font-semibold text-white shadow-lg shadow-zion-700/20"
+                      : "text-ink-soft hover:translate-x-1 hover:bg-zion-50 hover:text-ink")
                   }
                 >
-                  <Icon size={16} className={"shrink-0 " + (active ? "text-gold-500" : "text-zion-400")} />
+                  <Icon size={16} className={"shrink-0 " + (active ? "text-white" : "text-zion-400")} />
                   <span className="flex-1">{item.label}</span>
                   {item.badge && (
-                    <span className="rounded bg-zion-800 px-1.5 py-0.5 text-[10px] text-zion-300">
+                    <span className="rounded bg-zion-100 px-1.5 py-0.5 text-[10px] text-zion-700">
                       {item.badge}
                     </span>
                   )}

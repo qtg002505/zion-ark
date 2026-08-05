@@ -60,7 +60,7 @@ export function Library() {
               <Plus size={15} /> 자료 등록
             </button>
           ) : (
-            <span className="text-[11px] text-gray-400">
+            <span className="text-[11px] text-ink-soft">
               등록 권한: 콘텐츠 관리자 · 총회 신학부장
             </span>
           )
@@ -102,8 +102,8 @@ export function Library() {
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
-          <Search size={13} className="text-gray-400" />
+        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
+          <Search size={13} className="text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -118,7 +118,7 @@ export function Library() {
         <div className="col-span-2 space-y-2 max-md:col-span-1">
           {list.length === 0 && (
             <Card>
-              <p className="py-4 text-center text-[13px] text-gray-400">
+              <p className="py-4 text-center text-[13px] text-ink-soft">
                 {query ? "검색 결과가 없습니다." : "아직 등록된 자료가 없습니다."}
               </p>
             </Card>
@@ -134,9 +134,9 @@ export function Library() {
             >
               <div className="flex items-center gap-1.5">
                 {m.isFeatured && <Star size={13} className="shrink-0 fill-gold-500 text-gold-500" />}
-                <span className="truncate text-[13px] font-semibold text-gray-900">{m.title}</span>
+                <span className="truncate text-[13px] font-semibold text-ink">{m.title}</span>
               </div>
-              <div className="mt-1 text-[11px] text-gray-400">
+              <div className="mt-1 text-[11px] text-ink-soft">
                 {LIBRARY_CATEGORY_LABELS[m.category]} · {m.createdBy} · {m.createdAt.slice(0, 10)}
               </div>
             </button>
@@ -156,7 +156,7 @@ export function Library() {
                     )}
                   </div>
                   <h2 className="mt-1 text-[17px] font-bold text-zion-900">{selected.title}</h2>
-                  <div className="mt-1 text-[12px] text-gray-400">
+                  <div className="mt-1 text-[12px] text-ink-soft">
                     {LIBRARY_CATEGORY_LABELS[selected.category]} · 등록 {selected.createdBy} (
                     {ROLE_LABELS[selected.createdByRole]}) · {selected.createdAt.slice(0, 10)}
                   </div>
@@ -170,7 +170,7 @@ export function Library() {
                     className={
                       "flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition " +
                       (selected.isFeatured
-                        ? "border-gray-200 text-gray-500 hover:bg-gray-50"
+                        ? "border-zion-100 text-ink-soft hover:bg-zion-50"
                         : "border-gold-500 text-gold-700 hover:bg-gold-100")
                     }
                   >
@@ -179,7 +179,7 @@ export function Library() {
                   </button>
                 )}
               </div>
-              <div className="mt-4 whitespace-pre-wrap border-t border-gray-100 pt-4 text-[14px] leading-relaxed text-gray-700">
+              <div className="mt-4 whitespace-pre-wrap border-t border-zion-100 pt-4 text-[14px] leading-relaxed text-ink">
                 {selected.body}
               </div>
               {selected.externalUrl && (
@@ -195,7 +195,7 @@ export function Library() {
             </Card>
           ) : (
             <Card>
-              <p className="py-12 text-center text-[13px] text-gray-400">
+              <p className="py-12 text-center text-[13px] text-ink-soft">
                 왼쪽 목록에서 자료를 선택하면 본문이 표시됩니다.
               </p>
             </Card>
@@ -246,16 +246,16 @@ function MaterialForm({
       <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-[16px] font-bold text-zion-900">자료 등록</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-gray-400 hover:bg-gray-100">
+          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
             <X size={16} />
           </button>
         </div>
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">카테고리</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">카테고리</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value as LibraryCategory)}
-          className="mb-3 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -264,40 +264,40 @@ function MaterialForm({
           ))}
         </select>
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">제목</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">본문 (텍스트)</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">본문 (텍스트)</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={6}
-          className="mb-3 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
-        <label className="mb-1 block text-[12px] font-semibold text-gray-700">외부 링크 (선택)</label>
+        <label className="mb-1 block text-[12px] font-semibold text-ink">외부 링크 (선택)</label>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://…"
-          className="mb-4 w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-4 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
 
         {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
             취소
           </button>
           <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
             등록
           </button>
         </div>
-        <p className="mt-3 text-[11px] text-gray-400">파일 첨부는 2차(R2 스토리지)에서 지원됩니다.</p>
+        <p className="mt-3 text-[11px] text-ink-soft">파일 첨부는 2차(R2 스토리지)에서 지원됩니다.</p>
       </form>
     </div>
   );

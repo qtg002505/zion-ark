@@ -36,24 +36,24 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zion-950 px-4">
-      <div className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
+      <div className="w-full max-w-md animate-slide-in-up">
         <div className="mb-8 flex flex-col items-center text-center">
           <ZionLogo size={56} />
-          <h1 className="mt-4 text-[26px] font-bold text-white">시온 아크</h1>
-          <p className="mt-1 text-[13px] text-zion-300">
+          <h1 className="mt-4 text-[26px] font-bold text-ink">시온 아크</h1>
+          <p className="mt-1 text-[13px] text-ink-soft">
             만국 소성 플랫폼 — 강사·전도사 AI 운영 대시보드
           </p>
         </div>
 
-        <form onSubmit={submit} className="rounded-2xl bg-white p-6 shadow-xl">
+        <form onSubmit={submit} className="rounded-card border border-zion-100 bg-white p-6 shadow-lg">
           <div className="mb-1 text-[15px] font-bold text-zion-900">시범 로그인</div>
-          <p className="mb-4 text-[12px] text-gray-500">
+          <p className="mb-4 text-[12px] text-ink-soft">
             역할별 화면·권한을 확인하는 시범 모드입니다. 운영 전환 시 휴대전화
             인증으로 교체됩니다.
           </p>
 
-          <label className="mb-1 block text-[12px] font-semibold text-gray-700" htmlFor="login-name">
+          <label className="mb-1 block text-[12px] font-semibold text-ink" htmlFor="login-name">
             이름
           </label>
           <input
@@ -61,17 +61,17 @@ export function Login() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="예: 김사명"
-            className="mb-4 w-full rounded-lg border border-gray-200 px-3 py-2 text-[14px] outline-none focus:border-zion-500"
+            className="mb-4 w-full rounded-lg border border-zion-100 px-3 py-2 text-[14px] outline-none focus:border-zion-500"
           />
 
-          <label className="mb-1 block text-[12px] font-semibold text-gray-700" htmlFor="login-role">
+          <label className="mb-1 block text-[12px] font-semibold text-ink" htmlFor="login-role">
             역할
           </label>
           <select
             id="login-role"
             value={role}
             onChange={(e) => setRole(e.target.value as RoleCode)}
-            className="mb-4 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[14px] outline-none focus:border-zion-500"
+            className="mb-4 w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[14px] outline-none focus:border-zion-500"
           >
             {ROLE_ORDER.map((r) => (
               <option key={r} value={r}>
@@ -82,14 +82,14 @@ export function Login() {
 
           {role === "evangelist" && (
             <>
-              <label className="mb-1 block text-[12px] font-semibold text-gray-700" htmlFor="login-division">
+              <label className="mb-1 block text-[12px] font-semibold text-ink" htmlFor="login-division">
                 담당 분반 (전도사는 담당 분반 범위만 조회됩니다)
               </label>
               <select
                 id="login-division"
                 value={division}
                 onChange={(e) => setDivision(e.target.value)}
-                className="mb-4 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[14px] outline-none focus:border-zion-500"
+                className="mb-4 w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[14px] outline-none focus:border-zion-500"
               >
                 {DIVISIONS.map((d) => (
                   <option key={d} value={d}>
@@ -109,7 +109,7 @@ export function Login() {
             로그인
           </button>
 
-          <p className="mt-4 text-center text-[11px] text-gray-400">
+          <p className="mt-4 text-center text-[11px] text-ink-soft">
             시범 조직: 요한 지파 · 과천교회 · 113기 (목업 데이터 — 실제 개인정보 아님)
           </p>
         </form>

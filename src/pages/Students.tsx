@@ -58,7 +58,7 @@ export function Students() {
             value={divisionFilter}
             onChange={(e) => setDivisionFilter(e.target.value)}
             aria-label="분반 필터"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] outline-none focus:border-zion-500"
+            className="rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] outline-none focus:border-zion-500"
           >
             <option value="all">모든 분반</option>
             {divisions.map((d) => (
@@ -69,8 +69,8 @@ export function Students() {
           </select>
         )}
 
-        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
-          <Search size={13} className="text-gray-400" />
+        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-1.5">
+          <Search size={13} className="text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -83,9 +83,9 @@ export function Students() {
 
       <Card>
         {list.length === 0 ? (
-          <p className="py-8 text-center text-[13px] text-gray-400">조건에 맞는 수강생이 없습니다.</p>
+          <p className="py-8 text-center text-[13px] text-ink-soft">조건에 맞는 수강생이 없습니다.</p>
         ) : (
-          <ul className="divide-y divide-gray-50">
+          <ul className="divide-y divide-zion-100">
             {list.map((s) => (
               <li key={s.key} className="flex items-center gap-4 py-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[13px] font-bold text-zion-700">
@@ -93,10 +93,10 @@ export function Students() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-semibold text-gray-900">{s.name}</span>
-                    <span className="text-[12px] text-gray-400">{s.division}</span>
+                    <span className="text-[14px] font-semibold text-ink">{s.name}</span>
+                    <span className="text-[12px] text-ink-soft">{s.division}</span>
                   </div>
-                  <div className="mt-0.5 text-[12px] text-gray-500">
+                  <div className="mt-0.5 text-[12px] text-ink-soft">
                     출석 {s.presentCount}/{s.totalSessions}회 ({s.attendanceRate}%) · 최근 출석{" "}
                     {s.lastAttended ?? "기록 없음"}
                   </div>
@@ -106,7 +106,7 @@ export function Students() {
             ))}
           </ul>
         )}
-        <p className="mt-4 border-t border-gray-100 pt-3 text-[11px] text-gray-400">
+        <p className="mt-4 border-t border-zion-100 pt-3 text-[11px] text-ink-soft">
           시범 목업 데이터(가상 인물)입니다. 실제 연동 시 이름·인적사항 등 원문 개인정보는 담당 범위 밖으로
           내보낼 수 없으며, 상담·차트 기록은 담당자와 열람 권한자에게만 표시됩니다.
         </p>

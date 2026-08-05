@@ -14,7 +14,7 @@ export function Enneagram() {
     content: (
       <ul className="space-y-1.5">
         {sec.items.map((item, j) => (
-          <li key={j} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
+          <li key={j} className="flex gap-2 text-[14px] leading-relaxed text-ink">
             <span className="mt-[8px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
             <span className="whitespace-pre-wrap">{item}</span>
           </li>
@@ -49,7 +49,7 @@ export function Enneagram() {
       </div>
 
       <Card>
-        <div className="text-[12px] font-semibold text-gold-700">{selected.typeNo}번 유형</div>
+        <div className="text-[12px] font-semibold text-zion-700">{selected.typeNo}번 유형</div>
         <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{selected.title}</h2>
         <Accordion items={items} resetKey={String(selected.typeNo)} />
       </Card>
