@@ -19,19 +19,27 @@
 - 문서: README · CLAUDE.md · ARCHITECTURE · CONTRIBUTING
 - 이전 프로젝트(church-ai-dashboard) 문서는 `_archive/`로 이동 보관
 
-### 원문 이관 상태
+### 원문 이관 상태 (2026-08-05 전부 완료)
 
 | 대상 | 상태 | 위치 |
 | --- | --- | --- |
-| 초등 23강 교안 원문 | ✅ 이관 완료 (2026-08-05, 원 저장소 main ZIP에서) | `src/content/elementary-lessons.ts` |
-| 에니어그램 9유형 원문 | ✅ 이관 완료 (〃) | `src/content/enneagram-guides.ts` |
-| 요한계시록 본문 | ⏳ 대기 — 원 저장소 main ZIP에 없음 (다른 브랜치 추정) | `src/content/revelation.ts` |
-| 천지창조 · 예그행 | ⏳ 대기 (〃) | — |
-| 총회장님 어록 | ⏳ 대기 (〃) | 스토어 시드 교체 |
+| 초등 23강 교안 원문 | ✅ (원 저장소 main ZIP) | `src/content/elementary-lessons.ts` |
+| 에니어그램 9유형 원문 | ✅ (〃) | `src/content/enneagram-guides.ts` |
+| 요한계시록의 실상 (총론+22장) | ✅ (공유자료/도서) | `src/content/series/revelation/` |
+| 천지창조 (36편) | ✅ (〃) | `src/content/series/creation/` |
+| 예그행 본문 27 + 교수안 37 | ✅ (〃) | `src/content/series/acts-*/` |
+| 총회장님 어록 (주제별 정리) | ✅ 오탈자 약 50건 수정 후 탑재 | `src/content/quotes/어록_주제별_정리.md` |
 
-원 저장소(qtg002505/church-ai-dashboard)는 **비공개** — 에이전트 직접 접근 불가.
-main 브랜치 ZIP은 사용자 다운로드로 수령(2026-08-05). 계시록·천지창조·예그행·어록은
-main에 없었음 — 리드가 업로드 위치(브랜치·경로) 확인 후 재수령 필요.
+원본 보관: `공유자료/` (수정 금지). 어록 원본은 그대로 두고 **탑재본에만** 오탈자 수정 적용.
+시리즈 md는 빌드 타임 ?raw 글롭으로 탑재 (`src/content/series-content.ts`).
+⚠️ 함정: 시리즈 파일명에 `~` · `[` `]` · `#` 금지 — Vite dev 서버가 403 낸다.
+복사 스크립트가 자동 정리함 (`~`→`-`).
+
+### 남은 원문 관련 항목
+
+- `공유자료/고등 계시록/` docx 22개 — 아직 미지시. 자료실 등록 또는 시리즈 전환 여부 리드 결정 대기
+- 본문 내 인코딩 깨짐 잔재(한자 뭉치·라틴 확장)는 렌더러가 표시 단계에서 제거 (`src/lib/markdown.tsx`) — 원문 파일은 무변형
+- 천지창조 원본의 중복 파일(주제별 강해 31~32 = 31~33 동일 해시) — 31~33만 탑재
 
 ### 다음 작업 (우선순위)
 

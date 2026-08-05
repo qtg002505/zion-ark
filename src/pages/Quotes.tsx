@@ -4,37 +4,52 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteWorkspace } from "../lib/permissions";
 import type { QuoteCategory } from "../lib/types";
+import { QUOTE_ITEMS, QUOTE_TOPIC_LIST } from "../content/quotes-data";
 import { PageHeader, Card } from "./common";
 
 const QUOTE_CATEGORIES: QuoteCategory[] = ["말씀", "사명", "신앙", "교육", "리더십"];
+const PAGE_SIZE = 30;
 
 /**
- * 총회장님 어록 — 작업 4: 어록 원본 파일 수령 후 실제 데이터로 교체.
- * 지금은 검색·카테고리·등록 동선만 완성해 둔 상태 (샘플 데이터).
+ * 총회장님 어록 — 주제별 정리본(원문 그대로, 오탈자만 수정) 검색·열람.
+ * 추가 등록분(store)은 상단에 별도 표시.
  */
 export function Quotes() {
   const session = useSession();
   const { entries, addEntry } = useStore();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<"all" | QuoteCategory>("all");
+  const [topic, setTopic] = useState<string>("all");
+  const [limit, setLimit] = useState(PAGE_SIZE);
   const [formOpen, setFormOpen] = useState(false);
 
   const writable = canWriteWorkspace(session, "quote");
 
-  const list = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim();
-    return entries
-      .filter((e) => e.kind === "quote")
-      .filter((e) => category === "all" || e.quoteCategory === category)
-      .filter((e) => !q || e.title.includes(q) || e.body.includes(q));
-  }, [entries, query, category]);
+    return QUOTE_ITEMS.filter((it) => topic === "all" || it.category === topic).filter(
+      (it) => !q || it.text.includes(q) || it.category.includes(q),
+    );
+  }, [query, topic]);
+
+  const added = useMemo(
+    () =>
+      entries
+        .filter((e) => e.kind === "quote")
+        .filter((e) => {
+          const q = query.trim();
+          return !q || e.title.includes(q) || e.body.includes(q);
+        }),
+    [entries, query],
+  );
+
+  const shown = filtered.slice(0, limit);
 
   return (
     <div>
       <PageHeader
         crumb="공지·어록"
         title="총회장님 어록"
-        desc="어록 원본 파일 수령 후 전체 어록이 검색 가능한 형태로 탑재됩니다. 현재는 구조 확인용 샘플입니다."
+        desc={`주제별 정리본 ${QUOTE_ITEMS.length.toLocaleString()}건 · 주제 ${QUOTE_TOPIC_LIST.length}개 — 원문 그대로 탑재 (오탈자만 수정, 변형·압축 없음)`}
         action={
           writable ? (
             <button
@@ -50,54 +65,86 @@ export function Quotes() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-lg bg-zion-100 p-1">
-          {(["all", ...QUOTE_CATEGORIES] as const).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={
-                "rounded-md px-3 py-1.5 text-[12px] font-semibold transition " +
-                (category === c ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {c === "all" ? "전체" : c}
-            </button>
+        <select
+          value={topic}
+          onChange={(e) => {
+            setTopic(e.target.value);
+            setLimit(PAGE_SIZE);
+          }}
+          aria-label="주제 필터"
+          className="max-w-[280px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+        >
+          <option value="all">모든 주제 ({QUOTE_ITEMS.length.toLocaleString()})</option>
+          {QUOTE_TOPIC_LIST.map((t) => (
+            <option key={t} value={t}>
+              {t} ({QUOTE_ITEMS.filter((i) => i.category === t).length})
+            </option>
           ))}
-        </div>
-        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
+        </select>
+        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
           <Search size={13} className="text-gray-400" />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="어록 검색"
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setLimit(PAGE_SIZE);
+            }}
+            placeholder="어록 내용 검색"
             aria-label="어록 검색"
-            className="w-32 bg-transparent text-[12px] outline-none"
+            className="w-44 bg-transparent text-[12px] outline-none"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
-        {list.length === 0 && (
-          <Card className="col-span-2 max-md:col-span-1">
-            <p className="py-8 text-center text-[13px] text-gray-400">조건에 맞는 어록이 없습니다.</p>
-          </Card>
+      {added.length > 0 && (
+        <div className="mb-4">
+          <div className="mb-2 text-[12px] font-bold text-gold-700">사이트에서 추가 등록된 어록</div>
+          <div className="space-y-2">
+            {added.map((q) => (
+              <Card key={q.id} className="!p-4">
+                <blockquote className="text-[14px] font-medium leading-relaxed text-zion-900">
+                  {q.title}
+                </blockquote>
+                <div className="mt-1.5 text-[11px] text-gray-400">
+                  {q.quoteCategory ?? "미분류"}
+                  {q.meta ? ` · ${q.meta}` : ""} · {q.createdBy}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[13px] font-semibold text-zion-900">
+            {topic === "all" ? "전체 주제" : topic} — {filtered.length.toLocaleString()}건
+          </span>
+          <QuoteIcon size={16} className="text-gold-500" />
+        </div>
+        {shown.length === 0 ? (
+          <p className="py-8 text-center text-[13px] text-gray-400">조건에 맞는 어록이 없습니다.</p>
+        ) : (
+          <ol className="divide-y divide-gray-50">
+            {shown.map((it, i) => (
+              <li key={`${it.category}-${it.no}-${i}`} className="py-3">
+                <blockquote className="text-[14px] leading-relaxed text-gray-800">{it.text}</blockquote>
+                <div className="mt-1 text-[11px] text-gray-400">
+                  {it.category} · {it.no}번
+                </div>
+              </li>
+            ))}
+          </ol>
         )}
-        {list.map((q) => (
-          <Card key={q.id}>
-            <QuoteIcon size={18} className="text-gold-500" />
-            <blockquote className="mt-2 text-[15px] font-semibold leading-relaxed text-zion-900">
-              {q.title}
-            </blockquote>
-            <p className="mt-2 text-[12px] text-gray-500">{q.body}</p>
-            <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2">
-              <span className="rounded bg-zion-100 px-2 py-0.5 text-[11px] font-semibold text-zion-700">
-                {q.quoteCategory ?? "미분류"}
-              </span>
-              <span className="text-[11px] text-gray-400">{q.meta ?? ""}</span>
-            </div>
-          </Card>
-        ))}
-      </div>
+        {filtered.length > limit && (
+          <button
+            onClick={() => setLimit(limit + PAGE_SIZE)}
+            className="mt-3 w-full rounded-lg border border-zion-200 py-2 text-[13px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          >
+            더 보기 ({(filtered.length - limit).toLocaleString()}건 남음)
+          </button>
+        )}
+      </Card>
 
       {formOpen && writable && (
         <QuoteForm

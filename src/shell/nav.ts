@@ -11,6 +11,7 @@ import {
   Megaphone,
   Quote,
   ExternalLink,
+  Newspaper,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,8 +57,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "자료실 시리즈",
     items: [
       { to: "/series/revelation", label: "요한계시록의 실상", icon: ScrollText },
-      { to: "/series/creation", label: "천지창조", icon: ScrollText, badge: "준비 중" },
-      { to: "/series/acts", label: "예수그리스도의 행전", icon: ScrollText, badge: "준비 중" },
+      { to: "/series/creation", label: "천지창조", icon: ScrollText },
+      { to: "/series/acts", label: "예수그리스도의 행전", icon: ScrollText },
     ],
   },
   {
@@ -79,6 +80,18 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "https://www.wordsquare.org/bible-forest/bible", label: "온라인 성경", icon: ExternalLink, external: true },
       { to: "https://www.wordsquare.org/bible-forest/dictionary", label: "성경사전", icon: ExternalLink, external: true },
+    ],
+  },
+  {
+    label: "천지일보",
+    items: [
+      { to: "https://www.newscj.com/", label: "최근 이슈", icon: Newspaper, external: true },
+      {
+        to: "https://www.newscj.com/news/articleList.html?sc_sub_section_code=S2N53&sc_section_code=S1N7&view_type=sm",
+        label: "종교 · 개신교",
+        icon: Newspaper,
+        external: true,
+      },
     ],
   },
 ];

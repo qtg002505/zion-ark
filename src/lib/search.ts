@@ -1,6 +1,7 @@
 import { elementaryLessons } from "../content/elementary-lessons";
 import { enneagramGuides } from "../content/enneagram-guides";
-import { REVELATION_SERIES } from "../content/revelation";
+import { SERIES } from "../content/series-content";
+import { QUOTE_ITEMS } from "../content/quotes-data";
 import type { LibraryMaterial, WorkspaceEntry } from "./types";
 
 /**
@@ -64,16 +65,31 @@ export function searchSite(
     }
   }
 
-  for (const ch of REVELATION_SERIES.chapters) {
-    const text = `${ch.label} ${ch.title} ${ch.body ?? ""}`;
-    if (text.includes(q)) {
+  for (const s of SERIES) {
+    for (const ch of s.chapters) {
+      const text = `${ch.label} ${ch.title} ${ch.body}`;
+      if (text.includes(q)) {
+        hits.push({
+          source: `${s.name} ${ch.label}`,
+          sourceType: "시리즈",
+          title: ch.title,
+          snippet: snippetOf(text, q),
+          href: `/series/${s.id}?ch=${ch.id}`,
+        });
+      }
+    }
+  }
+
+  for (const it of QUOTE_ITEMS) {
+    if (it.text.includes(q) || it.category.includes(q)) {
       hits.push({
-        source: `요한계시록의 실상 ${ch.label}`,
-        sourceType: "시리즈",
-        title: ch.title,
-        snippet: snippetOf(text, q),
-        href: `/series/revelation?ch=${ch.id}`,
+        source: `총회장님 어록 — ${it.category} ${it.no}번`,
+        sourceType: "어록",
+        title: it.text.length > 60 ? it.text.slice(0, 60) + "…" : it.text,
+        snippet: snippetOf(it.text, q),
+        href: "/quotes",
       });
+      if (hits.length > 16) break;
     }
   }
 
