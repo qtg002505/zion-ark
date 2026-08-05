@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { StoreProvider } from "./lib/store";
 import { Layout } from "./shell/Layout";
@@ -36,14 +36,21 @@ function Routed() {
   );
 }
 
+/**
+ * 라우터 선택 — 기본은 경로 라우팅(BrowserRouter).
+ * 단일 파일로 묶어 정적 호스팅(팀 공유 프리뷰)에 올릴 때는 서버 라우팅이 없어
+ * `VITE_ROUTER=hash` 로 빌드해 해시 라우팅을 쓴다.
+ */
+const Router = import.meta.env.VITE_ROUTER === "hash" ? HashRouter : BrowserRouter;
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
         <StoreProvider>
           <Routed />
         </StoreProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
