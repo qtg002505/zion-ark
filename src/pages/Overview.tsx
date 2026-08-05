@@ -139,15 +139,24 @@ export function Overview() {
           <div>
             <div className="text-[14px] font-bold text-zion-900">다음 동선</div>
             <p className="mt-0.5 text-[12px] text-ink-soft">
-              위기·중단 {riskCount}명의 명단과 분반별 현황은 수강생 관리에서 확인합니다.
+              이미 이탈한 {riskCount}명보다 먼저 볼 것이 있습니다 — 누적 출석률은 아직 높은데 최근이
+              흔들리는 분들입니다.
             </p>
           </div>
-          <Link
-            to="/students"
-            className="shrink-0 rounded-lg bg-zion-800 px-4 py-2 text-center text-[13px] font-semibold text-white transition hover:bg-zion-700"
-          >
-            수강생 관리로 이동
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            <Link
+              to="/students"
+              className="rounded-lg border border-zion-200 bg-white px-4 py-2 text-center text-[13px] font-semibold text-zion-700 transition hover:bg-zion-50"
+            >
+              수강생 관리
+            </Link>
+            <Link
+              to="/signals"
+              className="rounded-lg bg-zion-800 px-4 py-2 text-center text-[13px] font-semibold text-white transition hover:bg-zion-700"
+            >
+              관찰 필요 보기
+            </Link>
+          </div>
         </div>
       </Card>
     </div>

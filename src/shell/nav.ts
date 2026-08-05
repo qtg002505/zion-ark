@@ -21,6 +21,8 @@ import {
   Baby,
   Leaf,
   TreeDeciduous,
+  BellRing,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,11 +66,13 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/", label: "전체 현황", icon: LayoutDashboard },
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
       { to: "/students", label: "수강생 관리", icon: Users },
+      { to: "/signals", label: "관찰 필요", icon: BellRing },
     ],
   },
   {
     label: "강사 도우미",
     icon: Presentation,
+    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
     subGroups: [
       {
         label: "초등",

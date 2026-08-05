@@ -6,6 +6,8 @@ import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { CohortStatus } from "./pages/CohortStatus";
 import { Students } from "./pages/Students";
+import { Signals } from "./pages/Signals";
+import { Compose } from "./pages/Compose";
 import { Library } from "./pages/Library";
 import { SeriesReader } from "./pages/SeriesReader";
 import { Notices } from "./pages/Notices";
@@ -24,6 +26,8 @@ function Routed() {
         <Route path="/" element={<Overview />} />
         <Route path="/cohort" element={<CohortStatus />} />
         <Route path="/students" element={<Students />} />
+        <Route path="/signals" element={<Signals />} />
+        <Route path="/compose" element={<Compose />} />
         <Route path="/library" element={<Library />} />
         <Route path="/series/:seriesId" element={<SeriesReader />} />
         <Route path="/notices" element={<Notices />} />

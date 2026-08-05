@@ -5,6 +5,7 @@ import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { Accordion, type AccordionItem } from "../components/Accordion";
+import { LessonNotes } from "../components/LessonNotes";
 import { PageHeader, Card } from "./common";
 
 type Course = "elementary" | "middle" | "high";
@@ -183,6 +184,10 @@ export function Lessons() {
                 <div className="text-[12px] font-semibold text-zion-700">{elCurrent.lessonNo}강</div>
                 <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{elCurrent.title}</h2>
                 <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
+                <LessonNotes
+                  lessonKey={`elementary-${elCurrent.lessonNo}`}
+                  lessonLabel={`초등 ${elCurrent.lessonNo}강 — ${elCurrent.title}`}
+                />
               </>
             ) : highCurrent ? (
               <>
@@ -194,6 +199,10 @@ export function Lessons() {
                   </div>
                 )}
                 <Accordion items={highItems} resetKey={`high-${highCurrent.id}`} />
+                <LessonNotes
+                  lessonKey={`high-${highCurrent.id}`}
+                  lessonLabel={`고등 ${highCurrent.label} — ${highCurrent.title}`}
+                />
               </>
             ) : (
               <p className="py-12 text-center text-[13px] text-ink-soft">교안을 선택해 주세요.</p>

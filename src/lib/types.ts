@@ -78,6 +78,34 @@ export interface WorkspaceEntry {
   createdAt: string;
 }
 
+/**
+ * 강의 후 현장 기록 — 원 저장소 `content_library_notes` 계약에 맞춘 구조.
+ * 교리 원문(교안)은 그대로 두고, 실제 강의에서 겪은 것만 옆에 붙인다.
+ * 다음에 같은 강을 맡는 강사가 앞사람의 경험을 먼저 보게 하는 것이 목적이다.
+ */
+export type LessonNoteKind = "question" | "caution" | "tip";
+
+export const LESSON_NOTE_LABELS: Record<LessonNoteKind, string> = {
+  question: "많이 나온 질문",
+  caution: "주의할 점",
+  tip: "잘 통한 방법",
+};
+
+export interface LessonNote {
+  id: string;
+  /** 어느 강에 붙는 기록인지 — 예: "elementary-3", "high-05" */
+  lessonKey: string;
+  /** 목록에 보여 줄 강 이름 */
+  lessonLabel: string;
+  kind: LessonNoteKind;
+  body: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+  /** 도움이 됐다고 표시한 사람 수 */
+  helpful: number;
+}
+
 /** 출결 어휘 — attendance-adapter 계약 (CLAUDE.md §4) */
 export type AttendanceMark =
   | "unknown"
@@ -85,6 +113,15 @@ export type AttendanceMark =
   | "makeupPending"
   | "makeupDone"
   | "present";
+
+/** 한 주의 출결 — 출결 어휘 계약(AttendanceMark)을 그대로 쓴다 */
+export interface WeeklyAttendance {
+  /** 최근이 0, 그 전 주가 1 … */
+  weeksAgo: number;
+  mark: AttendanceMark;
+  /** 대면 시간대 — 시간대가 바뀌는 것도 관찰 신호가 된다 */
+  slot: "evening" | "morning" | "afternoon" | null;
+}
 
 export interface Student {
   /** 교회+기수+분반+이름 임시 키 (고유 ID 없는 원본 대비 — CLAUDE.md §14) */
@@ -99,4 +136,6 @@ export interface Student {
   /** 저녁/오전/오후 대면 횟수 */
   slotCounts: { evening: number; morning: number; afternoon: number };
   lastAttended: string | null;
+  /** 최근 8주 출결 — 이탈 신호를 읽는 근거가 된다 (실연동 시 시트에서 그대로 온다) */
+  recentWeeks: WeeklyAttendance[];
 }

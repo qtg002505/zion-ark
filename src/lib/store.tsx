@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
+  LessonNote,
+  LessonNoteKind,
   LibraryCategory,
   LibraryMaterial,
   QuoteCategory,
@@ -17,6 +19,7 @@ import type {
 
 const LIB_KEY = "zion_ark_library_materials";
 const WS_KEY = "zion_ark_workspace_entries";
+const NOTE_KEY = "zion_ark_lesson_notes";
 
 function nowIso() {
   return new Date().toISOString();
@@ -118,6 +121,32 @@ const SEED_ENTRIES: WorkspaceEntry[] = [
   },
 ];
 
+/** 강의 후 현장 기록 시드 — 어떤 식으로 쓰는지 보여 주는 예시 */
+const SEED_NOTES: LessonNote[] = [
+  {
+    id: "seed-note-1",
+    lessonKey: "elementary-1",
+    lessonLabel: "초등 1강 — 두 가지 신 (하나님과 사단)",
+    kind: "question",
+    body: "영과 육을 나누는 대목에서 '그럼 지금 내 안에 어느 영이 있느냐'는 질문이 반복해서 나왔습니다. 교안의 유도형 질문을 먼저 던지고 시작하니 정리가 빨랐습니다.",
+    createdBy: "콘텐츠팀",
+    createdByRole: "content_admin",
+    createdAt: "2026-08-04T09:00:00.000Z",
+    helpful: 3,
+  },
+  {
+    id: "seed-note-2",
+    lessonKey: "elementary-1",
+    lessonLabel: "초등 1강 — 두 가지 신 (하나님과 사단)",
+    kind: "caution",
+    body: "교안 주의사항대로 목자·교회를 비판하는 인상을 주지 않도록 조심했습니다. 스스로 분별하도록 질문으로 돌리는 편이 반발이 적었습니다.",
+    createdBy: "콘텐츠팀",
+    createdByRole: "content_admin",
+    createdAt: "2026-08-04T09:10:00.000Z",
+    helpful: 2,
+  },
+];
+
 /* ── 스토어 구현 ── */
 
 function load<T>(key: string, seed: T[]): T[] {
@@ -134,6 +163,7 @@ function load<T>(key: string, seed: T[]): T[] {
 interface StoreValue {
   materials: LibraryMaterial[];
   entries: WorkspaceEntry[];
+  lessonNotes: LessonNote[];
   addMaterial: (input: {
     category: LibraryCategory;
     title: string;
@@ -153,6 +183,15 @@ interface StoreValue {
     createdBy: string;
     createdByRole: RoleCode;
   }) => void;
+  addLessonNote: (input: {
+    lessonKey: string;
+    lessonLabel: string;
+    kind: LessonNoteKind;
+    body: string;
+    createdBy: string;
+    createdByRole: RoleCode;
+  }) => void;
+  markNoteHelpful: (id: string) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -160,6 +199,7 @@ const StoreContext = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [materials, setMaterials] = useState<LibraryMaterial[]>(() => load(LIB_KEY, SEED_MATERIALS));
   const [entries, setEntries] = useState<WorkspaceEntry[]>(() => load(WS_KEY, SEED_ENTRIES));
+  const [lessonNotes, setLessonNotes] = useState<LessonNote[]>(() => load(NOTE_KEY, SEED_NOTES));
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -171,10 +211,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setEntries(next);
   }, []);
 
+  const persistNotes = useCallback((next: LessonNote[]) => {
+    localStorage.setItem(NOTE_KEY, JSON.stringify(next));
+    setLessonNotes(next);
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       materials,
       entries,
+      lessonNotes,
       addMaterial: (input) => {
         const item: LibraryMaterial = {
           id: uid(),
@@ -196,8 +242,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const item: WorkspaceEntry = { id: uid(), ...input, createdAt: nowIso() };
         persistEntries([item, ...entries]);
       },
+      addLessonNote: (input) => {
+        const item: LessonNote = { id: uid(), ...input, createdAt: nowIso(), helpful: 0 };
+        persistNotes([item, ...lessonNotes]);
+      },
+      markNoteHelpful: (id) => {
+        persistNotes(
+          lessonNotes.map((n) => (n.id === id ? { ...n, helpful: n.helpful + 1 } : n)),
+        );
+      },
     }),
-    [materials, entries, persistMaterials, persistEntries],
+    [materials, entries, lessonNotes, persistMaterials, persistEntries, persistNotes],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
