@@ -1,15 +1,43 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, Plus, Quote as QuoteIcon, Search, Sparkles, X } from "lucide-react";
+import { Check, Copy, Plus, Quote as QuoteIcon, Sparkles, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteWorkspace } from "../lib/permissions";
 import type { QuoteCategory } from "../lib/types";
-import { QUOTE_ITEMS, QUOTE_TOPIC_LIST } from "../content/quotes-data";
+import { QUOTE_ITEMS, QUOTE_TOPIC_LIST, type QuoteItem } from "../content/quotes-data";
 import { pickQuotes, popularTopics, toPlainText, type PickResult } from "../lib/quote-picker";
+import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
 const QUOTE_CATEGORIES: QuoteCategory[] = ["말씀", "사명", "신앙", "교육", "리더십"];
 const PAGE_SIZE = 30;
+
+/** 한 주제의 어록 목록 — 많은 주제는 나눠서 보여 준다 */
+function TopicQuoteList({ items }: { items: QuoteItem[] }) {
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const shown = items.slice(0, limit);
+
+  return (
+    <>
+      <ol className="divide-y divide-gray-50">
+        {shown.map((it, i) => (
+          <li key={`${it.category}-${it.no}-${i}`} className="py-2.5">
+            <blockquote className="text-[14px] leading-relaxed text-gray-800">{it.text}</blockquote>
+            <div className="mt-1 text-[11px] text-gray-400">{it.no}번</div>
+          </li>
+        ))}
+      </ol>
+      {items.length > limit && (
+        <button
+          onClick={() => setLimit(limit + PAGE_SIZE)}
+          className="mt-2 w-full rounded-lg border border-zion-200 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+        >
+          더 보기 ({(items.length - limit).toLocaleString()}건 남음)
+        </button>
+      )}
+    </>
+  );
+}
 
 /**
  * 총회장님 어록 — 주제별 정리본(원문 그대로, 오탈자만 수정) 검색·열람.
@@ -18,32 +46,49 @@ const PAGE_SIZE = 30;
 export function Quotes() {
   const session = useSession();
   const { entries, addEntry } = useStore();
-  const [query, setQuery] = useState("");
-  const [topic, setTopic] = useState<string>("all");
-  const [limit, setLimit] = useState(PAGE_SIZE);
   const [formOpen, setFormOpen] = useState(false);
 
   const writable = canWriteWorkspace(session, "quote");
 
-  const filtered = useMemo(() => {
-    const q = query.trim();
-    return QUOTE_ITEMS.filter((it) => topic === "all" || it.category === topic).filter(
-      (it) => !q || it.text.includes(q) || it.category.includes(q),
-    );
-  }, [query, topic]);
+  const added = useMemo(() => entries.filter((e) => e.kind === "quote"), [entries]);
 
-  const added = useMemo(
-    () =>
-      entries
-        .filter((e) => e.kind === "quote")
-        .filter((e) => {
-          const q = query.trim();
-          return !q || e.title.includes(q) || e.body.includes(q);
-        }),
-    [entries, query],
-  );
+  /** 주제별 아코디언 — 주제를 누르면 그 주제의 어록이 열린다 */
+  const topicItems: AccordionItem[] = useMemo(() => {
+    const base = QUOTE_TOPIC_LIST.map((t) => {
+      const list = QUOTE_ITEMS.filter((i) => i.category === t);
+      return {
+        id: t,
+        title: `${t} (${list.length})`,
+        hint: list[0]?.text,
+        content: <TopicQuoteList items={list} />,
+      };
+    });
 
-  const shown = filtered.slice(0, limit);
+    // 사이트에서 등록한 어록도 한 주제로 묶어 같은 자리에서 본다
+    if (added.length === 0) return base;
+    return [
+      {
+        id: "__added",
+        title: `사이트 추가 등록 (${added.length})`,
+        hint: added[0]?.title,
+        content: (
+          <ol className="divide-y divide-gray-50">
+            {added.map((q) => (
+              <li key={q.id} className="py-2.5">
+                <blockquote className="text-[14px] leading-relaxed text-gray-800">{q.title}</blockquote>
+                {q.body && <p className="mt-1 text-[12px] text-gray-500">{q.body}</p>}
+                <div className="mt-1 text-[11px] text-gray-400">
+                  {q.quoteCategory ?? "미분류"}
+                  {q.meta ? ` · ${q.meta}` : ""} · {q.createdBy}
+                </div>
+              </li>
+            ))}
+          </ol>
+        ),
+      },
+      ...base,
+    ];
+  }, [added]);
 
   return (
     <div>
@@ -65,89 +110,18 @@ export function Quotes() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <select
-          value={topic}
-          onChange={(e) => {
-            setTopic(e.target.value);
-            setLimit(PAGE_SIZE);
-          }}
-          aria-label="주제 필터"
-          className="max-w-[280px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        >
-          <option value="all">모든 주제 ({QUOTE_ITEMS.length.toLocaleString()})</option>
-          {QUOTE_TOPIC_LIST.map((t) => (
-            <option key={t} value={t}>
-              {t} ({QUOTE_ITEMS.filter((i) => i.category === t).length})
-            </option>
-          ))}
-        </select>
-        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
-          <Search size={13} className="text-gray-400" />
-          <input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setLimit(PAGE_SIZE);
-            }}
-            placeholder="어록 내용 검색"
-            aria-label="어록 검색"
-            className="w-44 bg-transparent text-[12px] outline-none"
-          />
-        </div>
-      </div>
-
-      {added.length > 0 && (
-        <div className="mb-4">
-          <div className="mb-2 text-[12px] font-bold text-gold-700">사이트에서 추가 등록된 어록</div>
-          <div className="space-y-2">
-            {added.map((q) => (
-              <Card key={q.id} className="!p-4">
-                <blockquote className="text-[14px] font-medium leading-relaxed text-zion-900">
-                  {q.title}
-                </blockquote>
-                <div className="mt-1.5 text-[11px] text-gray-400">
-                  {q.quoteCategory ?? "미분류"}
-                  {q.meta ? ` · ${q.meta}` : ""} · {q.createdBy}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <Card>
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-zion-900">
-            {topic === "all" ? "전체 주제" : topic} — {filtered.length.toLocaleString()}건
-          </span>
-          <QuoteIcon size={16} className="text-gold-500" />
-        </div>
-        {shown.length === 0 ? (
-          <p className="py-8 text-center text-[13px] text-gray-400">조건에 맞는 어록이 없습니다.</p>
-        ) : (
-          <ol className="divide-y divide-gray-50">
-            {shown.map((it, i) => (
-              <li key={`${it.category}-${it.no}-${i}`} className="py-3">
-                <blockquote className="text-[14px] leading-relaxed text-gray-800">{it.text}</blockquote>
-                <div className="mt-1 text-[11px] text-gray-400">
-                  {it.category} · {it.no}번
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-        {filtered.length > limit && (
-          <button
-            onClick={() => setLimit(limit + PAGE_SIZE)}
-            className="mt-3 w-full rounded-lg border border-zion-200 py-2 text-[13px] font-semibold text-zion-700 transition hover:bg-zion-50"
-          >
-            더 보기 ({(filtered.length - limit).toLocaleString()}건 남음)
-          </button>
-        )}
-      </Card>
-
       <QuotePicker />
+
+      <Card className="mt-5">
+        <div className="mb-3 flex items-center gap-2">
+          <QuoteIcon size={16} className="text-gold-500" />
+          <h2 className="text-[15px] font-bold text-zion-900">전체 주제 보기</h2>
+          <span className="text-[12px] text-gray-400">
+            주제 {QUOTE_TOPIC_LIST.length}개 · 어록 {QUOTE_ITEMS.length.toLocaleString()}건
+          </span>
+        </div>
+        <Accordion items={topicItems} defaultOpenFirst={false} compact />
+      </Card>
 
       {formOpen && writable && (
         <QuoteForm
@@ -209,13 +183,14 @@ function QuotePicker() {
   }
 
   return (
-    <Card className="mt-5 border-gold-300 bg-gold-100/40">
+    <Card className="border-gold-300 bg-gold-100/40">
       <div className="flex items-center gap-2">
         <Sparkles size={16} className="text-gold-600" />
-        <h2 className="text-[15px] font-bold text-zion-900">주제로 어록 뽑기</h2>
+        <h2 className="text-[15px] font-bold text-zion-900">어록 검색 · 주제로 뽑기</h2>
       </div>
       <p className="mt-1 text-[12px] text-gray-500">
-        강의·모임에 쓸 어록을 주제로 모읍니다. 예: <span className="text-zion-700">전도 관련 어록 뽑아줘</span> ·{" "}
+        찾는 주제를 넣으면 관련 어록을 모아 줍니다. 예:{" "}
+        <span className="text-zion-700">전도 관련 어록 뽑아줘</span> ·{" "}
         <span className="text-zion-700">청년 교육</span> — 원문 그대로 인용하며 요약하지 않습니다.
       </p>
 
