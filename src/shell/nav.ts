@@ -132,21 +132,30 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Quote,
     to: "/quotes",
   },
-  // 외부 매체는 사이트 안 뷰어(/external/:id)에서 연다 — 하이퍼링크로 내보내지 않는다
+  /**
+   * 외부 매체는 새 탭으로 바로 연다.
+   * 사이트 안(iframe) 표시는 두 매체가 `X-Frame-Options`로 막아 두어 불가능하다 —
+   * 백엔드 프록시가 생기면 그때 내부 표시로 바꾼다 (docs/HANDOFF.md 참고).
+   */
   {
     label: "말씀광장",
     icon: Church,
     items: [
-      { to: "/external/bible", label: "온라인 성경", icon: BookOpenText },
-      { to: "/external/dictionary", label: "성경사전", icon: BookOpenText },
+      { to: "https://www.wordsquare.org/bible-forest/bible", label: "온라인 성경", icon: BookOpenText, external: true },
+      { to: "https://www.wordsquare.org/bible-forest/dictionary", label: "성경사전", icon: BookOpenText, external: true },
     ],
   },
   {
     label: "천지일보",
     icon: Rss,
     items: [
-      { to: "/external/news", label: "최근 이슈", icon: Newspaper },
-      { to: "/external/news-religion", label: "종교 · 개신교", icon: Newspaper },
+      { to: "https://www.newscj.com/", label: "최근 이슈", icon: Newspaper, external: true },
+      {
+        to: "https://www.newscj.com/news/articleList.html?sc_sub_section_code=S2N53&sc_section_code=S1N7&view_type=sm",
+        label: "종교 · 개신교",
+        icon: Newspaper,
+        external: true,
+      },
     ],
   },
 ];

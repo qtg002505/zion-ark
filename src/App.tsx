@@ -12,7 +12,6 @@ import { Notices } from "./pages/Notices";
 import { Quotes } from "./pages/Quotes";
 import { Lessons } from "./pages/Lessons";
 import { Enneagram } from "./pages/Enneagram";
-import { ExternalViewer } from "./pages/ExternalViewer";
 
 function Routed() {
   const { session } = useAuth();
@@ -31,7 +30,6 @@ function Routed() {
         <Route path="/quotes" element={<Quotes />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/enneagram" element={<Enneagram />} />
-        <Route path="/external/:sourceId" element={<ExternalViewer />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
