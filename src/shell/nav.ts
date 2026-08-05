@@ -51,6 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/library", label: "자료실", icon: BookOpen },
       { to: "/library?tab=excellent_plan", label: "우수 교안", icon: Star },
       { to: "/lessons", label: "강의 교안 (초등 23강)", icon: BookText },
+      { to: "/lessons?course=high", label: "강의 교안 (고등 계시록)", icon: BookText },
     ],
   },
   {

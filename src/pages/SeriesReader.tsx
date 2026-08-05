@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { findSeries } from "../content/series-content";
-import { MarkdownLite } from "../lib/markdown";
+import { MarkdownLite, splitSections } from "../lib/markdown";
+import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
 /** 자료실 시리즈 리더 — 장 목록·선택·검색·본문. 예그행은 본문/교수안 그룹 구분 */
@@ -24,6 +25,18 @@ export function SeriesReader() {
       (c) => c.label.includes(q) || c.title.includes(q) || c.body.includes(q),
     );
   }, [chapters, query]);
+
+  // 긴 본문은 소주제 단위로 접어 둔다
+  const parsed = useMemo(() => (current ? splitSections(current.body) : null), [current]);
+  const items: AccordionItem[] = (parsed?.sections ?? []).map((sec) => ({
+    id: sec.id,
+    title: sec.title,
+    hint: sec.body
+      .split("\n")
+      .find((l) => l.trim())
+      ?.replace(/^[-•#\s]+/, ""),
+    content: <MarkdownLite text={sec.body} />,
+  }));
 
   if (!series) return <Navigate to="/" replace />;
 
@@ -88,10 +101,21 @@ export function SeriesReader() {
                 {current.group && (
                   <div className="text-[12px] font-semibold text-gold-700">{current.group}</div>
                 )}
-                <h2 className="mt-0.5 text-[19px] font-bold text-zion-900">{current.title}</h2>
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <MarkdownLite text={current.body} />
-                </div>
+                <h2 className="mt-0.5 mb-3 text-[19px] font-bold text-zion-900">{current.title}</h2>
+                {items.length > 0 ? (
+                  <>
+                    {parsed?.lead && (
+                      <div className="mb-3 rounded-lg bg-zion-50 px-3 py-2">
+                        <MarkdownLite text={parsed.lead} />
+                      </div>
+                    )}
+                    <Accordion items={items} resetKey={current.id} />
+                  </>
+                ) : (
+                  <div className="border-t border-gray-100 pt-3">
+                    <MarkdownLite text={current.body} />
+                  </div>
+                )}
               </>
             ) : (
               <p className="py-12 text-center text-[13px] text-gray-400">장을 선택해 주세요.</p>

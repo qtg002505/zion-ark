@@ -1,10 +1,27 @@
 import { useState } from "react";
 import { enneagramGuides, type EnneagramGuide } from "../content/enneagram-guides";
+import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
 /** 에니어그램 가이드 — 9유형 원문 (성장과정 · 단계향상 · 초중고 관리팁 · 보강 성구) */
 export function Enneagram() {
   const [selected, setSelected] = useState<EnneagramGuide>(enneagramGuides[0]);
+
+  const items: AccordionItem[] = selected.sections.map((sec, i) => ({
+    id: `${selected.typeNo}-${i}`,
+    title: sec.label,
+    hint: sec.items[0],
+    content: (
+      <ul className="space-y-1.5">
+        {sec.items.map((item, j) => (
+          <li key={j} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
+            <span className="mt-[8px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
+            <span className="whitespace-pre-wrap">{item}</span>
+          </li>
+        ))}
+      </ul>
+    ),
+  }));
 
   return (
     <div>
@@ -33,24 +50,8 @@ export function Enneagram() {
 
       <Card>
         <div className="text-[12px] font-semibold text-gold-700">{selected.typeNo}번 유형</div>
-        <h2 className="mt-0.5 text-[19px] font-bold text-zion-900">{selected.title}</h2>
-        <div className="mt-4 space-y-5">
-          {selected.sections.map((sec) => (
-            <div key={sec.label}>
-              <div className="border-b border-gold-300 pb-1 text-[13px] font-bold text-gold-700">
-                {sec.label}
-              </div>
-              <ul className="mt-2 space-y-1.5">
-                {sec.items.map((item, i) => (
-                  <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
-                    <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
-                    <span className="whitespace-pre-wrap">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{selected.title}</h2>
+        <Accordion items={items} resetKey={String(selected.typeNo)} />
       </Card>
     </div>
   );

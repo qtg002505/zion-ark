@@ -1,14 +1,31 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
-import { elementaryLessons, type ElementaryLesson } from "../content/elementary-lessons";
+import { elementaryLessons } from "../content/elementary-lessons";
+import { HIGH_LESSONS } from "../content/lessons-high";
+import { MarkdownLite, splitSections } from "../lib/markdown";
+import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
-/** 강의 교안 — 초등 23강 원문 (교리 내용 재작성 금지, 원문 그대로 표시) */
-export function Lessons() {
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<ElementaryLesson>(elementaryLessons[0]);
+type Course = "elementary" | "high";
 
-  const list = useMemo(() => {
+/**
+ * 강의 교안 — 초등 23강(7항목 구조) · 고등 계시록 22장(원문 문서).
+ * 두 과정 모두 소주제 접기로 제공한다 (긴 본문을 눌러서 펼쳐 읽는 동선).
+ */
+export function Lessons() {
+  const [params, setParams] = useSearchParams();
+  const course: Course = params.get("course") === "high" ? "high" : "elementary";
+  const [query, setQuery] = useState("");
+  const [pickedEl, setPickedEl] = useState<number>(elementaryLessons[0].lessonNo);
+  const [pickedHigh, setPickedHigh] = useState(HIGH_LESSONS[0]?.id ?? "");
+
+  function switchCourse(next: Course) {
+    setQuery("");
+    setParams(next === "elementary" ? {} : { course: next });
+  }
+
+  const elList = useMemo(() => {
     const q = query.trim();
     if (!q) return elementaryLessons;
     return elementaryLessons.filter(
@@ -18,42 +35,123 @@ export function Lessons() {
     );
   }, [query]);
 
+  const highList = useMemo(() => {
+    const q = query.trim();
+    if (!q) return HIGH_LESSONS;
+    return HIGH_LESSONS.filter((l) => l.label.includes(q) || l.title.includes(q) || l.body.includes(q));
+  }, [query]);
+
+  const elCurrent = elementaryLessons.find((l) => l.lessonNo === pickedEl) ?? elementaryLessons[0];
+  const highCurrent = HIGH_LESSONS.find((l) => l.id === pickedHigh) ?? HIGH_LESSONS[0];
+
+  const elItems: AccordionItem[] = elCurrent.sections.map((sec) => ({
+    id: String(sec.id),
+    title: sec.label,
+    hint: sec.items[0],
+    content: (
+      <ul className="space-y-1.5">
+        {sec.items.map((item, i) => (
+          <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
+            <span className="mt-[8px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
+            <span className="whitespace-pre-wrap">{item}</span>
+          </li>
+        ))}
+      </ul>
+    ),
+  }));
+
+  const highParsed = highCurrent ? splitSections(highCurrent.body) : { lead: "", sections: [] };
+  const highItems: AccordionItem[] = highParsed.sections.map((sec) => ({
+    id: sec.id,
+    title: sec.title,
+    hint: sec.body.split("\n").find((l) => l.trim())?.replace(/^[-•]\s*/, ""),
+    content: <MarkdownLite text={sec.body} />,
+  }));
+
   return (
     <div>
       <PageHeader
         crumb="강사 도우미"
-        title="강의 교안 (초등 23강)"
-        desc="강 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트. 중등·고등 교안은 원본 확보 후 추가됩니다."
+        title="강의 교안"
+        desc={
+          course === "elementary"
+            ? "초등 23강 — 강 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
+            : "고등 계시록 22장 — 강 1건당 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
+        }
       />
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="과정 선택">
+          {(
+            [
+              ["elementary", `초등 (${elementaryLessons.length}강)`],
+              ["high", `고등 계시록 (${HIGH_LESSONS.length}강)`],
+            ] as [Course, string][]
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={course === id}
+              onClick={() => switchCourse(id)}
+              className={
+                "rounded-lg px-4 py-2 text-[13px] font-semibold transition " +
+                (course === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] text-gray-400">중등 교안은 원본 확보 후 추가됩니다</span>
+        <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
+          <Search size={13} className="text-gray-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="강 제목·내용 검색"
+            aria-label="강 검색"
+            className="w-36 bg-transparent text-[12px] outline-none"
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-4 gap-4 max-md:grid-cols-1">
         <div className="col-span-1">
-          <div className="mb-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2">
-            <Search size={13} className="text-gray-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="강 제목·내용 검색"
-              aria-label="강 검색"
-              className="w-full bg-transparent text-[12px] outline-none"
-            />
-          </div>
-          <nav aria-label="강 목록" className="max-h-[65vh] overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm">
-            {list.map((l) => (
-              <button
-                key={l.lessonNo}
-                onClick={() => setSelected(l)}
-                className={
-                  "block w-full rounded-lg px-3 py-2 text-left text-[12px] leading-snug transition " +
-                  (l.lessonNo === selected.lessonNo
-                    ? "bg-zion-800 font-semibold text-white"
-                    : "text-gray-700 hover:bg-zion-50")
-                }
-              >
-                {l.lessonNo}강 — {l.title}
-              </button>
-            ))}
-            {list.length === 0 && (
+          <nav
+            aria-label="강 목록"
+            className="max-h-[70vh] overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm"
+          >
+            {course === "elementary"
+              ? elList.map((l) => (
+                  <button
+                    key={l.lessonNo}
+                    onClick={() => setPickedEl(l.lessonNo)}
+                    className={
+                      "block w-full rounded-lg px-3 py-2 text-left text-[12px] leading-snug transition " +
+                      (l.lessonNo === elCurrent.lessonNo
+                        ? "bg-zion-800 font-semibold text-white"
+                        : "text-gray-700 hover:bg-zion-50")
+                    }
+                  >
+                    {l.lessonNo}강 — {l.title}
+                  </button>
+                ))
+              : highList.map((l) => (
+                  <button
+                    key={l.id}
+                    onClick={() => setPickedHigh(l.id)}
+                    className={
+                      "block w-full rounded-lg px-3 py-2 text-left text-[12px] leading-snug transition " +
+                      (highCurrent && l.id === highCurrent.id
+                        ? "bg-zion-800 font-semibold text-white"
+                        : "text-gray-700 hover:bg-zion-50")
+                    }
+                  >
+                    <span className="block font-semibold">{l.label}</span>
+                    <span className="block truncate opacity-70">{l.title}</span>
+                  </button>
+                ))}
+            {(course === "elementary" ? elList : highList).length === 0 && (
               <p className="px-3 py-4 text-center text-[12px] text-gray-400">검색 결과 없음</p>
             )}
           </nav>
@@ -61,25 +159,26 @@ export function Lessons() {
 
         <div className="col-span-3 max-md:col-span-1">
           <Card>
-            <div className="text-[12px] font-semibold text-gold-700">{selected.lessonNo}강</div>
-            <h2 className="mt-0.5 text-[19px] font-bold text-zion-900">{selected.title}</h2>
-            <div className="mt-4 space-y-5">
-              {selected.sections.map((sec) => (
-                <div key={sec.id}>
-                  <div className="border-b border-gold-300 pb-1 text-[13px] font-bold text-gold-700">
-                    {sec.label}
+            {course === "elementary" ? (
+              <>
+                <div className="text-[12px] font-semibold text-gold-700">{elCurrent.lessonNo}강</div>
+                <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{elCurrent.title}</h2>
+                <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
+              </>
+            ) : highCurrent ? (
+              <>
+                <div className="text-[12px] font-semibold text-gold-700">{highCurrent.label}</div>
+                <h2 className="mt-0.5 mb-3 text-[19px] font-bold text-zion-900">{highCurrent.title}</h2>
+                {highParsed.lead && (
+                  <div className="mb-3 rounded-lg bg-zion-50 px-3 py-2">
+                    <MarkdownLite text={highParsed.lead} />
                   </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {sec.items.map((item, i) => (
-                      <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-gray-700">
-                        <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-zion-400" />
-                        <span className="whitespace-pre-wrap">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+                )}
+                <Accordion items={highItems} resetKey={`high-${highCurrent.id}`} />
+              </>
+            ) : (
+              <p className="py-12 text-center text-[13px] text-gray-400">교안을 선택해 주세요.</p>
+            )}
           </Card>
         </div>
       </div>

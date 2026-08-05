@@ -90,16 +90,9 @@ export function MarkdownLite({ text }: { text: string }) {
       flushPara();
       const level = heading[1].length;
       const content = heading[2];
-      if (level <= 1) {
-        // 문서 최상위 제목은 화면 상단 제목과 중복 — 소제목으로 강등해 유지
+      if (level <= 2) {
         blocks.push(
-          <h3 key={key++} className="mt-6 border-b border-gold-300 pb-1 text-[16px] font-bold text-zion-900">
-            {inline(content)}
-          </h3>,
-        );
-      } else if (level === 2) {
-        blocks.push(
-          <h3 key={key++} className="mt-6 border-b border-gold-300 pb-1 text-[15px] font-bold text-zion-900">
+          <h3 key={key++} className="mt-6 border-b border-gold-300 pb-1 text-[15px] font-bold text-zion-900 first:mt-0">
             {inline(content)}
           </h3>,
         );
@@ -153,4 +146,59 @@ export function MarkdownLite({ text }: { text: string }) {
   flushPara();
 
   return <div>{blocks}</div>;
+}
+
+/* ────────── 소주제 분할 (아코디언용) ────────── */
+
+export interface DocSection {
+  id: string;
+  title: string;
+  body: string;
+}
+
+/**
+ * 본문을 소주제 단위로 자른다 — 접었다 펴는 열람을 위해서다.
+ * 경계: 마크다운 `##`(레벨 1~2) · `[핵심]` 형태 · `◈ 결론` 형태.
+ * 레벨 3 이상(`###`)은 섹션 안에 남겨 본문과 함께 렌더한다.
+ * 원문은 자르기만 하고 고치지 않는다.
+ */
+export function splitSections(text: string): { lead: string; sections: DocSection[] } {
+  const lines = text.split(/\r?\n/);
+  const sections: DocSection[] = [];
+  const lead: string[] = [];
+  let current: { title: string; body: string[] } | null = null;
+
+  function boundaryTitle(raw: string): string | null {
+    const line = stripArtifacts(raw).trim();
+    // 레벨 1(#)은 문서 제목이라 화면 제목과 겹친다 — 경계로 쓰지 않고 버린다
+    if (/^#\s+/.test(line)) return null;
+    const md = line.match(/^##\s+(.+)$/);
+    if (md) return md[1].trim();
+    // [핵심] [서론] 같은 짧은 표제만. [확인 필요: 원문] 류 변환 메모는 본문에 남긴다
+    const bracket = line.match(/^\[([^\]\s:]{1,8})\]$/);
+    if (bracket) return bracket[1].trim();
+    const mark = line.match(/^◈\s*(.+)$/);
+    if (mark) return mark[1].trim();
+    return null;
+  }
+
+  for (const raw of lines) {
+    // 문서 제목 줄은 화면 제목이 이미 보여 준다 — 본문에서 뺀다
+    if (/^#\s+/.test(stripArtifacts(raw).trim())) continue;
+    const title = boundaryTitle(raw);
+    if (title !== null) {
+      if (current) sections.push(toSection(current, sections.length));
+      current = { title, body: [] };
+      continue;
+    }
+    if (current) current.body.push(raw);
+    else lead.push(raw);
+  }
+  if (current) sections.push(toSection(current, sections.length));
+
+  return { lead: lead.join("\n").trim(), sections };
+}
+
+function toSection(c: { title: string; body: string[] }, idx: number): DocSection {
+  return { id: `s${idx}`, title: c.title, body: c.body.join("\n").trim() };
 }

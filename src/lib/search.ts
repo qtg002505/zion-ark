@@ -1,4 +1,5 @@
 import { elementaryLessons } from "../content/elementary-lessons";
+import { HIGH_LESSONS } from "../content/lessons-high";
 import { enneagramGuides } from "../content/enneagram-guides";
 import { SERIES } from "../content/series-content";
 import { QUOTE_ITEMS } from "../content/quotes-data";
@@ -47,6 +48,19 @@ export function searchSite(
         title: `${lesson.lessonNo}강 — ${lesson.title}`,
         snippet: snippetOf(text, q),
         href: "/lessons",
+      });
+    }
+  }
+
+  for (const l of HIGH_LESSONS) {
+    const text = `${l.label} ${l.title} ${l.body}`;
+    if (text.includes(q)) {
+      hits.push({
+        source: `고등 교안 ${l.label}`,
+        sourceType: "교안",
+        title: `${l.label} — ${l.title}`,
+        snippet: snippetOf(text, q),
+        href: "/lessons?course=high",
       });
     }
   }
