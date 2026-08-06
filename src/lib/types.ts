@@ -37,11 +37,33 @@ export interface Session {
   loggedInAt: string;
 }
 
-/** 자료실 카테고리 (1단계 착수지시문 v2 · 작업 1) */
+/** 자료실 카테고리 (1단계 착수지시문 v2 · 작업 1) — 데이터 계약, 변경 금지 */
 export type LibraryCategory =
   | "standard_lecture"
   | "class_material"
   | "excellent_plan";
+
+/**
+ * 자료실 구획 (2026-08-06 확정) — 자료실은 **독립 대메뉴**이고 둘로 갈린다.
+ * 가르칠 때 쓰는 교안이냐, 그 밖의 지식·전달 자료냐로 나눈다.
+ * 둘 다 로그인해야 볼 수 있다 — 공개 영역이 아니므로 무세션 401 원칙은 그대로다.
+ */
+export type LibrarySection = "instructor" | "external";
+
+export const LIBRARY_SECTION_LABELS: Record<LibrarySection, string> = {
+  instructor: "강사 도우미 자료실",
+  external: "외부 자료실",
+};
+
+/**
+ * 구획별 최상위 폴더 (2026-08-06 회의 지정).
+ * ⚠️ `밭갈이`·`영인지`는 아직 정의를 받지 못한 용어다. 화면 이름으로만 쓰고
+ * 코드 값(enum·DB 코드)으로는 굳히지 않는다 — 정의가 오면 이름만 고치면 되게 문자열로 둔다.
+ */
+export const LIBRARY_FOLDERS: Record<LibrarySection, string[]> = {
+  instructor: ["개강 세미나", "성경 밭갈이", "예배설교"],
+  external: ["영인지", "성경기초상식", "하나님에 대한 필요성"],
+};
 
 export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
   standard_lecture: "표준 강의 자료",
@@ -57,6 +79,14 @@ export interface LibraryMaterial {
   externalUrl: string | null;
   /** 우수 지정 — headquarters_admin만 토글 (확정 결정 4) */
   isFeatured: boolean;
+  /** 어느 구획인지 (2026-08-06 추가) */
+  section: LibrarySection;
+  /**
+   * 폴더 경로 — 최상위부터 순서대로. 예: ["개강 세미나", "1차시"]
+   * 배열로 둔 것은 폴더를 더 깊게 넣게 될 때 구조를 바꾸지 않기 위해서다.
+   * 실연동 시 `library_materials`의 계층 컬럼(`path`)에 대응한다.
+   */
+  folderPath: string[];
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;
@@ -107,6 +137,72 @@ export interface LessonNote {
   createdByRole: RoleCode;
   createdAt: string;
   /** 도움이 됐다고 표시한 사람 수 */
+  helpful: number;
+}
+
+/**
+ * 기수 주간계획 (2026-08-06 확정) — **해당 기수의 강사·전도사가 함께 고친다.**
+ * 여러 사람이 같은 글을 고치므로 **누가 언제 무엇을 바꿨는지 남긴다**. 그래야 되돌릴 수 있고,
+ * 서로 덮어쓴 것을 확인할 수 있다.
+ * 1차는 텍스트만 다룬다 — 파일 첨부는 2차(R2)다.
+ */
+export interface WeeklyPlan {
+  id: string;
+  /** 어느 기수의 계획인지 — 권한 판정 기준이다 */
+  cohortKey: string;
+  week: string;
+  body: string;
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+  /** 수정 이력 — 최근이 앞 */
+  history: PlanRevision[];
+}
+
+export interface PlanRevision {
+  body: string;
+  editedBy: string;
+  editedByRole: RoleCode;
+  editedAt: string;
+}
+
+/**
+ * 주차별 출석 사유·극복 기록 (2026-08-06 확정) — **해당 기수의 강사·전도사가 적는다.**
+ * 자동 산출이 아니라 사람이 남기는 기록이므로, 누가 적었는지 함께 남긴다.
+ */
+export interface WeekNote {
+  cohortKey: string;
+  week: string;
+  reason: string;
+  overcome: string;
+  editedBy: string;
+  editedByRole: RoleCode;
+  editedAt: string;
+}
+
+/**
+ * 상담 사례 (2026-08-06 확정) — 강사 도우미의 공유 자산.
+ *
+ * ⚠️ 자료실은 전국 공통이라 조직 스코프가 없다. 그래서 **개인을 특정할 수 있는 것은 담지 않는다.**
+ * 확정된 익명화 기준: **지파·교회·센터(기수)까지만 밝히고 그 아래는 적지 않는다.**
+ * 이름·연락처·분반·나이처럼 개인을 짚을 수 있는 것은 입력 자체를 막는다.
+ */
+export interface CounselCase {
+  id: string;
+  /** 어떤 상황이었는지 (개인 식별 정보 없이) */
+  situation: string;
+  /** 어떻게 했는지 */
+  approach: string;
+  /** 어떻게 됐는지 */
+  result: string;
+  outcome: "success" | "failure";
+  /** 익명화 기준에 맞는 소속 표기 — 지파·교회·센터까지만 */
+  tribe: string;
+  church: string;
+  cohort: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
   helpful: number;
 }
 

@@ -1,11 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
+  CounselCase,
   LessonNote,
   LessonNoteKind,
   LibraryCategory,
   LibraryMaterial,
+  LibrarySection,
   QuoteCategory,
   RoleCode,
+  WeekNote,
+  WeeklyPlan,
   WorkspaceEntry,
   WorkspaceKind,
 } from "./types";
@@ -20,6 +24,9 @@ import type {
 const LIB_KEY = "zion_ark_library_materials";
 const WS_KEY = "zion_ark_workspace_entries";
 const NOTE_KEY = "zion_ark_lesson_notes";
+const PLAN_KEY = "zion_ark_weekly_plans";
+const WEEKNOTE_KEY = "zion_ark_week_notes";
+const CASE_KEY = "zion_ark_counsel_cases";
 
 function nowIso() {
   return new Date().toISOString();
@@ -39,6 +46,8 @@ const SEED_MATERIALS: LibraryMaterial[] = [
     body: "초등 23강 표준 교안의 7항목 구조(교육 핵심 / 기존 관점 / 예상 반응·질문 / 강의 주의사항 / 유도형 질문 / 예방·상담 / 교정 포인트) 활용 지침.\n\n강의 준비 시 '예상 반응·질문' 항목을 먼저 확인하고, 분반 담당 전도사와 '예방·상담' 항목을 공유한다.",
     externalUrl: null,
     isFeatured: false,
+    section: "instructor",
+    folderPath: ["개강 세미나"],
     createdBy: "콘텐츠팀",
     createdByRole: "content_admin",
     createdAt: "2026-08-01T09:00:00.000Z",
@@ -51,6 +60,8 @@ const SEED_MATERIALS: LibraryMaterial[] = [
     body: "분반 첫 모임에서 다룰 순서: 자기소개 → 수강 동기 나눔 → 분반 약속 정하기 → 다음 주 보강 일정 안내.\n\n에니어그램 가이드의 유형별 관리팁을 함께 참고하면 초기 관계 형성에 도움이 된다.",
     externalUrl: null,
     isFeatured: false,
+    section: "instructor",
+    folderPath: ["성경 밭갈이"],
     createdBy: "콘텐츠팀",
     createdByRole: "content_admin",
     createdAt: "2026-08-02T09:00:00.000Z",
@@ -63,10 +74,41 @@ const SEED_MATERIALS: LibraryMaterial[] = [
     body: "3강을 유도형 질문 중심으로 재구성한 교안. 수강생 질문 빈도가 높은 지점을 앞에 배치해 몰입도를 끌어올린 사례.\n\n※ 우수 교안은 총회 신학부장이 직접 지정한다 (승인 워크플로우 없음).",
     externalUrl: null,
     isFeatured: true,
+    section: "instructor",
+    folderPath: ["예배설교"],
     createdBy: "총회 신학부",
     createdByRole: "headquarters_admin",
     createdAt: "2026-08-03T09:00:00.000Z",
     updatedAt: "2026-08-03T09:00:00.000Z",
+  },
+  // 외부 자료실 — 가르칠 때 쓰는 교안이 아니라 그 밖의 지식·전달 자료
+  {
+    id: "seed-ext-1",
+    category: "standard_lecture",
+    title: "성경 기초 상식 — 66권의 구성",
+    body: "구약 39권·신약 27권의 구분과 역사서·시가서·예언서 분류를 정리한 자료.\n\n수강 초기에 성경의 전체 얼개를 잡는 데 쓴다.",
+    externalUrl: null,
+    isFeatured: false,
+    section: "external",
+    folderPath: ["성경기초상식"],
+    createdBy: "콘텐츠팀",
+    createdByRole: "content_admin",
+    createdAt: "2026-08-04T09:00:00.000Z",
+    updatedAt: "2026-08-04T09:00:00.000Z",
+  },
+  {
+    id: "seed-ext-2",
+    category: "standard_lecture",
+    title: "하나님에 대한 필요성 — 전달 자료",
+    body: "왜 하나님이 필요한가를 일상 언어로 풀어 전달하는 자료.\n\n교안이 아니라 대화에서 쓰는 자료이므로, 강의 순서에 매이지 않고 상황에 맞게 가져다 쓴다.",
+    externalUrl: null,
+    isFeatured: false,
+    section: "external",
+    folderPath: ["하나님에 대한 필요성"],
+    createdBy: "콘텐츠팀",
+    createdByRole: "content_admin",
+    createdAt: "2026-08-04T09:30:00.000Z",
+    updatedAt: "2026-08-04T09:30:00.000Z",
   },
 ];
 
@@ -147,6 +189,41 @@ const SEED_NOTES: LessonNote[] = [
   },
 ];
 
+/** 상담 사례 시드 — 익명화 기준(지파·교회·센터까지)을 지킨 예시 */
+const SEED_CASES: CounselCase[] = [
+  {
+    id: "seed-case-1",
+    situation:
+      "직장 교대 근무가 바뀌어 저녁 대면에 계속 빠지게 된 분이 있었습니다. 본인은 그만두겠다는 말까지 꺼냈습니다.",
+    approach:
+      "그만두는 이야기를 바로 만류하지 않고, 먼저 어느 시간대면 올 수 있는지부터 물었습니다. 오전 보강을 열어 같은 처지의 분들과 함께 묶었습니다.",
+    result: "오전 보강으로 옮긴 뒤 8주 연속 출석했고 지금은 수료를 앞두고 있습니다.",
+    outcome: "success",
+    tribe: "요한",
+    church: "과천교회",
+    cohort: "111기",
+    createdBy: "콘텐츠팀",
+    createdByRole: "content_admin",
+    createdAt: "2026-08-04T09:00:00.000Z",
+    helpful: 4,
+  },
+  {
+    id: "seed-case-2",
+    situation: "2주 결석 후 연락이 닿지 않던 분에게 여러 사람이 각각 연락을 넣었습니다.",
+    approach: "강사와 전도사가 따로 연락하다 보니 같은 질문이 반복됐고, 부담을 느낀 것 같습니다.",
+    result:
+      "결국 돌아오지 않았습니다. 연락은 한 사람이 맡고 나머지는 상황만 공유하는 편이 나았겠다는 것이 남은 교훈입니다.",
+    outcome: "failure",
+    tribe: "요한",
+    church: "과천교회",
+    cohort: "112기",
+    createdBy: "콘텐츠팀",
+    createdByRole: "content_admin",
+    createdAt: "2026-08-04T09:20:00.000Z",
+    helpful: 6,
+  },
+];
+
 /* ── 스토어 구현 ── */
 
 function load<T>(key: string, seed: T[]): T[] {
@@ -160,15 +237,39 @@ function load<T>(key: string, seed: T[]): T[] {
   return seed;
 }
 
+/**
+ * 자료실 이관 — 구획·폴더가 생기기 전(2026-08-06 이전)에 저장된 자료를 메운다.
+ *
+ * 브라우저에 이미 든 자료는 `section`이 없어 그대로 두면 어느 구획에도 안 잡힌다.
+ * 없는 값은 「강사 도우미 자료실」로 보고, 그 뒤에 새로 생긴 시드 중 빠진 것만 덧붙인다.
+ * 사용자가 등록한 자료는 건드리지 않는다 — 지우는 이관은 하지 않는다.
+ * (실연동 시에는 서버 마이그레이션이 같은 일을 하고, 이 함수는 사라진다.)
+ */
+function migrateMaterials(stored: LibraryMaterial[]): LibraryMaterial[] {
+  const filled = stored.map((m) => ({
+    ...m,
+    section: m.section ?? "instructor",
+    folderPath: m.folderPath ?? [],
+  }));
+  const have = new Set(filled.map((m) => m.id));
+  const missing = SEED_MATERIALS.filter((s) => !have.has(s.id));
+  return missing.length > 0 ? [...filled, ...missing] : filled;
+}
+
 interface StoreValue {
   materials: LibraryMaterial[];
   entries: WorkspaceEntry[];
   lessonNotes: LessonNote[];
+  plans: WeeklyPlan[];
+  weekNotes: WeekNote[];
+  counselCases: CounselCase[];
   addMaterial: (input: {
     category: LibraryCategory;
     title: string;
     body: string;
     externalUrl: string | null;
+    section: LibrarySection;
+    folderPath: string[];
     createdBy: string;
     createdByRole: RoleCode;
   }) => void;
@@ -192,14 +293,30 @@ interface StoreValue {
     createdByRole: RoleCode;
   }) => void;
   markNoteHelpful: (id: string) => void;
+  /** 주간계획 저장 — 이전 내용을 이력으로 남긴다 (여럿이 함께 고치기 때문) */
+  savePlan: (input: {
+    cohortKey: string;
+    week: string;
+    body: string;
+    editedBy: string;
+    editedByRole: RoleCode;
+  }) => void;
+  saveWeekNote: (input: WeekNote) => void;
+  addCounselCase: (input: Omit<CounselCase, "id" | "createdAt" | "helpful">) => void;
+  markCaseHelpful: (id: string) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [materials, setMaterials] = useState<LibraryMaterial[]>(() => load(LIB_KEY, SEED_MATERIALS));
+  const [materials, setMaterials] = useState<LibraryMaterial[]>(() =>
+    migrateMaterials(load(LIB_KEY, SEED_MATERIALS)),
+  );
   const [entries, setEntries] = useState<WorkspaceEntry[]>(() => load(WS_KEY, SEED_ENTRIES));
   const [lessonNotes, setLessonNotes] = useState<LessonNote[]>(() => load(NOTE_KEY, SEED_NOTES));
+  const [plans, setPlans] = useState<WeeklyPlan[]>(() => load(PLAN_KEY, []));
+  const [weekNotes, setWeekNotes] = useState<WeekNote[]>(() => load(WEEKNOTE_KEY, []));
+  const [counselCases, setCounselCases] = useState<CounselCase[]>(() => load(CASE_KEY, SEED_CASES));
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -216,11 +333,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setLessonNotes(next);
   }, []);
 
+  const persistPlans = useCallback((next: WeeklyPlan[]) => {
+    localStorage.setItem(PLAN_KEY, JSON.stringify(next));
+    setPlans(next);
+  }, []);
+
+  const persistWeekNotes = useCallback((next: WeekNote[]) => {
+    localStorage.setItem(WEEKNOTE_KEY, JSON.stringify(next));
+    setWeekNotes(next);
+  }, []);
+
+  const persistCases = useCallback((next: CounselCase[]) => {
+    localStorage.setItem(CASE_KEY, JSON.stringify(next));
+    setCounselCases(next);
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       materials,
       entries,
       lessonNotes,
+      plans,
+      weekNotes,
+      counselCases,
       addMaterial: (input) => {
         const item: LibraryMaterial = {
           id: uid(),
@@ -251,8 +386,73 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           lessonNotes.map((n) => (n.id === id ? { ...n, helpful: n.helpful + 1 } : n)),
         );
       },
+      savePlan: ({ cohortKey, week, body, editedBy, editedByRole }) => {
+        const existing = plans.find((p) => p.cohortKey === cohortKey && p.week === week);
+        if (existing) {
+          // 여럿이 함께 고치므로 직전 내용을 이력으로 남긴다 — 되돌릴 수 있어야 한다
+          const revision = {
+            body: existing.body,
+            editedBy: existing.updatedBy,
+            editedByRole: existing.updatedByRole,
+            editedAt: existing.updatedAt,
+          };
+          persistPlans(
+            plans.map((p) =>
+              p.id === existing.id
+                ? {
+                    ...p,
+                    body,
+                    updatedBy: editedBy,
+                    updatedByRole: editedByRole,
+                    updatedAt: nowIso(),
+                    history: [revision, ...p.history].slice(0, 20),
+                  }
+                : p,
+            ),
+          );
+        } else {
+          persistPlans([
+            {
+              id: uid(),
+              cohortKey,
+              week,
+              body,
+              updatedBy: editedBy,
+              updatedByRole: editedByRole,
+              updatedAt: nowIso(),
+              history: [],
+            },
+            ...plans,
+          ]);
+        }
+      },
+      saveWeekNote: (input) => {
+        const rest = weekNotes.filter(
+          (n) => !(n.cohortKey === input.cohortKey && n.week === input.week),
+        );
+        persistWeekNotes([input, ...rest]);
+      },
+      addCounselCase: (input) => {
+        persistCases([{ id: uid(), ...input, createdAt: nowIso(), helpful: 0 }, ...counselCases]);
+      },
+      markCaseHelpful: (id) => {
+        persistCases(counselCases.map((c) => (c.id === id ? { ...c, helpful: c.helpful + 1 } : c)));
+      },
     }),
-    [materials, entries, lessonNotes, persistMaterials, persistEntries, persistNotes],
+    [
+      materials,
+      entries,
+      lessonNotes,
+      plans,
+      weekNotes,
+      counselCases,
+      persistMaterials,
+      persistEntries,
+      persistNotes,
+      persistPlans,
+      persistWeekNotes,
+      persistCases,
+    ],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

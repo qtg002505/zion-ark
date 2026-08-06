@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
+import { PencilLine } from "lucide-react";
 import { useSession } from "../lib/auth";
-import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
+import { useStore } from "../lib/store";
+import { ROLE_LABELS } from "../lib/types";
+import {
+  canEditCohortRecord,
+  cohortKeyOf,
+  studentScopeLabel,
+  visibleDivisions,
+} from "../lib/permissions";
 import {
   STUDENTS,
   DIVISIONS,
@@ -249,12 +257,26 @@ export function CohortStatus() {
 /**
  * 주간 흐름 — 우리 기수의 주별 출석률과 지파 평균을 함께 본다.
  * 크게 떨어진 주는 **왜 그랬는지와 어떻게 넘겼는지**를 함께 보여 준다.
- * 그 설명은 자동 산출이 아니라 담당자가 적는 기록이다.
+ * 그 설명은 자동 산출이 아니라 담당자가 적는 기록이다 —
+ * **해당 기수의 강사·전도사만** 적고 고칠 수 있다 (2026-08-06 확정).
  */
 function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
+  const session = useSession();
+  const { weekNotes, saveWeekNote } = useStore();
   const [picked, setPicked] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
   const max = 100;
-  const current = picked !== null ? rows[picked] : null;
+
+  const cohortKey = cohortKeyOf(session);
+  const canEdit = canEditCohortRecord(session, cohortKey);
+
+  /** 사람이 적은 기록이 있으면 그것이 우선, 없으면 목업의 기본 설명 */
+  const noteOf = (week: string) => weekNotes.find((n) => n.cohortKey === cohortKey && n.week === week);
+  const merged = rows.map((r) => {
+    const n = noteOf(r.week);
+    return { ...r, reason: n ? n.reason : r.reason, overcome: n ? n.overcome : r.overcome, note: n };
+  });
+  const current = picked !== null ? merged[picked] : null;
 
   return (
     <Card>
@@ -266,7 +288,7 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
 
       <div className="-mx-1 overflow-x-auto px-1">
         <div className="flex min-w-[520px] items-end gap-2" role="img" aria-label="주간 출석률과 지파 평균 비교">
-          {rows.map((r, i) => (
+          {merged.map((r, i) => (
             <button
               key={r.week}
               onClick={() => setPicked(picked === i ? null : i)}
@@ -312,8 +334,18 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
 
       {current && (
         <div className="mt-3 rounded-lg bg-zion-50 p-3">
-          <div className="text-[13px] font-bold text-zion-900">
-            {current.week} — 우리 {current.rate}% · 지파 평균 {current.tribeAvg}%
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[13px] font-bold text-zion-900">
+              {current.week} — 우리 {current.rate}% · 지파 평균 {current.tribeAvg}%
+            </div>
+            {canEdit && (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-1 rounded-lg border border-zion-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
+              >
+                <PencilLine size={12} /> {current.reason ? "고치기" : "적기"}
+              </button>
+            )}
           </div>
           {current.reason ? (
             <>
@@ -325,18 +357,114 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
                   <span className="font-semibold text-zion-700">극복</span> {current.overcome}
                 </p>
               )}
+              {current.note && (
+                <p className="mt-1.5 text-[11px] text-ink-soft">
+                  {current.note.editedBy} ({ROLE_LABELS[current.note.editedByRole]}) ·{" "}
+                  {current.note.editedAt.slice(0, 10)}
+                </p>
+              )}
             </>
           ) : (
-            <p className="mt-1.5 text-[12px] text-ink-soft">이 주에 적힌 사유가 없습니다.</p>
+            <p className="mt-1.5 text-[12px] text-ink-soft">
+              이 주에 적힌 사유가 없습니다.
+              {canEdit ? " 위 버튼으로 적어 주세요." : " 담당 강사·전도사가 적으면 표시됩니다."}
+            </p>
           )}
         </div>
       )}
 
       <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
-        사유·극복 기록은 담당자가 적는 항목입니다. 입력 화면과 권한은 아직 정해지지 않아
-        지금은 예시만 표시됩니다.
+        사유·극복 기록은 <strong className="text-ink">해당 기수의 강사·전도사</strong>가 적습니다.
+        열람은 담당 범위 안에서 누구나 가능합니다.
       </p>
+
+      {editing && current && canEdit && (
+        <WeekNoteForm
+          week={current.week}
+          initial={{ reason: current.reason ?? "", overcome: current.overcome ?? "" }}
+          onClose={() => setEditing(false)}
+          onSubmit={({ reason, overcome }) => {
+            saveWeekNote({
+              cohortKey,
+              week: current.week,
+              reason,
+              overcome,
+              editedBy: session.name,
+              editedByRole: session.roleCode,
+              editedAt: new Date().toISOString(),
+            });
+            setEditing(false);
+          }}
+        />
+      )}
     </Card>
+  );
+}
+
+/** 주차 사유·극복 입력 — 수강생 개인을 짚는 내용은 적지 않는다 (불변식 2) */
+function WeekNoteForm({
+  week,
+  initial,
+  onClose,
+  onSubmit,
+}: {
+  week: string;
+  initial: { reason: string; overcome: string };
+  onClose: () => void;
+  onSubmit: (v: { reason: string; overcome: string }) => void;
+}) {
+  const [reason, setReason] = useState(initial.reason);
+  const [overcome, setOvercome] = useState(initial.overcome);
+  const [error, setError] = useState<string | null>(null);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (reason.trim().length < 5) {
+      setError("사유를 다섯 글자 이상 적어 주세요.");
+      return;
+    }
+    onSubmit({ reason: reason.trim(), overcome: overcome.trim() });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="주차 사유 기록">
+      <form onSubmit={submit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="mb-1 text-[16px] font-bold text-zion-900">{week} — 무슨 일이 있었나</h2>
+        <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+          다음 기수가 같은 주에 참고합니다. 수강생 이름이나 개인 사정은 적지 않고, 기수 전체에서
+          일어난 일만 적어 주세요.
+        </p>
+
+        <label className="mb-1 block text-[12px] font-semibold text-ink">사유</label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          placeholder="예) 지역 행사 일정과 겹쳐 저녁 대면 참석이 크게 줄었습니다."
+          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+        />
+
+        <label className="mb-1 block text-[12px] font-semibold text-ink">극복 (선택)</label>
+        <textarea
+          value={overcome}
+          onChange={(e) => setOvercome(e.target.value)}
+          rows={3}
+          placeholder="예) 다음 주에 오전 보강을 추가로 열어 결석분을 메웠습니다."
+          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+        />
+
+        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+            취소
+          </button>
+          <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
+            저장
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

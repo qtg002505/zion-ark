@@ -69,6 +69,31 @@ export function isFieldStaff(s: Session): boolean {
   return s.roleCode === "instructor" || s.roleCode === "evangelist";
 }
 
+/** 그 기수의 사명자인지 — 세션의 담당 기수와 대조한다 */
+export function cohortKeyOf(s: Session): string {
+  return `${s.tribe}|${s.church}|${s.cohort}`;
+}
+
+/**
+ * 기수 주간계획·주차 사유 기록을 고칠 수 있는지 (2026-08-06 확정).
+ * **해당 기수의 강사·전도사만** 고친다 — 로그인 전체에게 열지 않는다.
+ * 열람은 담당 범위 안에서 누구나 가능하고, 수정만 제한한다.
+ *
+ * 서버 연동 시에도 같은 규칙을 서버가 `memberships`로 다시 판정한다(불변식 1).
+ * 범위 밖에서 고치려 하면 403이다.
+ */
+export function canEditCohortRecord(s: Session, cohortKey: string): boolean {
+  return isFieldStaff(s) && cohortKeyOf(s) === cohortKey;
+}
+
+/**
+ * 상담 사례를 올릴 수 있는지 — 현장에서 겪은 사람이 남기는 자료다.
+ * 관리직도 올릴 수 있게 두되, **익명화 기준(지파·교회·센터까지)** 은 화면에서 강제한다.
+ */
+export function canWriteCounselCase(s: Session): boolean {
+  return s.roleCode !== "security_auditor";
+}
+
 /**
  * 로그인 직후 착지 화면 (ORG_CHART §6).
  * 관리직은 담당 기수가 없어 "내 기수" 화면이 비므로 전체현황으로 보낸다.

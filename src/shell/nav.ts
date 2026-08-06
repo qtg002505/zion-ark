@@ -1,4 +1,5 @@
 import type { RoleCode, Session } from "../lib/types";
+import { LIBRARY_FOLDERS, LIBRARY_SECTION_LABELS } from "../lib/types";
 import {
   LayoutDashboard,
   Users,
@@ -23,6 +24,10 @@ import {
   TreeDeciduous,
   BellRing,
   Layers,
+  CalendarDays,
+  MessagesSquare,
+  FolderClosed,
+  Globe,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
       // "/"는 역할별 착지 분기에 쓰므로, 메뉴에서는 실제 경로를 가리킨다
       { to: "/overview", label: "전체 현황", icon: LayoutDashboard },
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
+      { to: "/plan", label: "기수 주간계획", icon: CalendarDays },
     ],
   },
   /**
@@ -84,7 +90,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "강사 도우미",
     icon: Presentation,
-    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
+    items: [
+      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
+      { to: "/cases", label: "상담 사례", icon: MessagesSquare },
+    ],
     subGroups: [
       {
         label: "초등",
@@ -113,24 +122,39 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   /**
-   * 자료실 — 2026-08-06 회의에서 **이원화**하기로 했다.
-   * 가르칠 때 쓰는 교안(강사 도우미 자료실)과 그 밖의 지식·전달 자료(외부 자료실)로 가른다.
+   * 자료실 — 2026-08-06 확정: **독립 대메뉴**이고 두 구획으로 갈린다.
+   * 가르칠 때 쓰는 교안(강사 도우미 자료실)과 그 밖의 지식·전달 자료(외부 자료실).
+   * 각 구획 아래 폴더는 `LIBRARY_FOLDERS`(src/lib/types.ts)에서 온다 — 여기에 다시 적지 않는다.
    *
-   * ⚠️ 폴더식 계층(개강 세미나 / 성경 밭갈이 / … 아래 하위 폴더)은 아직 넣지 않았다.
-   * `library_materials`에 계층 컬럼을 더해야 하는데, "외부 자료실"의 정의가 확정되기 전에
-   * 스키마를 잡으면 재작업이 생긴다 (회의 메모 미해결 0-2). 지금은 축만 갈라 두었다.
+   * ⚠️ 두 구획 모두 **로그인해야 열린다.** "외부"는 자료의 성격이지 공개 범위가 아니다.
    */
   {
     label: "자료실",
     icon: BookOpen,
     subGroups: [
       {
-        label: "강사 도우미 자료실",
+        label: LIBRARY_SECTION_LABELS.instructor,
         icon: Presentation,
         items: [
-          { to: "/library", label: "표준 강의 자료", icon: BookOpen },
-          { to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen },
-          { to: "/library?tab=excellent_plan", label: "우수 교안", icon: Star },
+          { to: "/library?section=instructor", label: "전체", icon: BookOpen },
+          ...LIBRARY_FOLDERS.instructor.map((f) => ({
+            to: `/library?section=instructor&folder=${encodeURIComponent(f)}`,
+            label: f,
+            icon: FolderClosed,
+          })),
+          { to: "/library?section=instructor&tab=excellent_plan", label: "우수 교안", icon: Star },
+        ],
+      },
+      {
+        label: LIBRARY_SECTION_LABELS.external,
+        icon: Globe,
+        items: [
+          { to: "/library?section=external", label: "전체", icon: BookOpen },
+          ...LIBRARY_FOLDERS.external.map((f) => ({
+            to: `/library?section=external&folder=${encodeURIComponent(f)}`,
+            label: f,
+            icon: FolderClosed,
+          })),
         ],
       },
       {
