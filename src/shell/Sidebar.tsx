@@ -131,9 +131,28 @@ export function Sidebar({
             <LogOut size={16} />
           </button>
         </div>
+        {/*
+          빌드 스탬프 — 팀 공유 프리뷰에서 "내가 보는 게 최신인가"를 확인하는 유일한 단서다.
+          옛 화면이 보인다는 말이 나오면 이 시각부터 맞춰 본다.
+        */}
+        <div className="mt-2 text-[10px] text-ink-soft">빌드 {buildLabel()}</div>
       </div>
     </aside>
   );
+}
+
+/** 빌드 시각을 사람이 읽는 형태로 — 초 단위까지는 필요 없다 */
+function buildLabel(): string {
+  try {
+    return new Date(__BUILD_STAMP__).toLocaleString("ko-KR", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "확인 불가";
+  }
 }
 
 /** 대주제 한 덩어리 — 제목을 누르면 열리고, 다른 대주제를 누르면 닫힌다 */

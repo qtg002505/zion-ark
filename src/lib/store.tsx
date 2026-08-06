@@ -226,34 +226,59 @@ const SEED_CASES: CounselCase[] = [
 
 /* ── 스토어 구현 ── */
 
-function load<T>(key: string, seed: T[]): T[] {
+/**
+ * 저장소에서 읽고, **뒤늦게 추가된 시드는 덧붙인다.**
+ *
+ * 왜 덧붙이나: 종전에는 키가 이미 있으면 시드를 아예 건너뛰었다. 그래서 프리뷰를 한 번
+ * 열어 본 팀원은 그 뒤에 추가된 예시 자료가 영영 보이지 않았다 — 화면 코드는 최신인데
+ * **내용이 옛것이라 "안 고쳐졌다"고 보이는** 원인이었다.
+ *
+ * 없는 시드만 id로 대조해 더한다. 사용자가 등록한 것은 건드리지 않는다 —
+ * 지우거나 덮어쓰는 이관은 하지 않는다.
+ * (실연동 시에는 서버가 데이터를 주므로 이 함수째 사라진다.)
+ */
+function load<T extends { id: string }>(key: string, seed: T[]): T[] {
+  let stored: T[] | null = null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) stored = JSON.parse(raw) as T[];
+  } catch {
+    /* 손상 시 시드로 복구 */
+  }
+  if (!stored) {
+    localStorage.setItem(key, JSON.stringify(seed));
+    return seed;
+  }
+  const have = new Set(stored.map((x) => x.id));
+  const missing = seed.filter((s) => !have.has(s.id));
+  if (missing.length === 0) return stored;
+  const next = [...stored, ...missing];
+  localStorage.setItem(key, JSON.stringify(next));
+  return next;
+}
+
+/** id가 없는 기록(주차 사유)은 대조할 키가 없어 그대로 읽는다 */
+function loadPlain<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw) as T[];
   } catch {
-    /* 손상 시 시드로 복구 */
+    /* 손상 시 빈 목록 */
   }
-  localStorage.setItem(key, JSON.stringify(seed));
-  return seed;
+  return [];
 }
 
 /**
  * 자료실 이관 — 구획·폴더가 생기기 전(2026-08-06 이전)에 저장된 자료를 메운다.
- *
- * 브라우저에 이미 든 자료는 `section`이 없어 그대로 두면 어느 구획에도 안 잡힌다.
- * 없는 값은 「강사 도우미 자료실」로 보고, 그 뒤에 새로 생긴 시드 중 빠진 것만 덧붙인다.
- * 사용자가 등록한 자료는 건드리지 않는다 — 지우는 이관은 하지 않는다.
- * (실연동 시에는 서버 마이그레이션이 같은 일을 하고, 이 함수는 사라진다.)
+ * `section`이 없으면 어느 구획에도 안 잡히므로 「강사 도우미 자료실」로 본다.
+ * 빠진 시드를 덧붙이는 일은 `load()`가 이미 한다.
  */
 function migrateMaterials(stored: LibraryMaterial[]): LibraryMaterial[] {
-  const filled = stored.map((m) => ({
+  return stored.map((m) => ({
     ...m,
     section: m.section ?? "instructor",
     folderPath: m.folderPath ?? [],
   }));
-  const have = new Set(filled.map((m) => m.id));
-  const missing = SEED_MATERIALS.filter((s) => !have.has(s.id));
-  return missing.length > 0 ? [...filled, ...missing] : filled;
 }
 
 interface StoreValue {
@@ -315,7 +340,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<WorkspaceEntry[]>(() => load(WS_KEY, SEED_ENTRIES));
   const [lessonNotes, setLessonNotes] = useState<LessonNote[]>(() => load(NOTE_KEY, SEED_NOTES));
   const [plans, setPlans] = useState<WeeklyPlan[]>(() => load(PLAN_KEY, []));
-  const [weekNotes, setWeekNotes] = useState<WeekNote[]>(() => load(WEEKNOTE_KEY, []));
+  const [weekNotes, setWeekNotes] = useState<WeekNote[]>(() => loadPlain<WeekNote>(WEEKNOTE_KEY));
   const [counselCases, setCounselCases] = useState<CounselCase[]>(() => load(CASE_KEY, SEED_CASES));
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {

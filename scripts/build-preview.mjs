@@ -9,17 +9,27 @@
  *
  * 운영 배포에는 쓰지 않는다 (dist/ 를 그대로 올린다).
  */
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const DIST = "dist";
 const OUT_DIR = "preview";
 const OUT = join(OUT_DIR, "zion-ark-preview.html");
 
-const assets = readdirSync(join(DIST, "assets"));
-const jsFile = assets.find((f) => f.endsWith(".js"));
-const cssFile = assets.find((f) => f.endsWith(".css"));
-if (!jsFile || !cssFile) throw new Error("dist/assets 에서 js·css 를 찾지 못했습니다. 먼저 빌드하세요.");
+/**
+ * 어느 번들을 실을지는 **`dist/index.html`이 가리키는 것**으로 정한다.
+ *
+ * 종전에는 `dist/assets`를 훑어 첫 `.js`를 집었다. 지금은 빌드가 폴더를 비워 파일이
+ * 하나뿐이라 우연히 맞았지만, 옛 산출물이 하나라도 남으면 **조용히 옛 번들을 인라인한다** —
+ * 빌드는 성공하고 화면만 옛것이 되는, 알아채기 가장 어려운 실패다.
+ * index.html은 방금 빌드가 쓴 것이므로 여기서 읽으면 그런 어긋남이 생기지 않는다.
+ */
+const indexHtml = readFileSync(join(DIST, "index.html"), "utf8");
+const jsFile = indexHtml.match(/src="\/assets\/([^"]+\.js)"/)?.[1];
+const cssFile = indexHtml.match(/href="\/assets\/([^"]+\.css)"/)?.[1];
+if (!jsFile || !cssFile) {
+  throw new Error("dist/index.html 에서 js·css 참조를 찾지 못했습니다. 먼저 빌드하세요.");
+}
 
 const js = readFileSync(join(DIST, "assets", jsFile), "utf8");
 const css = readFileSync(join(DIST, "assets", cssFile), "utf8");
@@ -61,4 +71,5 @@ writeFileSync(OUT, html, "utf8");
 writeFileSync(join(OUT_DIR, "index.html"), html, "utf8");
 
 const mb = (Buffer.byteLength(html, "utf8") / 1024 / 1024).toFixed(2);
-console.log(`${OUT} 생성 완료 — ${mb} MB`);
+// 어느 번들을 실었는지 함께 찍는다 — 옛 화면이 보인다는 말이 나올 때 첫 확인 지점이다
+console.log(`${OUT} 생성 완료 — ${mb} MB (${jsFile})`);
