@@ -16,8 +16,12 @@ git 충돌은 "같은 파일을 두 사람이 고칠 때"만 생긴다. 그래�
 | **A. 우리 기수현황** | 전체 현황 · 기수 현황 · 주간계획 | `src/pages/Overview.tsx` · `CohortStatus.tsx` · `WeeklyPlanPage.tsx` · `src/content/cohort-mock.ts` |
 | **B. 수강생 관리·상담** | 수강생 목록 · 관찰 필요 · 성향 · 상담 사례 | `src/pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `CounselCases.tsx` · `src/lib/attendance-signals.ts` · `src/content/enneagram-guides.ts` |
 | **C. 강사 도우미** | 초·중·고 교안 · 자료 모으기 · 현장 기록 | `src/pages/Lessons.tsx` · `Compose.tsx` · `src/components/LessonNotes.tsx` · `src/lib/compose.ts` · `src/content/elementary-lessons.ts` · `lessons-high*` |
-| **D. 전도사 도우미·자료실** | 자료실 구획·폴더 · 신천지도서 시리즈 | `src/pages/Library.tsx` · `SeriesReader.tsx` · `src/content/series/**` · `series-content.ts` |
-| **E. 공지·어록·외부매체** | 공지사항 · 총회장님 어록 · 말씀광장/천지일보 링크 | `src/pages/Notices.tsx` · `Quotes.tsx` · `src/lib/quote-picker.ts` · `src/content/quotes/**` · `quotes-data.ts` |
+| **D. 전도사 도우미** | 분반 자료 · 보강 자료 7개 폴더(영적전환 등) 원문 준비·등록 | 보강 자료 원문(`src/content/evangelist/**` — 만들면서 생성) · 전도사 전용 화면 신설 시 그 화면 파일 |
+| **E. 자료실·공지·어록·외부매체** | 자료실 구획·폴더 · 신천지도서 시리즈 · 공지 · 어록 · 말씀광장/천지일보 | `src/pages/Library.tsx` · `SeriesReader.tsx` · `Notices.tsx` · `Quotes.tsx` · `src/lib/quote-picker.ts` · `src/content/series/**` · `series-content.ts` · `src/content/quotes/**` · `quotes-data.ts` |
+
+> D는 지금 코드 파일이 거의 없다 — 초기 작업은 **보강 자료 원문을 모으고 자료실 화면에서
+> 등록하는 콘텐츠 작업**이 중심이다. 화면 등록은 코드 충돌이 없으므로 경계 문제가 없다.
+> E는 파일이 가장 많다 — 부담이 커지면 시리즈(`series/**`)를 D로 넘기는 것을 검토한다.
 
 ### 공유 파일 — 리드만 고친다
 
@@ -47,14 +51,8 @@ src/pages/common.tsx · Login.tsx · src/components/Accordion.tsx · src/index.c
 
 ### 팀원 첫 세팅 (각자 1회)
 
-```
-git clone https://github.com/seonghun0025-wq/zion-ark.git
-cd zion-ark
-npm install
-npm run dev
-```
-
-그리고 [CONTRIBUTING.md](CONTRIBUTING.md)의 "작업 전 읽을 것"을 읽는다.
+**[ONBOARDING.md](ONBOARDING.md)를 그대로 따라 한다** — 설치부터 PR까지 사람이 할 일과
+AI에게 시킬 일을 단계별로 갈라 놓았다. 팀원에게는 이 파일 링크 하나만 보내면 된다.
 
 ### 반복되는 작업 사이클
 
