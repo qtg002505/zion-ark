@@ -4,16 +4,16 @@
 
 # 기본: 모든 변경은 리드가 최종 머지하므로 전체를 리드 소유로 두고,
 # 파트 파일은 아래에서 소유를 풀지 않는다 (팀원 PR도 리드 승인 1건이면 충분).
-*                       @seonghun0025-wq
+*                       @qtg002505
 
 # 특히 아래는 데이터 계약·전 파트 공용이라 팀원이 직접 고치지 않는다 (TEAMWORK.md)
-/CLAUDE.md              @seonghun0025-wq
-/docs/                  @seonghun0025-wq
-/src/App.tsx            @seonghun0025-wq
-/src/shell/             @seonghun0025-wq
-/src/lib/types.ts       @seonghun0025-wq
-/src/lib/store.tsx      @seonghun0025-wq
-/src/lib/permissions.ts @seonghun0025-wq
-/src/lib/auth.tsx       @seonghun0025-wq
-/src/index.css          @seonghun0025-wq
-/.github/               @seonghun0025-wq
+/CLAUDE.md              @qtg002505
+/docs/                  @qtg002505
+/src/App.tsx            @qtg002505
+/src/shell/             @qtg002505
+/src/lib/types.ts       @qtg002505
+/src/lib/store.tsx      @qtg002505
+/src/lib/permissions.ts @qtg002505
+/src/lib/auth.tsx       @qtg002505
+/src/index.css          @qtg002505
+/.github/               @qtg002505

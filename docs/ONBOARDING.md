@@ -35,7 +35,7 @@ git config --global user.email "메일주소"
 
 ```
 cd Desktop
-git clone https://github.com/seonghun0025-wq/zion-ark.git
+git clone https://github.com/qtg002505/zion-ark.git
 cd zion-ark
 npm install
 ```
