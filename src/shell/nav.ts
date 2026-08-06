@@ -63,10 +63,22 @@ const NAV_GROUPS: NavGroup[] = [
     label: "현황",
     icon: Gauge,
     items: [
-      { to: "/", label: "전체 현황", icon: LayoutDashboard },
+      // "/"는 역할별 착지 분기에 쓰므로, 메뉴에서는 실제 경로를 가리킨다
+      { to: "/overview", label: "전체 현황", icon: LayoutDashboard },
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
-      { to: "/students", label: "수강생 관리", icon: Users },
+    ],
+  },
+  /**
+   * 수강생 관리 도우미 — 2026-08-06 회의에서 **대카테고리로 승격**됐다.
+   * 출석 위주 구성을 지양하고 기본정보·성향·관리방향을 함께 다룬다.
+   */
+  {
+    label: "수강생 관리 도우미",
+    icon: Users,
+    items: [
+      { to: "/students", label: "수강생 목록", icon: Users },
       { to: "/signals", label: "관찰 필요", icon: BellRing },
+      { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
     ],
   },
   {
@@ -100,22 +112,36 @@ const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
+  /**
+   * 자료실 — 2026-08-06 회의에서 **이원화**하기로 했다.
+   * 가르칠 때 쓰는 교안(강사 도우미 자료실)과 그 밖의 지식·전달 자료(외부 자료실)로 가른다.
+   *
+   * ⚠️ 폴더식 계층(개강 세미나 / 성경 밭갈이 / … 아래 하위 폴더)은 아직 넣지 않았다.
+   * `library_materials`에 계층 컬럼을 더해야 하는데, "외부 자료실"의 정의가 확정되기 전에
+   * 스키마를 잡으면 재작업이 생긴다 (회의 메모 미해결 0-2). 지금은 축만 갈라 두었다.
+   */
   {
     label: "자료실",
     icon: BookOpen,
-    items: [
-      { to: "/library", label: "표준 강의 자료", icon: BookOpen },
-      { to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen },
-      { to: "/library?tab=excellent_plan", label: "우수 교안", icon: Star },
-    ],
-  },
-  {
-    label: "자료실 시리즈",
-    icon: Library,
-    items: [
-      { to: "/series/revelation", label: "요한계시록의 실상", icon: ScrollText },
-      { to: "/series/creation", label: "천지창조", icon: ScrollText },
-      { to: "/series/acts", label: "예수그리스도의 행전", icon: ScrollText },
+    subGroups: [
+      {
+        label: "강사 도우미 자료실",
+        icon: Presentation,
+        items: [
+          { to: "/library", label: "표준 강의 자료", icon: BookOpen },
+          { to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen },
+          { to: "/library?tab=excellent_plan", label: "우수 교안", icon: Star },
+        ],
+      },
+      {
+        label: "자료실 시리즈",
+        icon: Library,
+        items: [
+          { to: "/series/revelation", label: "요한계시록의 실상", icon: ScrollText },
+          { to: "/series/creation", label: "천지창조", icon: ScrollText },
+          { to: "/series/acts", label: "예수그리스도의 행전", icon: ScrollText },
+        ],
+      },
     ],
   },
   {

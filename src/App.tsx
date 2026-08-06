@@ -1,5 +1,6 @@
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { landingPath } from "./lib/permissions";
 import { StoreProvider } from "./lib/store";
 import { Layout } from "./shell/Layout";
 import { Login } from "./pages/Login";
@@ -20,10 +21,21 @@ function Routed() {
 
   if (!session) return <Login />;
 
+  /**
+   * 착지 화면 — 관리직은 담당 기수가 없어 "내 기수" 화면이 구조적으로 비므로
+   * 전체현황(요약)으로, 실무직(강사·전도사)은 담당 기수 상세로 보낸다.
+   * (ORG_CHART §6. 편의 기능일 뿐 권한이 아니다 — 각 화면은 범위를 다시 검증한다.)
+   */
+  const landing = landingPath(session);
+
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Overview />} />
+        <Route
+          path="/"
+          element={landing === "/" ? <Overview /> : <Navigate to={landing} replace />}
+        />
+        <Route path="/overview" element={<Overview />} />
         <Route path="/cohort" element={<CohortStatus />} />
         <Route path="/students" element={<Students />} />
         <Route path="/signals" element={<Signals />} />

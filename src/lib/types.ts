@@ -28,7 +28,11 @@ export interface Session {
   tribe: string;
   church: string;
   cohort: string;
-  /** 전도사만 사용 — 담당 분반 */
+  /**
+   * 담당 분반 — 2026-08-06부터 **권한 판정에 쓰지 않는다**.
+   * 전도사도 담당 기수 전체를 보므로 분반은 경계가 아니다. 표시·분류용으로만 남긴다.
+   * 필드를 지우지 않는 이유는 분반 배정이 다시 필요해질 수 있어서다(불변식 10).
+   */
   division: string | null;
   loggedInAt: string;
 }

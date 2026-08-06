@@ -9,6 +9,16 @@ import type { AttendanceMark, Student, WeeklyAttendance } from "../lib/types";
  */
 
 export const COHORT = { tribe: "요한", church: "과천교회", cohort: "113기" };
+
+/**
+ * 기수 일정 — 점검자가 진행 상황을 가늠하는 기준 (2026-08-06 회의 확정).
+ * 실연동 시 `cohorts` 테이블의 개강일·종강예정일·새신자교육일 컬럼에서 온다.
+ */
+export const SCHEDULE = {
+  startsOn: "2026-03-02",
+  endsOn: "2026-09-14",
+  newcomerOn: "2026-08-17",
+};
 export const DIVISIONS = ["1분반", "2분반", "3분반", "4분반"];
 export const TOTAL_SESSIONS = 92;
 
@@ -91,6 +101,69 @@ export const STUDENTS: Student[] = [
   s("송가온", "4분반", 21, "paused", [9, 6, 4], "2026-05-25", "A A A A A A A A"),
   s("배라온", "4분반", 17, "paused", [7, 5, 4], "2026-05-11", "A A A A A A A A"),
   s("조미르", "4분반", 13, "paused", [5, 4, 3], "2026-04-27", "A A A A A A A A"),
+];
+
+/**
+ * 주차별 출석률 — 이전 주 대비 흐름과 지파 평균 비교에 쓴다 (2026-08-06 회의 확정).
+ * `reason`은 사람이 적는 필드다. 자동 산출이 아니라 담당자가 그 주에 무슨 일이
+ * 있었는지 남기고, 그래프에 손을 올리면 그대로 보인다.
+ * ⚠️ 입력 화면과 권한은 아직 정해지지 않았다 (회의 메모 미해결 9번).
+ */
+export interface WeeklyRate {
+  week: string;
+  rate: number;
+  /** 지파 내 최근 3개 기수 평균 — 우리 기수가 어디쯤인지 가늠하는 기준선 */
+  tribeAvg: number;
+  reason?: string;
+  overcome?: string;
+}
+
+export const WEEKLY_RATES: WeeklyRate[] = [
+  { week: "5월 4주", rate: 88, tribeAvg: 82 },
+  { week: "6월 1주", rate: 86, tribeAvg: 81 },
+  {
+    week: "6월 2주",
+    rate: 74,
+    tribeAvg: 80,
+    reason: "장마로 저녁 대면 참석이 크게 줄었습니다.",
+    overcome: "다음 주 오전 보강을 열어 8명이 참석했습니다.",
+  },
+  { week: "6월 3주", rate: 83, tribeAvg: 80 },
+  { week: "6월 4주", rate: 81, tribeAvg: 79 },
+  {
+    week: "7월 1주",
+    rate: 69,
+    tribeAvg: 78,
+    reason: "휴가철이 겹쳐 결석이 늘었습니다.",
+    overcome: "미리 보강 일정을 잡아 이탈로 이어지지 않게 했습니다.",
+  },
+  { week: "7월 2주", rate: 77, tribeAvg: 78 },
+  { week: "7월 3주", rate: 80, tribeAvg: 79 },
+];
+
+/**
+ * 지파 내·전국 기수 비교 — 우수 기수 필터 (2026-08-06 회의 확정).
+ * ⚠️ 담당 범위 밖 지파 데이터는 **기수명과 출석률 집계까지만** 담는다.
+ * 개인정보는 어떤 형태로도 넣지 않는다 (불변식 2 — 집계·통계만 반출).
+ */
+export interface CohortRank {
+  tribe: string;
+  church: string;
+  cohort: string;
+  rate: number;
+  /** 우리 기수인지 */
+  isMine?: boolean;
+}
+
+export const COHORT_RANKS: CohortRank[] = [
+  { tribe: "요한", church: "과천교회", cohort: "115기", rate: 91 },
+  { tribe: "요한", church: "안양교회", cohort: "112기", rate: 87 },
+  { tribe: "요한", church: "과천교회", cohort: "113기", rate: 80, isMine: true },
+  { tribe: "요한", church: "수원교회", cohort: "114기", rate: 76 },
+  { tribe: "바돌로매", church: "대구교회", cohort: "108기", rate: 94 },
+  { tribe: "베드로", church: "부산교회", cohort: "121기", rate: 89 },
+  { tribe: "마태", church: "광주교회", cohort: "110기", rate: 85 },
+  { tribe: "도마", church: "대전교회", cohort: "119기", rate: 83 },
 ];
 
 export const STATUS_LABELS: Record<Student["status"], string> = {

@@ -9,12 +9,16 @@ import type { RoleCode, ScopeType, Session } from "./types";
 
 const SESSION_KEY = "zion_ark_session";
 
+/**
+ * 역할별 조직 범위 (2026-08-06 확정 — `docs/decisions/ORG_CHART.md` §2).
+ * 전도사는 `division` → `cohort`로 바뀌었다 — 강사와 같은 범위를 본다.
+ */
 const ROLE_SCOPE: Record<RoleCode, ScopeType> = {
   headquarters_admin: "national",
   tribe_admin: "tribe",
   church_admin: "church",
   instructor: "cohort",
-  evangelist: "division",
+  evangelist: "cohort",
   content_admin: "national",
   security_auditor: "national",
 };

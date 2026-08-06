@@ -83,7 +83,7 @@ export function Login() {
           {role === "evangelist" && (
             <>
               <label className="mb-1 block text-[12px] font-semibold text-ink" htmlFor="login-division">
-                담당 분반 (전도사는 담당 분반 범위만 조회됩니다)
+                담당 분반 (표시용 — 조회 범위는 담당 기수 전체입니다)
               </label>
               <select
                 id="login-division"

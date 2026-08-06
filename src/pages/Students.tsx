@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { useSession } from "../lib/auth";
-import { visibleDivisions } from "../lib/permissions";
+import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
 import { STUDENTS, DIVISIONS, STATUS_LABELS } from "../content/cohort-mock";
 import type { Student } from "../lib/types";
 import { PageHeader, Card, StatusBadge } from "./common";
@@ -30,11 +30,7 @@ export function Students() {
       <PageHeader
         crumb="현황"
         title="수강생 관리"
-        desc={
-          session.roleCode === "evangelist"
-            ? `담당 분반(${session.division})의 수강생만 표시됩니다 — 범위 밖 조회는 서버가 차단(403)합니다.`
-            : "담당 범위의 수강생을 상태·분반으로 분류해 관리합니다."
-        }
+        desc={`조회 범위: ${studentScopeLabel(session)} — 범위 밖 조회는 서버가 차단(403)합니다.`}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
