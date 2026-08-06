@@ -122,7 +122,9 @@ npm run build:preview
 이건 claude.ai 공유 화면의 동작이라 코드로 자동화할 수 없다.
 
 그래서 push마다 같은 주소가 항상 최신을 가리키는 **GitHub Pages 배포**를 붙였다
-(`.github/workflows/deploy-pages.yml`). 주소: `https://<계정>.github.io/zion-ark/`
+(`.github/workflows/deploy-pages.yml`). 주소: **https://qtg002505.github.io/zion-ark/**
+(2026-08-06 저장소 `qtg002505/zion-ark` 생성·푸시·Pages 활성·main 보호 규칙까지 완료.
+배포 성공과 실제 화면 표시를 확인했다.)
 
 - 프리뷰와 같은 이유로 **해시 라우팅 + 상대 경로**(`--base=./`)로 빌드한다
   (Pages는 하위 경로 서비스 + 서버 라우팅 없음)
