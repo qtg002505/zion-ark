@@ -228,12 +228,13 @@ function NavGroupBlock({
         />
       </button>
 
+      {/*
+        하위 묶음을 먼저, 직속 항목을 뒤에 놓는다.
+        확정 카테고리에서 묶음이 앞서고(자료실 › 신천지도서 → 영인지…,
+        강사 도우미 › 초등·중등·고등 → 강의 자료 모으기) 직속 항목은 보조 도구이기 때문이다.
+      */}
       {isOpen && (
         <div className="ml-[22px] border-l border-zion-100 pb-1 pl-3">
-          {group.items && group.items.length > 0 && (
-            <ItemList items={group.items} pathname={pathname} currentFull={currentFull} />
-          )}
-
           {group.subGroups?.map((sub) => (
             <SubGroupBlock
               key={sub.label}
@@ -245,6 +246,10 @@ function NavGroupBlock({
               onToggle={() => onToggleSub(`${group.label}/${sub.label}`)}
             />
           ))}
+
+          {group.items && group.items.length > 0 && (
+            <ItemList items={group.items} pathname={pathname} currentFull={currentFull} />
+          )}
         </div>
       )}
     </div>

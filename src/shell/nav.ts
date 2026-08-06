@@ -1,5 +1,9 @@
 import type { RoleCode, Session } from "../lib/types";
-import { LIBRARY_FOLDERS, LIBRARY_SECTION_LABELS } from "../lib/types";
+import {
+  EVANGELIST_MAKEUP_FOLDERS,
+  INSTRUCTOR_EARLY_FOLDERS,
+  LIBRARY_FOLDERS,
+} from "../lib/types";
 import {
   LayoutDashboard,
   Users,
@@ -27,13 +31,18 @@ import {
   CalendarDays,
   MessagesSquare,
   FolderClosed,
-  Globe,
+  Sunrise,
+  ClipboardList,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 
 /**
  * 내비 구조 — 정보구조 카테고리.
  * 새 화면은 여기에 항목을 추가한다. 본부·지파의 열람은 막지 않는다 (보기만 채택).
+ *
+ * 순서와 묶음은 2026-08-06 리드 확정안이다. 폴더 이름은 `LIBRARY_FOLDERS`에서 읽어
+ * 만든다 — 여기에 다시 적으면 두 곳이 어긋난다.
  */
 
 export interface NavItem {
@@ -63,44 +72,60 @@ export interface NavGroup {
   subGroups?: NavSubGroup[];
 }
 
+/** 자료실 폴더로 가는 링크 — 폴더 이름이 곧 메뉴 이름이다 */
+function folderItems(section: "instructor" | "external", folders: string[]): NavItem[] {
+  return folders.map((f) => ({
+    to: `/library?section=${section}&folder=${encodeURIComponent(f)}`,
+    label: f,
+    icon: FolderClosed,
+  }));
+}
+
 const NAV_GROUPS: NavGroup[] = [
+  /**
+   * 1. 우리 기수현황 — 실무직이 착지하는 자리.
+   * 관리직은 담당 기수가 없어 「전체 현황」을 본다 (같은 묶음에 둔다).
+   */
   {
-    label: "현황",
+    label: "우리 기수현황",
     icon: Gauge,
     items: [
-      // "/"는 역할별 착지 분기에 쓰므로, 메뉴에서는 실제 경로를 가리킨다
-      { to: "/overview", label: "전체 현황", icon: LayoutDashboard },
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
       { to: "/plan", label: "기수 주간계획", icon: CalendarDays },
+      // "/"는 역할별 착지 분기에 쓰므로, 메뉴에서는 실제 경로를 가리킨다
+      { to: "/overview", label: "전체 현황", icon: LayoutDashboard },
     ],
   },
   /**
-   * 수강생 관리 도우미 — 2026-08-06 회의에서 **대카테고리로 승격**됐다.
-   * 출석 위주 구성을 지양하고 기본정보·성향·관리방향을 함께 다룬다.
+   * 2. 수강생 관리·상담 도우미 — 출석 위주 구성을 지양하고
+   * 기본정보·성향·관리방향과 상담 사례를 함께 다룬다.
    */
   {
-    label: "수강생 관리 도우미",
+    label: "수강생 관리·상담 도우미",
     icon: Users,
     items: [
       { to: "/students", label: "수강생 목록", icon: Users },
       { to: "/signals", label: "관찰 필요", icon: BellRing },
       { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
+      { to: "/cases", label: "상담 사례", icon: MessagesSquare },
     ],
   },
+  /** 3. 강사 도우미 — 개강 초반 → 학년별 교안 순서 */
   {
     label: "강사 도우미",
     icon: Presentation,
-    items: [
-      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
-      { to: "/cases", label: "상담 사례", icon: MessagesSquare },
-    ],
     subGroups: [
+      {
+        label: "개강 초반",
+        icon: Sunrise,
+        items: folderItems("instructor", INSTRUCTOR_EARLY_FOLDERS),
+      },
       {
         label: "초등",
         icon: Baby,
         items: [
           { to: "/lessons", label: "초등 강의자료", icon: BookText },
-          { to: "/library?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: "/library?section=instructor&tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
         ],
       },
       {
@@ -108,7 +133,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Leaf,
         items: [
           { to: "/lessons?course=middle", label: "중등 강의자료", icon: BookText, badge: "준비 중" },
-          { to: "/library?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: "/library?section=instructor&tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
         ],
       },
       {
@@ -116,49 +141,41 @@ const NAV_GROUPS: NavGroup[] = [
         icon: TreeDeciduous,
         items: [
           { to: "/lessons?course=high", label: "고등 강의자료", icon: BookText },
-          { to: "/library?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: "/library?section=instructor&tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
         ],
+      },
+    ],
+    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
+  },
+  /** 4. 전도사 도우미 — 분반 운영과 보강 자료 */
+  {
+    label: "전도사 도우미",
+    icon: Sprout,
+    subGroups: [
+      {
+        label: "분반 자료",
+        icon: ClipboardList,
+        items: [
+          { to: "/library?section=instructor&tab=class_material", label: "분반·보강 자료", icon: BookOpen },
+        ],
+      },
+      {
+        label: "보강 자료",
+        icon: RefreshCw,
+        items: folderItems("instructor", EVANGELIST_MAKEUP_FOLDERS),
       },
     ],
   },
   /**
-   * 자료실 — 2026-08-06 확정: **독립 대메뉴**이고 두 구획으로 갈린다.
-   * 가르칠 때 쓰는 교안(강사 도우미 자료실)과 그 밖의 지식·전달 자료(외부 자료실).
-   * 각 구획 아래 폴더는 `LIBRARY_FOLDERS`(src/lib/types.ts)에서 온다 — 여기에 다시 적지 않는다.
-   *
-   * ⚠️ 두 구획 모두 **로그인해야 열린다.** "외부"는 자료의 성격이지 공개 범위가 아니다.
+   * 5. 자료실 — 신천지도서(시리즈)와 그 밖의 지식·전달 자료.
+   * ⚠️ 여기 있는 자료도 **로그인해야 열린다.** 무세션 401 원칙에 예외를 만들지 않는다.
    */
   {
     label: "자료실",
     icon: BookOpen,
     subGroups: [
       {
-        label: LIBRARY_SECTION_LABELS.instructor,
-        icon: Presentation,
-        items: [
-          { to: "/library?section=instructor", label: "전체", icon: BookOpen },
-          ...LIBRARY_FOLDERS.instructor.map((f) => ({
-            to: `/library?section=instructor&folder=${encodeURIComponent(f)}`,
-            label: f,
-            icon: FolderClosed,
-          })),
-          { to: "/library?section=instructor&tab=excellent_plan", label: "우수 교안", icon: Star },
-        ],
-      },
-      {
-        label: LIBRARY_SECTION_LABELS.external,
-        icon: Globe,
-        items: [
-          { to: "/library?section=external", label: "전체", icon: BookOpen },
-          ...LIBRARY_FOLDERS.external.map((f) => ({
-            to: `/library?section=external&folder=${encodeURIComponent(f)}`,
-            label: f,
-            icon: FolderClosed,
-          })),
-        ],
-      },
-      {
-        label: "자료실 시리즈",
+        label: "신천지도서",
         icon: Library,
         items: [
           { to: "/series/revelation", label: "요한계시록의 실상", icon: ScrollText },
@@ -167,25 +184,10 @@ const NAV_GROUPS: NavGroup[] = [
         ],
       },
     ],
+    items: folderItems("external", LIBRARY_FOLDERS.external),
   },
-  {
-    label: "전도사 도우미",
-    icon: Sprout,
-    items: [
-      { to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen },
-      { to: "/enneagram", label: "에니어그램 가이드", icon: HeartHandshake },
-    ],
-  },
-  {
-    label: "공지사항",
-    icon: Megaphone,
-    to: "/notices",
-  },
-  {
-    label: "총회장님 어록",
-    icon: Quote,
-    to: "/quotes",
-  },
+  { label: "공지사항", icon: Megaphone, to: "/notices" },
+  { label: "총회장님 어록", icon: Quote, to: "/quotes" },
   /**
    * 외부 매체는 새 탭으로 바로 연다.
    * 사이트 안(iframe) 표시는 두 매체가 `X-Frame-Options`로 막아 두어 불가능하다 —

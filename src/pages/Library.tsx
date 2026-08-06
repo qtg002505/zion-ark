@@ -5,6 +5,8 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canToggleFeatured, canWriteLibrary } from "../lib/permissions";
 import {
+  EVANGELIST_MAKEUP_FOLDERS,
+  INSTRUCTOR_EARLY_FOLDERS,
   LIBRARY_CATEGORY_LABELS,
   LIBRARY_FOLDERS,
   LIBRARY_SECTION_LABELS,
@@ -49,6 +51,19 @@ export function Library() {
   const featureAdmin = canToggleFeatured(session);
 
   const folders = LIBRARY_FOLDERS[section];
+
+  /**
+   * 폴더 묶음 — 「강사 도우미 자료실」은 한 구획 안에 두 갈래가 있다
+   * (강사가 기수를 열 때 쓰는 것 / 전도사가 보강에 쓰는 것). 평평하게 열 개를 늘어놓으면
+   * 누가 쓰는 자료인지 구분이 안 되므로, 내비와 같은 이름으로 갈라 보여 준다.
+   */
+  const folderGroups: { label: string | null; folders: string[] }[] =
+    section === "instructor"
+      ? [
+          { label: "개강 초반", folders: INSTRUCTOR_EARLY_FOLDERS },
+          { label: "보강 자료", folders: EVANGELIST_MAKEUP_FOLDERS },
+        ]
+      : [{ label: null, folders }];
 
   const list = useMemo(() => {
     const q = query.trim();
@@ -175,25 +190,32 @@ export function Library() {
               </span>
             </button>
 
-            {folders.map((f) => {
-              const active = folder === f;
-              return (
-                <button
-                  key={f}
-                  onClick={() => go({ folder: f })}
-                  className={
-                    "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
-                    (active ? "bg-zion-700 font-semibold text-white" : "text-ink hover:bg-zion-50")
-                  }
-                >
-                  {active ? <FolderOpen size={15} /> : <Folder size={15} className="text-zion-400" />}
-                  <span className="min-w-0 flex-1 truncate">{f}</span>
-                  <span className={"text-[11px] " + (active ? "text-white/70" : "text-ink-soft")}>
-                    {counts.get(f) ?? 0}
-                  </span>
-                </button>
-              );
-            })}
+            {folderGroups.map((g) => (
+              <div key={g.label ?? "all"}>
+                {g.label && (
+                  <div className="mt-2 px-2.5 pt-1 pb-0.5 text-[11px] font-bold text-ink-soft">{g.label}</div>
+                )}
+                {g.folders.map((f) => {
+                  const active = folder === f;
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => go({ folder: f })}
+                      className={
+                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
+                        (active ? "bg-zion-700 font-semibold text-white" : "text-ink hover:bg-zion-50")
+                      }
+                    >
+                      {active ? <FolderOpen size={15} /> : <Folder size={15} className="text-zion-400" />}
+                      <span className="min-w-0 flex-1 truncate">{f}</span>
+                      <span className={"text-[11px] " + (active ? "text-white/70" : "text-ink-soft")}>
+                        {counts.get(f) ?? 0}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
           <p className="mt-2 px-1 text-[11px] leading-relaxed text-ink-soft">
             폴더는 회의에서 정한 축입니다. 하위 폴더를 더 나눌 수 있게 구조를 잡아 두었습니다.

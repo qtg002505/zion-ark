@@ -56,12 +56,36 @@ export const LIBRARY_SECTION_LABELS: Record<LibrarySection, string> = {
 };
 
 /**
- * 구획별 최상위 폴더 (2026-08-06 회의 지정).
- * ⚠️ `밭갈이`·`영인지`는 아직 정의를 받지 못한 용어다. 화면 이름으로만 쓰고
- * 코드 값(enum·DB 코드)으로는 굳히지 않는다 — 정의가 오면 이름만 고치면 되게 문자열로 둔다.
+ * 강사 도우미 「개강 초반」 폴더 — 기수를 열 때 순서대로 쓰는 자료.
+ */
+export const INSTRUCTOR_EARLY_FOLDERS = ["개강 세미나", "성경 밭갈이", "예배설교"];
+
+/**
+ * 전도사 도우미 「보강 자료」 폴더 (2026-08-06 카테고리 확정).
+ *
+ * ⚠️ `영적전환`은 정의를 못 받은 어휘 목록에 있다 (`docs/decisions/OPEN_QUESTIONS.md` §C).
+ * 나머지도 같은 취급이다 — **화면 이름으로만 쓰고 코드 값(enum·DB 코드)으로 굳히지 않는다.**
+ * 정의가 오면 이 배열의 문자열만 고치면 된다.
+ */
+export const EVANGELIST_MAKEUP_FOLDERS = [
+  "영적전환",
+  "신심심기",
+  "환경정리",
+  "선악과",
+  "이면유월 보강",
+  "신앙인창조",
+  "사명자 양성",
+];
+
+/**
+ * 구획별 최상위 폴더 — **폴더 정의는 여기 한 곳뿐이고 내비는 여기서 읽어 만든다.**
+ *
+ * `instructor` 구획은 두 묶음을 함께 담는다 (강사 개강 초반 + 전도사 보강).
+ * 둘 다 "가르칠 때 쓰는 자료"라 구획이 같고, 내비에서만 갈라 보여 준다.
+ * ⚠️ `밭갈이`·`영인지`도 정의 미확정 어휘다 — 위와 같은 이유로 문자열로 둔다.
  */
 export const LIBRARY_FOLDERS: Record<LibrarySection, string[]> = {
-  instructor: ["개강 세미나", "성경 밭갈이", "예배설교"],
+  instructor: [...INSTRUCTOR_EARLY_FOLDERS, ...EVANGELIST_MAKEUP_FOLDERS],
   external: ["영인지", "성경기초상식", "하나님에 대한 필요성"],
 };
 
