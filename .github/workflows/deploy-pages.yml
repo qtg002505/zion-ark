@@ -1,0 +1,48 @@
+# 팀 공유 프리뷰 자동 배포 — main에 push될 때마다 GitHub Pages를 갱신한다.
+#
+# 왜 필요한가: 아티팩트 공유 링크는 공유 창에서 지정한 버전에 고정되어,
+# 재발행해도 팀원에게는 옛 화면이 보였다. Pages는 push마다 같은 주소가
+# 항상 최신을 가리키므로 수동 재지정이 필요 없다.
+#
+# 주소: https://<계정>.github.io/zion-ark/
+# 선행 조건(1회): 저장소 Settings → Pages → Source를 "GitHub Actions"로.
+name: deploy-pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 연속 push 시 옛 배포가 새 배포를 덮지 않게 한 줄만 유지한다
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Pages는 하위 경로(/zion-ark/)에 서비스되고 서버 라우팅이 없다.
+      # 프리뷰와 같은 이유로 해시 라우팅 + 상대 경로로 빌드한다.
+      - run: npm run build -- --base=./
+        env:
+          VITE_ROUTER: hash
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
