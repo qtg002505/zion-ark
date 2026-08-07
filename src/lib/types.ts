@@ -56,9 +56,30 @@ export const LIBRARY_SECTION_LABELS: Record<LibrarySection, string> = {
 };
 
 /**
- * 강사 도우미 「개강 초반」 폴더 — 기수를 열 때 순서대로 쓰는 자료.
+ * 강사 도우미 「밭갈이」 묶음 (2026-08-07 팀 5차 회의 — 종전 「개강 초반」에서 갈라냄).
+ *
+ * ⚠️ `밭갈이`는 정의를 못 받은 어휘다 — **화면 이름 문자열로만 쓰고 코드 값(enum·DB 코드·
+ * 역할/스코프 코드)으로 굳히지 않는다.** 정의가 오면 이 배열의 문자열만 고치면 되고,
+ * 데이터 계약은 손댈 곳이 없다. `folderPath`에 담기는 값도 이 문자열 그대로다.
  */
-export const INSTRUCTOR_EARLY_FOLDERS = ["개강 세미나", "성경 밭갈이", "예배설교"];
+export const INSTRUCTOR_BATGARI_FOLDERS = [
+  "개강 세미나",
+  "초등 초반 밭갈이",
+  "주제별 밭갈이",
+  "영적 전환을 돕는 육적 예시",
+];
+
+/** 밭갈이 묶음에 들지 않는 강사 도우미 폴더 — 회의 합의 구조 밖이라 따로 둔다 */
+export const INSTRUCTOR_OTHER_FOLDERS = ["예배설교"];
+
+/**
+ * 강사 도우미 「개강 초반」 폴더 — 기수를 열 때 순서대로 쓰는 자료.
+ * 자료실 화면은 이 목록 하나로 폴더를 그린다. 내비만 위 두 묶음으로 갈라 보여 준다.
+ */
+export const INSTRUCTOR_EARLY_FOLDERS = [
+  ...INSTRUCTOR_BATGARI_FOLDERS,
+  ...INSTRUCTOR_OTHER_FOLDERS,
+];
 
 /**
  * 전도사 도우미 「보강 자료」 폴더 (2026-08-06 카테고리 확정).

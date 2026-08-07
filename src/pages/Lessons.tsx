@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { LessonNotes } from "../components/LessonNotes";
+import { INSTRUCTOR_BATGARI_FOLDERS } from "../lib/types";
 import { PageHeader, Card } from "./common";
 
 type Course = "elementary" | "middle" | "high";
@@ -137,6 +138,21 @@ export function Lessons() {
           </div>
         )}
       </div>
+
+      {/*
+        밭갈이는 교안과 별개 자료지만 개강 초반에는 같이 쓴다. 자료실까지 찾아가지 않아도
+        어디 있는지 알도록 다리만 놓는다 — 폴더 이름은 types.ts 한 곳에서 읽는다.
+      */}
+      <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+        개강 초반에는 <span className="font-semibold text-zion-700">밭갈이</span> 자료를 교안과 함께
+        씁니다 ({INSTRUCTOR_BATGARI_FOLDERS.join(" · ")}) —{" "}
+        <Link
+          to="/library?section=instructor"
+          className="font-semibold text-zion-700 underline-offset-2 hover:underline"
+        >
+          밭갈이 자료실 열기
+        </Link>
+      </p>
 
       {course === "middle" ? (
         <Card>
