@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Hourglass, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { MarkdownLite, splitSections } from "../lib/markdown";
@@ -49,6 +49,20 @@ export function Lessons() {
   const elCurrent = elementaryLessons.find((l) => l.lessonNo === pickedEl) ?? elementaryLessons[0];
   const highCurrent = HIGH_LESSONS.find((l) => l.id === pickedHigh) ?? HIGH_LESSONS[0];
 
+  // 강 이동 — 목록을 다시 찾아 올라가지 않고 읽던 자리에서 앞뒤로 넘긴다.
+  // 검색 중이면 걸러진 목록 안에서만 움직인다 (보이는 것과 넘어가는 곳을 맞춘다).
+  const visibleIds =
+    course === "elementary" ? elList.map((l) => String(l.lessonNo)) : highList.map((l) => l.id);
+  const currentId = course === "elementary" ? String(elCurrent.lessonNo) : (highCurrent?.id ?? "");
+  const pos = visibleIds.indexOf(currentId);
+
+  function moveLesson(step: number) {
+    const next = visibleIds[pos + step];
+    if (next === undefined) return;
+    if (course === "elementary") setPickedEl(Number(next));
+    else setPickedHigh(next);
+  }
+
   const elItems: AccordionItem[] = elCurrent.sections.map((sec) => ({
     id: String(sec.id),
     title: sec.label,
@@ -83,7 +97,7 @@ export function Lessons() {
             ? "초등 23강 — 강 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
             : course === "high"
               ? "고등 계시록 22장 — 강 1건당 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
-              : "중등 강의자료 — 원본 확보 후 초등·고등과 같은 구조로 탑재됩니다."
+              : "중등 강의 교안 — 준비 중입니다. 원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다."
         }
       />
 
@@ -92,7 +106,7 @@ export function Lessons() {
           {(
             [
               ["elementary", `초등 (${elementaryLessons.length}강)`],
-              ["middle", "중등"],
+              ["middle", "중등 (준비 중)"],
               ["high", `고등 (${HIGH_LESSONS.length}강)`],
             ] as [Course, string][]
           ).map(([id, label]) => (
@@ -128,15 +142,21 @@ export function Lessons() {
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
             <Hourglass size={32} className="text-zion-300" />
-            <p className="mt-4 text-[15px] font-semibold text-zion-900">중등 강의자료는 준비 중입니다</p>
-            <p className="mt-1 max-w-sm text-[13px] text-ink-soft">
-              원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다.
+            <p className="mt-4 text-[15px] font-semibold text-zion-900">중등 강의 교안은 준비 중입니다</p>
+            <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-ink-soft">
+              원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다. 그때까지는 초등·고등 교안을
+              이용해 주세요.
             </p>
           </div>
         </Card>
       ) : (
       <div className="grid grid-cols-4 gap-4 max-md:grid-cols-1">
         <div className="col-span-1">
+          {query.trim() && (
+            <p className="mb-1.5 px-1 text-[11px] text-ink-soft">
+              「{query.trim()}」 검색 결과 {visibleIds.length}강
+            </p>
+          )}
           <nav
             aria-label="강 목록"
             className="doc-list-scroll overflow-y-auto rounded-xl border border-zion-100 bg-white p-2 shadow-sm"
@@ -207,7 +227,31 @@ export function Lessons() {
                 />
               </>
             ) : (
-              <p className="py-12 text-center text-[13px] text-ink-soft">교안을 선택해 주세요.</p>
+              <p className="py-12 text-center text-[13px] text-ink-soft">
+                목록에서 읽을 강을 골라 주세요.
+              </p>
+            )}
+
+            {pos >= 0 && visibleIds.length > 1 && (
+              <div className="mt-5 flex items-center justify-between gap-2 border-t border-zion-100 pt-4">
+                <button
+                  onClick={() => moveLesson(-1)}
+                  disabled={pos === 0}
+                  className="flex items-center gap-1 rounded-lg border border-zion-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={13} /> 이전 강
+                </button>
+                <span className="text-[11px] text-ink-soft">
+                  {pos + 1} / {visibleIds.length}
+                </span>
+                <button
+                  onClick={() => moveLesson(1)}
+                  disabled={pos === visibleIds.length - 1}
+                  className="flex items-center gap-1 rounded-lg border border-zion-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  다음 강 <ChevronRight size={13} />
+                </button>
+              </div>
             )}
           </Card>
         </div>
