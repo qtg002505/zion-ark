@@ -40,14 +40,15 @@ export function LessonNotes({
   );
 
   return (
-    <div className="mt-5 border-t border-zion-100 pt-4">
+    <div className="mt-6 rounded-xl border border-zion-100 bg-zion-50/50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <h3 className="text-[14px] font-bold text-zion-900">
-            현장 기록 {notes.length > 0 && <span className="text-zion-600">({notes.length})</span>}
+            현장 기록 {notes.length > 0 && <span className="text-zion-600">{notes.length}건</span>}
           </h3>
-          <p className="mt-0.5 text-[12px] text-ink-soft">
-            이 강을 해 본 강사·전도사가 남긴 기록입니다. 교안 원문은 그대로 두고 경험만 덧붙입니다.
+          <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
+            <span className="font-semibold text-zion-700">여기부터는 교안 원문이 아닙니다.</span> 이 강을
+            해 본 강사·전도사가 남긴 경험이며, 위 원문은 그대로 둡니다.
           </p>
         </div>
         <button
@@ -59,11 +60,22 @@ export function LessonNotes({
       </div>
 
       {notes.length === 0 ? (
-        <p className="mt-3 rounded-lg bg-zion-50/60 px-3 py-4 text-center text-[12px] text-ink-soft">
-          아직 기록이 없습니다. 이 강을 마치고 한 줄 남겨 주시면 다음 강사에게 그대로 전해집니다.
-        </p>
+        <div className="mt-3 rounded-lg border border-zion-100 bg-white px-3 py-5 text-center">
+          <p className="text-[12px] leading-relaxed text-ink-soft">
+            아직 기록이 없습니다. 이 강을 마치고 한 줄 남겨 주시면 다음 강사에게 그대로 전해집니다.
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+            많이 나온 질문 · 주의할 점 · 잘 통한 방법 — 셋 중 하나만 적어도 충분합니다.
+            <br />
+            수강생의 이름이나 개인적인 사정은 적지 않습니다.
+          </p>
+        </div>
       ) : (
-        <ul className="mt-3 space-y-2">
+        <>
+          <p className="mt-2.5 text-[11px] text-ink-soft">
+            도움이 됐다고 표시된 기록이 먼저 보입니다.
+          </p>
+          <ul className="mt-1.5 space-y-2">
           {notes.map((n) => (
             <li key={n.id} className="rounded-lg border border-zion-100 bg-white p-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -83,7 +95,8 @@ export function LessonNotes({
               </button>
             </li>
           ))}
-        </ul>
+          </ul>
+        </>
       )}
 
       {formOpen && (
@@ -163,6 +176,10 @@ function NoteForm({
           ))}
         </div>
 
+        <p className="mb-2 rounded-lg bg-zion-50 px-3 py-2 text-[11px] leading-relaxed text-ink-soft">
+          수강생의 이름이나 개인적인 사정은 적지 않습니다. 강의 진행에 도움이 되는 내용만 남겨 주세요.
+        </p>
+
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -170,10 +187,6 @@ function NoteForm({
           placeholder="예: 3강에서 '실상'이 무엇인지 묻는 질문이 계속 나왔습니다. 유도형 질문을 먼저 던지니 정리가 빨랐습니다."
           className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
-
-        <p className="mb-3 text-[11px] text-ink-soft">
-          수강생의 이름이나 개인적인 사정은 적지 않습니다. 강의 진행에 도움이 되는 내용만 남겨 주세요.
-        </p>
 
         {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
