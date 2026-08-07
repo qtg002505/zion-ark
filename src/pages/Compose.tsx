@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Copy, Layers, Sparkles } from "lucide-react";
 import { useStore } from "../lib/store";
-import { composeMaterials, composeToText, type ComposeResult } from "../lib/compose";
+import { COMPOSE_SOURCES, composeMaterials, composeToText, type ComposeResult } from "../lib/compose";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
 /** 강의 준비에서 자주 쓰는 출발점 */
 const SUGGESTED = ["배도 멸망 구원", "예언과 실상", "전도", "천국 비밀 비유", "인 맞은 자", "새 언약"];
+
+/** 빈 결과 안내에서 "어디까지 찾았는지" 밝히는 데 쓴다 */
+const SOURCE_NAMES = COMPOSE_SOURCES.map((s) => s.kind).join(" · ");
 
 /**
  * 강의 자료 모으기 — 주제 하나로 교안·시리즈·어록·에니어그램·자료실을 한 번에 훑는다.
@@ -47,16 +50,20 @@ export function Compose() {
     if (!result) return [];
     return result.groups.map((g) => ({
       id: g.kind,
-      title: `${g.kind} (${g.hits.length})`,
+      title: `${g.kind} ${g.hits.length}건`,
       hint: g.hits[0]?.source,
       content: (
         <ol className="space-y-3">
           {g.hits.map((h, i) => (
             <li key={i} className="rounded-lg bg-zion-50/60 p-3">
               <div className="mb-1.5 flex items-start justify-between gap-2">
-                <span className="text-[12px] font-semibold text-zion-700">{h.source}</span>
+                <span className="min-w-0 text-[12px] font-semibold text-zion-700">
+                  <span className="mr-1.5 rounded bg-zion-100 px-1.5 py-0.5 text-[11px]">{h.kind}</span>
+                  {h.source}
+                </span>
                 <Link
                   to={h.href}
+                  aria-label={`${h.source} — 원문 열기`}
                   className="shrink-0 rounded border border-zion-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zion-700 transition hover:border-zion-400"
                 >
                   원문 열기
@@ -127,16 +134,39 @@ export function Compose() {
         {result ? `${result.total}건을 모았습니다` : ""}
       </div>
 
+      {!result && (
+        <Card className="mt-5">
+          <h2 className="text-[14px] font-bold text-zion-900">어디에서 찾나요</h2>
+          <p className="mt-1 text-[12px] text-ink-soft">
+            주제어 하나를 넣으면 아래 다섯 곳을 한 번에 훑어 자료 종류별로 묶어 드립니다. 인용은 원문
+            그대로이며 출처가 함께 붙습니다.
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {COMPOSE_SOURCES.map((s) => (
+              <li key={s.kind} className="flex flex-wrap items-center gap-2 rounded-lg bg-zion-50/60 px-3 py-2">
+                <span className="rounded bg-zion-100 px-1.5 py-0.5 text-[11px] font-semibold text-zion-700">
+                  {s.kind}
+                </span>
+                <span className="text-[12px] text-ink-soft">{s.desc}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {result && (
         <Card className="mt-5">
           {result.keywords.length === 0 ? (
-            <p className="py-8 text-center text-[13px] text-ink-soft">
-              주제어를 두 글자 이상 넣어 주세요.
+            <p className="py-8 text-center text-[13px] leading-relaxed text-ink-soft">
+              주제어는 두 글자 이상이어야 합니다. 「실상」 · 「배도 멸망 구원」처럼 과목이나 주제를
+              나타내는 낱말로 넣어 주세요.
             </p>
           ) : result.total === 0 ? (
-            <p className="py-8 text-center text-[13px] text-ink-soft">
-              <strong className="text-zion-800">{result.keywords.join(" · ")}</strong> 관련 자료를 찾지
-              못했습니다. 자료에 쓰인 표현으로 바꿔 보시거나 위 주제 버튼을 눌러 보세요.
+            <p className="py-8 text-center text-[13px] leading-relaxed text-ink-soft">
+              <strong className="text-zion-800">{result.keywords.join(" · ")}</strong> — {SOURCE_NAMES}{" "}
+              다섯 곳을 모두 찾았지만 해당하는 대목이 없습니다.
+              <br />
+              자료에 쓰인 표현으로 바꿔 보시거나 위 주제 버튼을 눌러 보세요.
             </p>
           ) : (
             <>
@@ -155,6 +185,19 @@ export function Compose() {
                   {copied ? "복사됨" : "강의안으로 복사"}
                 </button>
               </div>
+
+              <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-ink-soft">자료 종류</span>
+                {result.groups.map((g) => (
+                  <span
+                    key={g.kind}
+                    className="rounded-full border border-zion-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zion-700"
+                  >
+                    {g.kind} {g.hits.length}건
+                  </span>
+                ))}
+              </div>
+
               <Accordion items={groupItems} resetKey={result.keywords.join()} />
               <p className="mt-3 border-t border-zion-100 pt-3 text-[11px] text-ink-soft">
                 모든 인용은 원문 그대로이며 요약하지 않았습니다. 강의안에 옮길 때 출처를 함께 적어 주세요.
