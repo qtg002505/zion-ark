@@ -1,7 +1,8 @@
 import type { RoleCode, Session } from "../lib/types";
 import {
   EVANGELIST_MAKEUP_FOLDERS,
-  INSTRUCTOR_EARLY_FOLDERS,
+  INSTRUCTOR_BATGARI_FOLDERS,
+  INSTRUCTOR_OTHER_FOLDERS,
   LIBRARY_FOLDERS,
 } from "../lib/types";
 import {
@@ -31,7 +32,7 @@ import {
   CalendarDays,
   MessagesSquare,
   FolderClosed,
-  Sunrise,
+  Shovel,
   ClipboardList,
   RefreshCw,
   type LucideIcon,
@@ -110,15 +111,22 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/cases", label: "상담 사례", icon: MessagesSquare },
     ],
   },
-  /** 3. 강사 도우미 — 개강 초반 → 학년별 교안 순서 */
+  /**
+   * 3. 강사 도우미 — 밭갈이 → 학년별 교안 순서.
+   *
+   * 종전 「개강 초반」 묶음을 2026-08-07 팀 5차 회의 합의대로 「밭갈이」로 바꾸고,
+   * 밭갈이에 해당하지 않는 폴더(예배설교)는 묶음 밖 직속 항목으로 내렸다.
+   * ⚠️ 밭갈이는 화면 이름일 뿐이다 — 폴더 문자열은 `INSTRUCTOR_BATGARI_FOLDERS` 한 곳에 있고
+   * 여기서는 읽어 쓰기만 한다.
+   */
   {
     label: "강사 도우미",
     icon: Presentation,
     subGroups: [
       {
-        label: "개강 초반",
-        icon: Sunrise,
-        items: folderItems("instructor", INSTRUCTOR_EARLY_FOLDERS),
+        label: "밭갈이",
+        icon: Shovel,
+        items: folderItems("instructor", INSTRUCTOR_BATGARI_FOLDERS),
       },
       {
         label: "초등",
@@ -145,7 +153,10 @@ const NAV_GROUPS: NavGroup[] = [
         ],
       },
     ],
-    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
+    items: [
+      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
+      ...folderItems("instructor", INSTRUCTOR_OTHER_FOLDERS),
+    ],
   },
   /** 4. 전도사 도우미 — 분반 운영과 보강 자료 */
   {
