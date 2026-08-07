@@ -1,19 +1,39 @@
-# 공유 파일(계약·뼈대)은 리드 소유 — 이 파일들을 건드린 PR은 리드 승인이 필수다.
-# 발동 조건: Settings → Branches → main 보호 규칙에서 "Require review from Code Owners" 체크.
-# 파트 경계는 docs/TEAMWORK.md 참고.
+# 여기 적힌 파일만 리드 소유다. 이 목록에 없는 파일 = 파트 담당자가 자유롭게 고친다.
+#
+# 2026-08-06 변경: 종전에는 `*` 로 전 파일을 걸어 두어 사소한 파트 작업까지 리드 승인을
+# 기다려야 했다. 파트 안에서는 막힘 없이 일하도록 **공유 파일만** 남긴다.
+# 목록에 없는 파일을 고친 PR은 승인 없이 담당자가 직접 머지할 수 있다.
+#
+# 발동 조건: Settings → Branches → main 보호 규칙의 "Require review from Code Owners".
+# 파트 경계는 docs/TEAMWORK.md 분담표 참고.
 
-# 기본: 모든 변경은 리드가 최종 머지하므로 전체를 리드 소유로 두고,
-# 파트 파일은 아래에서 소유를 풀지 않는다 (팀원 PR도 리드 승인 1건이면 충분).
-*                       @qtg002505
+# ── 데이터 계약 · 권한 ── 바뀌면 다섯 파트가 한꺼번에 영향받는다
+/src/lib/types.ts              @qtg002505
+/src/lib/store.tsx             @qtg002505
+/src/lib/permissions.ts        @qtg002505
+/src/lib/auth.tsx              @qtg002505
 
-# 특히 아래는 데이터 계약·전 파트 공용이라 팀원이 직접 고치지 않는다 (TEAMWORK.md)
-/CLAUDE.md              @qtg002505
-/docs/                  @qtg002505
-/src/App.tsx            @qtg002505
-/src/shell/             @qtg002505
-/src/lib/types.ts       @qtg002505
-/src/lib/store.tsx      @qtg002505
-/src/lib/permissions.ts @qtg002505
-/src/lib/auth.tsx       @qtg002505
-/src/index.css          @qtg002505
-/.github/               @qtg002505
+# ── 앱 뼈대 ── 라우트 · 내비 · 레이아웃
+/src/App.tsx                   @qtg002505
+/src/shell/                    @qtg002505
+
+# ── 전 화면 공용 부품 · 팔레트 ── 한 곳을 고치면 모든 화면이 바뀐다
+/src/index.css                 @qtg002505
+/src/pages/common.tsx          @qtg002505
+/src/pages/Login.tsx           @qtg002505
+/src/components/Accordion.tsx  @qtg002505
+/src/lib/markdown.tsx          @qtg002505
+/src/lib/search.ts             @qtg002505
+
+# ── 규칙 문서 · 빌드 · 배포 ──
+/CLAUDE.md                     @qtg002505
+/docs/                         @qtg002505
+/.github/                      @qtg002505
+/index.html                    @qtg002505
+/vite.config.ts                @qtg002505
+/package.json                  @qtg002505
+/package-lock.json             @qtg002505
+/scripts/                      @qtg002505
+
+# ── 원본 자료 ── 아무도 고치지 않는다 (불변식)
+/_archive/                     @qtg002505
