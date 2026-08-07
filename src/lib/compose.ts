@@ -41,6 +41,21 @@ export interface ComposeResult {
   total: number;
 }
 
+/**
+ * 어느 자료를 훑는지 — 화면에서 그대로 보여 준다.
+ *
+ * 출처를 검색 뒤에야 알게 되면 "여기 없다"인지 "안 찾아봤다"인지 구분이 안 된다.
+ * 찾기 전에 범위를 밝혀 두면 빈 결과도 판단할 수 있는 정보가 된다.
+ * 강 수·자료 건수는 늘어나므로 설명에 숫자를 박지 않는다.
+ */
+export const COMPOSE_SOURCES: { kind: ComposeKind; desc: string }[] = [
+  { kind: "교안", desc: "초등 · 고등 강의 교안 — 항목 단위로 찾습니다" },
+  { kind: "시리즈", desc: "신천지도서 — 장 안의 소주제 단위로 찾습니다" },
+  { kind: "어록", desc: "총회장님 어록 — 주제와 번호를 출처로 붙입니다" },
+  { kind: "에니어그램", desc: "수강생 응대 참고 자료입니다 (판정 근거가 아닙니다)" },
+  { kind: "자료실", desc: "사이트에 등록된 자료를 함께 봅니다" },
+];
+
 /** 주제어가 본문에 얼마나 등장하는지 — 많이 나올수록 그 주제를 실제로 다룬 대목이다 */
 function scoreOf(text: string, keywords: string[]): number {
   let score = 0;
@@ -63,7 +78,26 @@ function clip(text: string, max = 1200): string {
   return t.length <= max ? t : t.slice(0, max) + "\n\n…(이하 원문에서 계속)";
 }
 
-const KIND_ORDER: ComposeKind[] = ["교안", "시리즈", "어록", "에니어그램", "자료실"];
+/** 묶음 순서는 위 목록과 같다 — 화면 안내와 결과 순서가 어긋나지 않게 한 곳에서 가져온다 */
+const KIND_ORDER: ComposeKind[] = COMPOSE_SOURCES.map((s) => s.kind);
+
+/**
+ * 교안·시리즈 원문을 소주제로 쪼갠 결과를 한 번만 계산해 둔다.
+ *
+ * 검색할 때마다 계시록 22강과 시리즈 전 장을 다시 파싱하고 있었다. 원문은 모듈에
+ * 박혀 있어 세션 중에 바뀌지 않으므로 결과를 그대로 재사용해도 동작이 달라지지 않는다.
+ * (자료실 자료는 사용자가 등록하는 값이라 여기 담지 않는다.)
+ */
+const sectionCache = new Map<string, ReturnType<typeof splitSections>>();
+
+function cachedSections(key: string, body: string) {
+  let parsed = sectionCache.get(key);
+  if (!parsed) {
+    parsed = splitSections(body);
+    sectionCache.set(key, parsed);
+  }
+  return parsed;
+}
 
 export function composeMaterials(
   input: string,
@@ -93,7 +127,7 @@ export function composeMaterials(
   }
 
   for (const lesson of HIGH_LESSONS) {
-    const { sections } = splitSections(lesson.body);
+    const { sections } = cachedSections(`high:${lesson.id}`, lesson.body);
     for (const sec of sections) {
       const score = scoreOf(`${lesson.label} ${lesson.title} ${sec.title} ${sec.body}`, keywords);
       if (score === 0) continue;
@@ -111,7 +145,7 @@ export function composeMaterials(
   // ── 시리즈: 장 전체는 너무 길어 소주제 단위로 잡는다 ──
   for (const series of SERIES) {
     for (const ch of series.chapters) {
-      const { sections } = splitSections(ch.body);
+      const { sections } = cachedSections(`series:${series.id}:${ch.id}`, ch.body);
       for (const sec of sections) {
         const score = scoreOf(`${ch.label} ${ch.title} ${sec.title} ${sec.body}`, keywords);
         if (score === 0) continue;
