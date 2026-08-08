@@ -1,4 +1,4 @@
-import type { Session, WorkspaceKind } from "./types";
+import type { CounselingTip, Session, WorkspaceKind } from "./types";
 
 /**
  * 권한 판정 — 옵시디언 금고 「권한-결정사항」 확정값 (2026-08-05 리드).
@@ -92,6 +92,32 @@ export function canEditCohortRecord(s: Session, cohortKey: string): boolean {
  */
 export function canWriteCounselCase(s: Session): boolean {
   return s.roleCode !== "security_auditor";
+}
+
+/**
+ * 상담법 글 등록 (2026-08-08 지시문 §2-5 확정) — **사명자 전체 개방.**
+ * 지시문의 "사명자"는 어휘 확정값 그대로 강사+전도사다. 관리직·콘텐츠팀은 등록 주체가
+ * 아니라 검수 주체다 (숨김·신고 처리 권한을 따로 갖는다).
+ */
+export function canWriteCounselingTip(s: Session): boolean {
+  return isFieldStaff(s);
+}
+
+/**
+ * 상담법 수정·삭제는 **본인 글만** (지시문 §2-5 확정).
+ * 시범 로그인은 이름이 곧 계정이므로 이름+역할로 대조한다. 실연동 시 서버가
+ * user_id로 다시 판정한다 — 타인 글 수정·삭제는 403 (지시문 §11 테스트 항목).
+ */
+export function canEditCounselingTip(s: Session, tip: CounselingTip): boolean {
+  return tip.createdBy === s.name && tip.createdByRole === s.roleCode;
+}
+
+/**
+ * 상담법 숨김·신고 처리: `content_admin` + `headquarters_admin` (지시문 §2-5 검수 정책).
+ * 숨김은 삭제가 아니라 hiddenAt 기입(소프트 삭제)이다.
+ */
+export function canModerateCounselingTips(s: Session): boolean {
+  return s.roleCode === "content_admin" || s.roleCode === "headquarters_admin";
 }
 
 /**

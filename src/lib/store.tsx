@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
   CounselCase,
+  CounselingTip,
   LessonNote,
   LessonNoteKind,
   LibraryCategory,
@@ -8,6 +9,7 @@ import type {
   LibrarySection,
   QuoteCategory,
   RoleCode,
+  TipReport,
   WeekNote,
   WeeklyPlan,
   WorkspaceEntry,
@@ -27,6 +29,8 @@ const NOTE_KEY = "zion_ark_lesson_notes";
 const PLAN_KEY = "zion_ark_weekly_plans";
 const WEEKNOTE_KEY = "zion_ark_week_notes";
 const CASE_KEY = "zion_ark_counsel_cases";
+const TIP_KEY = "zion_ark_counseling_tips";
+const TIP_REPORT_KEY = "zion_ark_tip_reports";
 
 function nowIso() {
   return new Date().toISOString();
@@ -227,6 +231,52 @@ const SEED_CASES: CounselCase[] = [
   },
 ];
 
+/**
+ * 상담법 UGC 시드 — 인기순 정렬이 실제로 갈리는 것을 보여 주기 위해 도움됨 수를 다르게 둔다.
+ * 작성자는 전원 가상 인물이다 (불변식 6 — 화면 하단에 표기).
+ */
+const SEED_TIPS: CounselingTip[] = [
+  {
+    id: "seed-tip-1",
+    themeNo: 1,
+    title: "첫 주에 빠진 분은 둘째 주가 되기 전에 연락합니다",
+    body: "[예시] 개강 첫 주에 빠지면 '나만 뒤처졌다'는 마음이 굳기 전에 닿는 것이 중요했습니다.\n\n빠진 이유를 묻기보다 다음 모임에서 다룰 내용을 먼저 알려 드렸습니다. 따라올 수 있다는 감각이 생기니 둘째 주에 나오셨습니다.",
+    createdBy: "이본보기",
+    createdByRole: "instructor",
+    createdAt: "2026-08-05T09:00:00.000Z",
+    updatedAt: "2026-08-05T09:00:00.000Z",
+    helpfulBy: ["김가상", "박모형", "최견본"],
+    hiddenAt: null,
+    hiddenBy: null,
+  },
+  {
+    id: "seed-tip-2",
+    themeNo: 1,
+    title: "개강 초에는 답을 주기보다 질문을 받아 적었습니다",
+    body: "[예시] 초반에 교리 질문에 일일이 답하려다 오히려 부담을 드린 적이 있습니다.\n\n지금은 질문을 수첩에 받아 적고 '이건 몇 강에서 다룹니다'라고 알려 드립니다. 질문이 진도를 기다리는 기대가 됐습니다.",
+    createdBy: "김가상",
+    createdByRole: "evangelist",
+    createdAt: "2026-08-06T09:00:00.000Z",
+    updatedAt: "2026-08-06T09:00:00.000Z",
+    helpfulBy: ["이본보기"],
+    hiddenAt: null,
+    hiddenBy: null,
+  },
+  {
+    id: "seed-tip-3",
+    themeNo: 8,
+    title: "입교 준비는 본인 입으로 정리하게 했습니다",
+    body: "[예시] 수료를 앞두고 제가 정리해 드리기보다, 배운 것 중 마음에 남은 대목을 본인이 말하게 했습니다.\n\n본인 언어로 정리된 것만 남습니다. 제 말로 채운 부분은 얼마 못 갔습니다.",
+    createdBy: "박모형",
+    createdByRole: "instructor",
+    createdAt: "2026-08-07T09:00:00.000Z",
+    updatedAt: "2026-08-07T09:00:00.000Z",
+    helpfulBy: [],
+    hiddenAt: null,
+    hiddenBy: null,
+  },
+];
+
 /* ── 스토어 구현 ── */
 
 /**
@@ -291,6 +341,8 @@ interface StoreValue {
   plans: WeeklyPlan[];
   weekNotes: WeekNote[];
   counselCases: CounselCase[];
+  counselingTips: CounselingTip[];
+  tipReports: TipReport[];
   addMaterial: (input: {
     category: LibraryCategory;
     title: string;
@@ -332,6 +384,27 @@ interface StoreValue {
   saveWeekNote: (input: WeekNote) => void;
   addCounselCase: (input: Omit<CounselCase, "id" | "createdAt" | "helpful">) => void;
   markCaseHelpful: (id: string) => void;
+  /* 상담법 UGC (3단계) — 권한 판정은 permissions.ts가 하고 여기는 저장만 한다 */
+  addCounselingTip: (input: {
+    themeNo: number;
+    title: string;
+    body: string;
+    createdBy: string;
+    createdByRole: RoleCode;
+  }) => void;
+  updateCounselingTip: (id: string, input: { title: string; body: string }) => void;
+  deleteCounselingTip: (id: string) => void;
+  /** 도움됨 토글 — 계정당 1회. 카운트는 helpfulBy 길이에서 항상 재계산된다 */
+  toggleTipHelpful: (id: string, userName: string) => void;
+  reportTip: (input: {
+    tipId: string;
+    reporterName: string;
+    reporterRole: RoleCode;
+    reason: string;
+  }) => void;
+  resolveTipReport: (reportId: string, resolvedBy: string) => void;
+  /** 관리자 숨김·해제 — 소프트 삭제 (hiddenAt 기입, 데이터는 남긴다) */
+  setTipHidden: (id: string, hidden: boolean, adminName: string) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -345,6 +418,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [plans, setPlans] = useState<WeeklyPlan[]>(() => load(PLAN_KEY, []));
   const [weekNotes, setWeekNotes] = useState<WeekNote[]>(() => loadPlain<WeekNote>(WEEKNOTE_KEY));
   const [counselCases, setCounselCases] = useState<CounselCase[]>(() => load(CASE_KEY, SEED_CASES));
+  const [counselingTips, setCounselingTips] = useState<CounselingTip[]>(() =>
+    load(TIP_KEY, SEED_TIPS),
+  );
+  const [tipReports, setTipReports] = useState<TipReport[]>(() => load(TIP_REPORT_KEY, []));
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -376,6 +453,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCounselCases(next);
   }, []);
 
+  const persistTips = useCallback((next: CounselingTip[]) => {
+    localStorage.setItem(TIP_KEY, JSON.stringify(next));
+    setCounselingTips(next);
+  }, []);
+
+  const persistTipReports = useCallback((next: TipReport[]) => {
+    localStorage.setItem(TIP_REPORT_KEY, JSON.stringify(next));
+    setTipReports(next);
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       materials,
@@ -384,6 +471,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plans,
       weekNotes,
       counselCases,
+      counselingTips,
+      tipReports,
       addMaterial: (input) => {
         const item: LibraryMaterial = {
           id: uid(),
@@ -466,6 +555,79 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markCaseHelpful: (id) => {
         persistCases(counselCases.map((c) => (c.id === id ? { ...c, helpful: c.helpful + 1 } : c)));
       },
+      addCounselingTip: (input) => {
+        const item: CounselingTip = {
+          id: uid(),
+          ...input,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          helpfulBy: [],
+          hiddenAt: null,
+          hiddenBy: null,
+        };
+        persistTips([item, ...counselingTips]);
+      },
+      updateCounselingTip: (id, input) => {
+        persistTips(
+          counselingTips.map((t) => (t.id === id ? { ...t, ...input, updatedAt: nowIso() } : t)),
+        );
+      },
+      // 본인 삭제는 프로토타입에서 실제 삭제다. 서버 연동 시 삭제 정책(소프트/하드)은
+      // 원 저장소가 정한다 — 관리자 「숨김」과는 다른 동작임에 유의 (숨김은 hiddenAt 기입).
+      deleteCounselingTip: (id) => {
+        persistTips(counselingTips.filter((t) => t.id !== id));
+        // 지워진 글의 신고는 처리할 대상이 없다 — 큐에 남기지 않는다
+        persistTipReports(tipReports.filter((r) => r.tipId !== id));
+      },
+      toggleTipHelpful: (id, userName) => {
+        persistTips(
+          counselingTips.map((t) => {
+            if (t.id !== id) return t;
+            // UNIQUE(tip_id, user_id) 계약의 미러 — 있으면 빼고 없으면 넣는다.
+            // 몇 번을 눌러도 한 사람은 한 표다 (지시문 §11: 중복 클릭에 카운트 불변)
+            const has = t.helpfulBy.includes(userName);
+            return {
+              ...t,
+              helpfulBy: has ? t.helpfulBy.filter((n) => n !== userName) : [...t.helpfulBy, userName],
+            };
+          }),
+        );
+      },
+      reportTip: (input) => {
+        // 같은 사람이 같은 글에 넣은 미처리 신고가 있으면 겹쳐 쌓지 않는다
+        const dup = tipReports.some(
+          (r) => r.tipId === input.tipId && r.reporterName === input.reporterName && !r.resolvedAt,
+        );
+        if (dup) return;
+        const item: TipReport = {
+          id: uid(),
+          ...input,
+          createdAt: nowIso(),
+          resolvedAt: null,
+          resolvedBy: null,
+        };
+        persistTipReports([item, ...tipReports]);
+      },
+      resolveTipReport: (reportId, resolvedBy) => {
+        persistTipReports(
+          tipReports.map((r) =>
+            r.id === reportId ? { ...r, resolvedAt: nowIso(), resolvedBy } : r,
+          ),
+        );
+      },
+      setTipHidden: (id, hidden, adminName) => {
+        persistTips(
+          counselingTips.map((t) =>
+            t.id === id
+              ? {
+                  ...t,
+                  hiddenAt: hidden ? nowIso() : null,
+                  hiddenBy: hidden ? adminName : null,
+                }
+              : t,
+          ),
+        );
+      },
     }),
     [
       materials,
@@ -474,12 +636,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plans,
       weekNotes,
       counselCases,
+      counselingTips,
+      tipReports,
       persistMaterials,
       persistEntries,
       persistNotes,
       persistPlans,
       persistWeekNotes,
       persistCases,
+      persistTips,
+      persistTipReports,
     ],
   );
 

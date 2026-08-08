@@ -17,7 +17,9 @@ export default defineConfig({
     __BUILD_STAMP__: JSON.stringify(buildStamp),
   },
   server: {
-    port: 5173,
+    // 세션마다 dev 서버를 따로 띄울 수 있게 할당 포트(PORT)를 따른다.
+    // 5173 고정이 필요한 콜백·CORS 조건은 없다. 없으면 종전대로 5173.
+    port: Number(process.env.PORT) || 5173,
     strictPort: true,
   },
 });

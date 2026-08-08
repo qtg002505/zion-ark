@@ -251,6 +251,47 @@ export interface CounselCase {
   helpful: number;
 }
 
+/**
+ * 상담 도우미 UGC (2026-08-08 지시문 §2-5 · 3단계) — 원 저장소 `counseling_tips` 계약의 미러.
+ *
+ * 테마는 **번호(1~12)로만 가리킨다.** 테마 이름(왜곡씻기·이면유월·신앙전환 등)은 정의 미확정
+ * 용어가 많아 코드 값으로 굳히지 않는다 — 이름이 바뀌어도 저장된 글은 번호로 그대로 이어진다.
+ * 전국 공통 교육 영역이므로 조직 스코프 컬럼이 없다.
+ */
+export interface CounselingTip {
+  id: string;
+  /** 테마 번호 1~12 — 화면의 테마 목록 순서와 같다 */
+  themeNo: number;
+  title: string;
+  body: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+  updatedAt: string;
+  /**
+   * 도움됨을 누른 사람 목록 — **이것이 정본이다.** 카운트는 항상 이 배열 길이로 계산한다.
+   * 원 저장소의 `counseling_tip_helpful` UNIQUE(tip_id, user_id) 행에 대응한다
+   * (helpful_count 캐시 컬럼은 표시 성능용일 뿐 — 지시문 §5).
+   * 시범 로그인은 이름이 곧 계정이므로 이름을 담는다. 실연동 시 user_id로 바뀐다.
+   */
+  helpfulBy: string[];
+  /** 관리자 숨김 — 삭제가 아니라 시각을 기입하는 소프트 삭제다 (지시문 §2-5 검수 정책) */
+  hiddenAt: string | null;
+  hiddenBy: string | null;
+}
+
+/** 상담법 신고 — content_admin 검토 큐로 들어간다. 원 저장소 `counseling_tip_reports` 미러 */
+export interface TipReport {
+  id: string;
+  tipId: string;
+  reporterName: string;
+  reporterRole: RoleCode;
+  reason: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
 /** 출결 어휘 — attendance-adapter 계약 (CLAUDE.md §4) */
 export type AttendanceMark =
   | "unknown"

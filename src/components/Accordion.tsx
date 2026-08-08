@@ -30,10 +30,15 @@ export function Accordion({
   );
   const [open, setOpen] = useState<Set<string>>(initial);
 
-  // 장을 옮기면 접힘 상태를 새로 시작한다
+  // 장을 옮기면(resetKey) 또는 항목 구성 자체가 바뀌면 접힘 상태를 새로 시작한다.
+  // ⚠️ items **배열 정체성**에 걸면 안 된다 — 항목 안 내용만 바뀌어도(예: 상담법 도움됨
+  // 클릭으로 스토어 갱신) 렌더마다 새 배열이 오므로 열어 둔 것이 전부 닫혀 버린다.
+  const idsKey = items.map((i) => i.id).join("|");
+  const firstId = items.length > 0 ? items[0].id : null;
   useEffect(() => {
-    setOpen(new Set(defaultOpenFirst && items.length > 0 ? [items[0].id] : []));
-  }, [resetKey, items, defaultOpenFirst]);
+    setOpen(new Set(defaultOpenFirst && firstId ? [firstId] : []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey, idsKey, defaultOpenFirst]);
 
   function toggle(id: string) {
     setOpen((prev) => {

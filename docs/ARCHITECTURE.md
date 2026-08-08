@@ -83,6 +83,10 @@ iOS 입력 확대·`vh`·노치 대응 등. 화면 파일에서 되풀이하지 
 | 지파 공지 작성 | 해당 지파 tribe_admin |
 | 어록·영상 등록 | content_admin · headquarters_admin |
 | 수강생·출결 조회 | 담당 배정 범위 (강사=기수 · 전도사=분반) |
+| 상담법 글 등록 (2026-08-08 3단계) | 사명자 전체 (instructor · evangelist) |
+| 상담법 수정·삭제 | 본인 글만 (`canEditCounselingTip`) |
+| 상담법 숨김·신고 처리 | content_admin · headquarters_admin (숨김은 hiddenAt 기입 — 소프트 삭제) |
+| 상담법 신고·도움됨 | 로그인 전체 (도움됨은 계정당 1회 토글) |
 | 열람(자료·공지·어록) | 로그인 전체 |
 
 ## 데이터 흐름 (현재 → 목표)
