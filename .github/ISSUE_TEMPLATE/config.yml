@@ -1,0 +1,13 @@
+# 이슈 만들기 화면 아래에 붙는 안내 링크.
+# blank_issues_enabled: 양식 없이 빈 이슈도 만들 수 있게 남겨 둔다 (급한 메모용).
+blank_issues_enabled: true
+contact_links:
+  - name: 처음 시작하시나요? — 설치부터 PR까지 순서 안내
+    url: https://github.com/qtg002505/zion-ark/blob/main/docs/ONBOARDING.md
+    about: 사람이 할 일 / 터미널 / AI에게 시킬 일을 단계별로 갈라 놓았습니다.
+  - name: 내 파트가 어디까지인가요? — 분담표
+    url: https://github.com/qtg002505/zion-ark/blob/main/docs/TEAMWORK.md
+    about: 파트별 담당 파일과 공유 파일 목록입니다.
+  - name: 지금 사이트 보기 (팀 공유 링크)
+    url: https://qtg002505.github.io/zion-ark/
+    about: 머지되면 몇 분 안에 여기에 자동 반영됩니다.

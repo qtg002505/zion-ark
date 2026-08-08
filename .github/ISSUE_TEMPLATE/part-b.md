@@ -1,0 +1,32 @@
+---
+name: 파트 B — 수강생 관리·상담 (분석)
+about: 수강생 목록 · 관찰 필요 · 성향 참고 · 상담 사례 작업지시
+title: "[파트 B] "
+labels: ["파트 B"]
+---
+
+## 배경
+<!-- 왜 필요한가. 회의·리드 결정이 있으면 날짜와 함께 -->
+
+## 할 일
+<!-- 무엇을 어떻게 바꾸는가. 파일 이름까지 구체적으로 -->
+
+## 완료 기준
+- [ ]
+- [ ] 375px 폭에서 가로 넘침 없음
+- [ ] `npm run typecheck` · `npm run build` 통과
+
+## 담당 파일 (이 안에서만 수정 — 자유롭게 고치고 직접 머지)
+`src/pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `CounselCases.tsx`
+· `src/lib/attendance-signals.ts` · `src/content/enneagram-guides.ts`
+
+## 건드리지 않는 파일 (건드리면 머지 버튼이 잠긴다)
+`lib/types.ts` · `store.tsx` · `permissions.ts` · `App.tsx` · `shell/**` · `index.css`
+→ 바꿔야 하면 PR 본문의 "공유 파일 변경 요청"에 적는다 (리드가 반영)
+
+## ⚠️ 이 파트의 불변식
+- **AI·화면이 수강생의 신앙·인격·심리를 확정 판정하지 않는다.** 관찰된 사실만 적는다
+- **상담 사례 익명화**: 지파 · 교회 · 센터(기수)까지만. 이름·연락처·분반·나이는 넣지 않는다
+- 목업 수강생은 전원 가상 인물 — 실존 정보 투입 금지
+
+## 참고
