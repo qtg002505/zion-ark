@@ -80,7 +80,7 @@ export function Compose() {
   return (
     <div>
       <PageHeader
-        crumb="강사 도우미"
+        crumb="강의 도우미"
         title="강의 자료 모으기"
         desc="주제 하나로 교안 · 시리즈 · 어록 · 에니어그램 · 자료실을 한 번에 찾습니다. 원문 그대로 인용하며 출처를 함께 표시합니다."
       />

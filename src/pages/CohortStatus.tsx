@@ -75,7 +75,7 @@ export function CohortStatus() {
   return (
     <div>
       <PageHeader
-        crumb="현황"
+        crumb="기수 현황"
         title="기수 현황"
         desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 진도 ${TOTAL_SESSIONS}회 · 조회 범위 ${studentScopeLabel(session)} (시범 목업 데이터)`}
       />

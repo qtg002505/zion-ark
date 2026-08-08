@@ -17,6 +17,8 @@ import { Lessons } from "./pages/Lessons";
 import { Enneagram } from "./pages/Enneagram";
 import { WeeklyPlanPage } from "./pages/WeeklyPlanPage";
 import { CounselCases } from "./pages/CounselCases";
+import { Counseling } from "./pages/Counseling";
+import { Care } from "./pages/Care";
 
 function Routed() {
   const { session } = useAuth();
@@ -41,6 +43,8 @@ function Routed() {
         <Route path="/cohort" element={<CohortStatus />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
         <Route path="/cases" element={<CounselCases />} />
+        <Route path="/counseling" element={<Counseling />} />
+        <Route path="/care" element={<Care />} />
         <Route path="/students" element={<Students />} />
         <Route path="/signals" element={<Signals />} />
         <Route path="/compose" element={<Compose />} />

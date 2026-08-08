@@ -28,7 +28,7 @@ export function Students() {
   return (
     <div>
       <PageHeader
-        crumb="현황"
+        crumb="수강생 관리 도우미"
         title="수강생 관리"
         desc={`조회 범위: ${studentScopeLabel(session)} — 범위 밖 조회는 서버가 차단(403)합니다.`}
       />

@@ -25,7 +25,7 @@ export function Signals() {
   return (
     <div>
       <PageHeader
-        crumb="현황"
+        crumb="수강생 관리 도우미"
         title="관찰 필요"
         desc="최근 출결에서 달라진 점이 보이는 수강생입니다. 판정이 아니라 관찰된 사실만 표시하며, 연락 여부는 담당자가 정합니다."
       />

@@ -35,7 +35,7 @@ export function WeeklyPlanPage() {
   return (
     <div>
       <PageHeader
-        crumb="현황"
+        crumb="기수 현황"
         title="기수 주간계획"
         desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 담당 강사·전도사가 함께 작성하고 고칩니다.`}
         action={

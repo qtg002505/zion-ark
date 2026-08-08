@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { AskAiBar } from "./AskAiBar";
 import { ZionLogo } from "./ZionLogo";
+import { ScrollToTop } from "./ScrollToTop";
 
 /**
  * 앱 셸 — 본문 컴포넌트는 셸 없이도 동작하게 결합도를 낮게 유지한다.
@@ -69,6 +70,8 @@ export function Layout() {
           시온 아크 · 내부 운영 플랫폼 — 수강생 개인정보는 담당 범위 밖으로 반출하지 않습니다 (집계·통계만 공유 가능).
         </footer>
       </div>
+
+      <ScrollToTop />
     </div>
   );
 }

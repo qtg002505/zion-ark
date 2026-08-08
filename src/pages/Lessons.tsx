@@ -91,7 +91,7 @@ export function Lessons() {
   return (
     <div>
       <PageHeader
-        crumb="강사 도우미"
+        crumb="강의 도우미"
         title="강의 교안"
         desc={
           course === "elementary"

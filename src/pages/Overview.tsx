@@ -34,7 +34,7 @@ export function Overview() {
   return (
     <div>
       <PageHeader
-        crumb="현황"
+        crumb="홈"
         title="전체 현황"
         desc={`조회 범위: ${studentScopeLabel(session)} — 서버가 담당 배정(memberships)으로 스코프한 범위만 표시됩니다.`}
       />

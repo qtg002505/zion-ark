@@ -66,7 +66,7 @@ export function CounselCases() {
   return (
     <div>
       <PageHeader
-        crumb="강사 도우미"
+        crumb="상담 도우미"
         title="상담 사례"
         desc="현장에서 겪은 일을 서로 남겨 둡니다. 잘된 경우만이 아니라 놓친 경우도 함께 싣습니다."
         action={

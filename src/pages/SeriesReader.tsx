@@ -50,7 +50,7 @@ export function SeriesReader() {
 
   return (
     <div>
-      <PageHeader crumb="자료실 시리즈" title={series.name} desc={series.desc} />
+      <PageHeader crumb="자료실 · 신천지도서" title={series.name} desc={series.desc} />
 
       <div className="grid grid-cols-4 gap-4 max-md:grid-cols-1">
         <div className="col-span-1">

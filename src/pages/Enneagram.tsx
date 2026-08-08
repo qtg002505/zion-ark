@@ -26,7 +26,7 @@ export function Enneagram() {
   return (
     <div>
       <PageHeader
-        crumb="전도사 도우미"
+        crumb="수강생 관리 도우미"
         title="에니어그램 가이드"
         desc="유형별 성장과정 · 단계향상 방법 · 초중고 관리팁 · 보강 성구. 참고 자료이며, 수강생의 성향·심리를 확정 판정하는 근거로 쓰지 않습니다."
       />
