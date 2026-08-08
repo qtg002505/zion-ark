@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  BookOpen,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -21,6 +22,7 @@ import {
   canWriteCounselingTip,
 } from "../lib/permissions";
 import { ROLE_LABELS, type CounselingTip } from "../lib/types";
+import { termsForTheme } from "../content/glossary";
 import { scanPII } from "./CounselCases";
 import { PageHeader, Card } from "./common";
 
@@ -44,8 +46,6 @@ interface Theme {
   special?: React.ReactNode;
   /** 참고할 기존 화면 */
   related?: { to: string; label: string };
-  /** 정의 미확정 용어 표시 */
-  undefinedTerm?: boolean;
 }
 
 const THEMES: Theme[] = [
@@ -55,7 +55,7 @@ const THEMES: Theme[] = [
     hint: "기수를 막 열었을 때 쓰는 상담법",
     related: { to: "/library?section=instructor", label: "밭갈이·개강 세미나 자료" },
   },
-  { no: 2, name: "신앙전환", hint: "⚠️ 기존 미확정 용어 「영적전환」과 같은 것인지 확인 필요", undefinedTerm: true },
+  { no: 2, name: "신앙전환", hint: "펼치면 이 테마의 뜻을 함께 봅니다" },
   {
     no: 3,
     name: "오픈 전 보강",
@@ -68,9 +68,9 @@ const THEMES: Theme[] = [
     hint: "보강 자료·편성은 분반·보강 도우미, 여기는 상담법",
     related: { to: "/library?section=instructor&tab=class_material", label: "분반·보강 자료" },
   },
-  { no: 5, name: "입조심 · 침 예방", hint: "⚠️ 「침」은 정의 미확정 용어", undefinedTerm: true },
-  { no: 6, name: "왜곡씻기", hint: "⚠️ 정의 미확정 용어", undefinedTerm: true },
-  { no: 7, name: "이면유월", hint: "⚠️ 정의 미확정 용어", undefinedTerm: true },
+  { no: 5, name: "입조심 · 침 예방", hint: "펼치면 이 테마의 뜻을 함께 봅니다" },
+  { no: 6, name: "왜곡씻기", hint: "펼치면 이 테마의 뜻을 함께 봅니다" },
+  { no: 7, name: "이면유월", hint: "펼치면 이 테마의 뜻을 함께 봅니다" },
   { no: 8, name: "입교준비", hint: "수료를 앞둔 시점의 상담법" },
   { no: 9, name: "전도교육 · 정신교육", hint: "" },
   {
@@ -243,12 +243,7 @@ function TipSection({ theme }: { theme: Theme }) {
 
   return (
     <div>
-      {theme.undefinedTerm && (
-        <p className="mb-2.5 text-[12px] leading-relaxed text-ink">
-          ⚠️ 이 테마 이름은 <strong>아직 정의를 받지 못한 용어</strong>입니다. 화면 이름으로만 두고
-          코드 값으로 굳히지 않았습니다 — 뜻이 정해지면 이름만 고치면 됩니다.
-        </p>
-      )}
+      <ThemeGlossary themeNo={theme.no} />
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="정렬">
@@ -319,6 +314,37 @@ function TipSection({ theme }: { theme: Theme }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * 이 테마가 무엇을 가리키는 말인지 (2026-08-08 리드 정의).
+ *
+ * 상담법을 쓰는 사람마다 같은 말을 다르게 알고 있으면 글이 어긋난다. 그래서 등록 자리
+ * **바로 위에** 둔다 — 쓰기 전에 읽게 하는 것이 목적이다.
+ * 정의문은 리드가 준 원문 그대로이고 이 화면에서 다듬지 않는다 (`src/content/glossary.ts`).
+ */
+function ThemeGlossary({ themeNo }: { themeNo: number }) {
+  const terms = termsForTheme(themeNo);
+  if (terms.length === 0) return null;
+
+  return (
+    <div className="mb-3 rounded-lg border border-zion-100 bg-zion-50/60 p-3">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-zion-700">
+        <BookOpen size={12} /> 이 테마가 가리키는 말
+      </div>
+      <dl className="space-y-2">
+        {terms.map((t) => (
+          <div key={t.term}>
+            <dt className="text-[12px] font-semibold text-ink">{t.term}</dt>
+            <dd className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">{t.definition}</dd>
+            {t.note && (
+              <dd className="mt-1 text-[11px] leading-relaxed text-ink-soft">⚠️ {t.note}</dd>
+            )}
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
