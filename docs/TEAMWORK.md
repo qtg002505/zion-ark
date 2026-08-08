@@ -4,26 +4,25 @@
 일반 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md), 이 문서는 **누가 어떤 파일을 만지는가**와
 **작업이 도는 순서**만 다룬다.
 
-## ⚠️ 2026-08-08 개편으로 생긴 미배정 (리드 결정 필요)
+## 2026-08-08 개편 후 담당 (리드 확정)
 
-카테고리가 **9개 → 7개**로 재편되면서 (`docs/HANDOFF.md` 참고) 아래가 어긋났다.
-**파일 경계는 그대로라 지금 진행 중인 작업은 영향받지 않는다** — 담당 범위 이름만 바뀐다.
+카테고리가 **9개 → 7개**로 재편됐다 (`docs/HANDOFF.md` 참고).
+**파일 경계는 그대로라 진행 중인 작업은 영향받지 않는다** — 담당 범위의 이름과 넓이만 바뀐다.
 
-| 새 카테고리 | 종전 파트 | 상태 |
+| 새 카테고리 | 담당 | 비고 |
 | --- | --- | --- |
-| 홈 · 전체 현황 | A | 그대로 (`Overview.tsx`) |
-| 1. 기수 현황 | A | 그대로 |
-| 2. 강의 도우미 | C (종전 「강사 도우미」) | 이름만 변경 |
-| 3. 분반 · 보강 도우미 | D (종전 「전도사 도우미」) | 이름 변경 + 보강 콘텐츠 3종 이관받음 |
-| 4. 수강생 관리 도우미 | B | **상담이 5)로 빠져나감** — 개인 카드 중심으로 좁아짐 |
-| 5. 상담 도우미 | — | **담당 없음.** 종전 B의 상담 사례가 여기로 옮겨옴 |
-| 6. 자료실 | E | 공지·어록·외부 매체를 흡수해 **넓어짐** |
-| 7. 사명자 심방 도우미 | — | **담당 없음.** 전부 신설 |
+| 홈 · 전체 현황 | **A** | 카테고리에서 빠져 홈이 됐다 (`Overview.tsx`) |
+| 1. 기수 현황 | **A** | 그대로 |
+| 2. 강의 도우미 | **C** | 종전 「강사 도우미」에서 이름만 변경 |
+| 3. 분반 · 보강 도우미 | **D** | 이름 변경 + 보강 콘텐츠 3종 이관받음 |
+| 4. 수강생 관리 도우미 | **B** | 상담이 5)로 빠져나가 **개인 카드 중심으로 좁아짐** |
+| 5. 상담 도우미 | **D** (2026-08-08 확정) | 3)과 같은 담당 |
+| 6. 자료실 | **E** | 공지 · 어록 · 외부 매체를 흡수해 넓어짐 |
+| 7. 사명자 심방 도우미 | **리드** (2026-08-08 확정) | 전부 신설 · 개인정보 방침이 걸려 리드가 직접 |
 
-정할 것 둘:
-1. **5) 상담 도우미**를 B가 계속 맡을지, 새 담당을 둘지 — 지시문상 이 카테고리가 가장 크다
-   (테마 12종 + UGC + 검수)
-2. **7) 사명자 심방 도우미**를 누가 맡을지 — 마지막 단계라 당장은 비워 둬도 된다
+**파트 D가 두 카테고리를 맡는 이유**: 3)이 「오픈 전/후 보강 **자료와 편성**」을 다루고,
+5)가 같은 이름의 「오픈 전/후 보강 **상담법**」을 다룬다. 두 화면이 서로를 링크하는 짝이라
+나눠 맡으면 경계가 흐려지고 같은 내용이 두 군데 쌓인다 (지시문 §2-3).
 
 ## 원칙 하나 — 충돌은 파일 경계로 막는다
 
@@ -34,15 +33,20 @@ git 충돌은 "같은 파일을 두 사람이 고칠 때"만 생긴다. 그래�
 
 | 파트 | 카테고리 | 담당 파일 |
 |---|---|---|
-| **A. 우리 기수현황** | 전체 현황 · 기수 현황 · 주간계획 | `src/pages/Overview.tsx` · `CohortStatus.tsx` · `WeeklyPlanPage.tsx` · `src/content/cohort-mock.ts` |
-| **B. 수강생 관리·상담** | 수강생 목록 · 관찰 필요 · 성향 · 상담 사례 | `src/pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `CounselCases.tsx` · `src/lib/attendance-signals.ts` · `src/content/enneagram-guides.ts` |
-| **C. 강사 도우미** | 초·중·고 교안 · 자료 모으기 · 현장 기록 | `src/pages/Lessons.tsx` · `Compose.tsx` · `src/components/LessonNotes.tsx` · `src/lib/compose.ts` · `src/content/elementary-lessons.ts` · `lessons-high*` |
-| **D. 전도사 도우미** | 분반 자료 · 보강 자료 7개 폴더(영적전환 등) 원문 준비·등록 | 보강 자료 원문(`src/content/evangelist/**` — 만들면서 생성) · 전도사 전용 화면 신설 시 그 화면 파일 |
-| **E. 자료실·공지·어록·외부매체** | 자료실 구획·폴더 · 신천지도서 시리즈 · 공지 · 어록 · 말씀광장/천지일보 | `src/pages/Library.tsx` · `SeriesReader.tsx` · `Notices.tsx` · `Quotes.tsx` · `src/lib/quote-picker.ts` · `src/content/series/**` · `series-content.ts` · `src/content/quotes/**` · `quotes-data.ts` |
+| **A. 홈 · 기수 현황** | 전체 현황(홈) · 기수 현황 · 기수 주간계획 | `src/pages/Overview.tsx` · `CohortStatus.tsx` · `WeeklyPlanPage.tsx` · `src/content/cohort-mock.ts` |
+| **B. 수강생 관리 도우미** | 수강생 목록 · 관찰 필요 · 성향 참고 (개인 카드 중심) | `src/pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `src/lib/attendance-signals.ts` · `src/content/enneagram-guides.ts` |
+| **C. 강의 도우미** | 밭갈이 · 초·중·고 교안(4항목 구조) · 자료 모으기 · 현장 기록 | `src/pages/Lessons.tsx` · `Compose.tsx` · `src/components/LessonNotes.tsx` · `src/lib/compose.ts` · `src/content/elementary-lessons.ts` · `lessons-high*` |
+| **D. 분반 · 보강 도우미 + 상담 도우미** | 분반 자료 · 보강 자료 7개 폴더 · 보강 콘텐츠 3종 · **상담 테마 12종(UGC)** | `src/pages/Counseling.tsx` · `CounselCases.tsx` · 보강 자료 원문(`src/content/evangelist/**` — 만들면서 생성) · 전도사 전용 화면 신설 시 그 화면 파일 |
+| **E. 자료실** | 자료실 구획·폴더 · 신천지도서 시리즈 · 공지 · 어록 · 외부 매체 | `src/pages/Library.tsx` · `SeriesReader.tsx` · `Notices.tsx` · `Quotes.tsx` · `src/lib/quote-picker.ts` · `src/content/series/**` · `series-content.ts` · `src/content/quotes/**` · `quotes-data.ts` |
+| **리드. 사명자 심방 도우미** | 자가진단 · 성향 기반 회복 · 상담 GPT 프롬프트 | `src/pages/Care.tsx` |
 
-> D는 지금 코드 파일이 거의 없다 — 초기 작업은 **보강 자료 원문을 모으고 자료실 화면에서
-> 등록하는 콘텐츠 작업**이 중심이다. 화면 등록은 코드 충돌이 없으므로 경계 문제가 없다.
-> E는 파일이 가장 많다 — 부담이 커지면 시리즈(`series/**`)를 D로 넘기는 것을 검토한다.
+> **D는 카테고리 둘을 맡는다** — 보강 *자료*(3)와 보강 *상담법*(5)이 짝이기 때문이다.
+> 대신 종전 B가 갖고 있던 `CounselCases.tsx`가 D로 넘어갔다.
+> **B는 좁아졌다** — 상담이 빠진 자리에 지시문 §2-4의 **수강생 개인 카드**가 들어온다.
+> E는 파일이 가장 많다 — 부담이 커지면 시리즈(`series/**`)를 다른 파트로 넘기는 것을 검토한다.
+>
+> `src/components/PromptBox.tsx`는 상담 도우미(D)와 사명자 심방(리드)이 함께 쓰므로
+> **공유 파일**이다. 개인정보 경고 문구가 두 곳에서 갈리지 않게 한 곳에 묶어 두었다.
 
 ### 파트 안에서는 자유롭게 — 승인을 기다리지 않는다 (2026-08-06)
 

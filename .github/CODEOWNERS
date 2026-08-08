@@ -24,6 +24,11 @@
 /src/components/Accordion.tsx  @qtg002505
 /src/lib/markdown.tsx          @qtg002505
 /src/lib/search.ts             @qtg002505
+# 상담 도우미(D)와 사명자 심방(리드)이 함께 쓴다 — 개인정보 경고 문구가 갈리면 안 된다
+/src/components/PromptBox.tsx  @qtg002505
+
+# ── 리드가 직접 맡은 카테고리 (2026-08-08) ──
+/src/pages/Care.tsx            @qtg002505
 
 # ── 규칙 문서 · 빌드 · 배포 ──
 /CLAUDE.md                     @qtg002505

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Copy, ExternalLink, ShieldAlert, Sparkles } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import { Accordion, type AccordionItem } from "../components/Accordion";
+import { PromptBox } from "../components/PromptBox";
 import { PageHeader, Card } from "./common";
 
 /**
@@ -182,7 +183,6 @@ function PromptBuilder() {
   const [situation, setSituation] = useState(SITUATIONS[0]);
   const [stage, setStage] = useState(STAGES[0]);
   const [temperament, setTemperament] = useState(TEMPERAMENTS[0]);
-  const [copied, setCopied] = useState(false);
 
   const prompt = useMemo(
     () =>
@@ -201,16 +201,6 @@ function PromptBuilder() {
       ].join("\n"),
     [situation, stage, temperament],
   );
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  }
 
   return (
     <div>
@@ -244,31 +234,9 @@ function PromptBuilder() {
         ))}
       </div>
 
-      <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-zion-50 p-3 text-[12px] leading-relaxed text-ink">
-        {prompt}
-      </pre>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button
-          onClick={copy}
-          className="flex items-center gap-1.5 rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700"
-        >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
-          {copied ? "복사했습니다" : "프롬프트 복사"}
-        </button>
-        <span className="flex items-center gap-1 text-[11px] text-ink-soft">
-          <Sparkles size={12} /> 상담 GPT 링크는 주소 수령 후 연결됩니다
-          <ExternalLink size={11} />
-        </span>
+      <div className="mt-3">
+        <PromptBox prompt={prompt} />
       </div>
-
-      <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-gold-100/60 p-2.5 text-[12px] leading-relaxed text-ink">
-        <ShieldAlert size={14} className="mt-0.5 shrink-0 text-gold-700" />
-        <span>
-          <strong className="font-bold">개인정보를 직접 입력하지 마세요.</strong> 위 프롬프트에는
-          이름·연락처·기수 같은 식별 정보가 들어가지 않습니다. GPT 대화에서도 넣지 않습니다.
-        </span>
-      </p>
     </div>
   );
 }

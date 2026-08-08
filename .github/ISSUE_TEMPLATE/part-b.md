@@ -1,6 +1,6 @@
 ---
-name: 파트 B — 수강생 관리·상담 (분석)
-about: 수강생 목록 · 관찰 필요 · 성향 참고 · 상담 사례 작업지시
+name: 파트 B — 수강생 관리 도우미
+about: 수강생 목록 · 관찰 필요 · 성향 참고 · 개인 카드 작업지시
 title: "[파트 B] "
 labels: ["파트 B"]
 ---
@@ -17,8 +17,12 @@ labels: ["파트 B"]
 - [ ] `npm run typecheck` · `npm run build` 통과
 
 ## 담당 파일 (이 안에서만 수정 — 자유롭게 고치고 직접 머지)
-`src/pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `CounselCases.tsx`
+`src/pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx`
 · `src/lib/attendance-signals.ts` · `src/content/enneagram-guides.ts`
+
+> 2026-08-08 개편으로 **상담 사례(`CounselCases.tsx`)는 파트 D로 넘어갔다.**
+> 이 자리에는 지시문 §2-4의 **수강생 개인 카드**(기본정보 · 출결 · 단계 향상 · 메모 ·
+> 상태 분류 · 상담 이력 요약)가 들어온다.
 
 ## 건드리지 않는 파일 (건드리면 머지 버튼이 잠긴다)
 `lib/types.ts` · `store.tsx` · `permissions.ts` · `App.tsx` · `shell/**` · `index.css`

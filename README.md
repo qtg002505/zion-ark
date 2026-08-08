@@ -32,13 +32,16 @@ npm run build:preview  # 팀 공유용 단일 HTML (preview/)
 다섯 명이 대시보드의 큰 카테고리별로 한 파트씩 맡는다. **자기 파트 파일만 고치면
 승인을 기다리지 않고 직접 머지**한다. 상세는 [docs/TEAMWORK.md](docs/TEAMWORK.md).
 
+2026-08-08 카테고리 개편(9개 → **7개 + 홈**)이 반영된 배분이다.
+
 | 파트 | 담당 카테고리 | 주요 파일 |
 | --- | --- | --- |
-| **A** | 우리 기수현황 (최상단) | `pages/Overview.tsx` · `CohortStatus.tsx` · `WeeklyPlanPage.tsx` · `content/cohort-mock.ts` |
-| **B** | 수강생 관리·상담 (분석) | `pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `CounselCases.tsx` · `lib/attendance-signals.ts` |
-| **C** | 강사 도우미 | `pages/Lessons.tsx` · `Compose.tsx` · `components/LessonNotes.tsx` · `lib/compose.ts` · 교안 콘텐츠 |
-| **D** | 전도사 도우미 | 보강 자료 원문(`content/evangelist/**`) · 전도사 전용 화면 |
-| **E** | 자료실 · 공지 · 어록 | `pages/Library.tsx` · `SeriesReader.tsx` · `Notices.tsx` · `Quotes.tsx` · `lib/quote-picker.ts` · 시리즈·어록 콘텐츠 |
+| **A** | 홈 · 기수 현황 | `pages/Overview.tsx` · `CohortStatus.tsx` · `WeeklyPlanPage.tsx` · `content/cohort-mock.ts` |
+| **B** | 수강생 관리 도우미 (개인 카드) | `pages/Students.tsx` · `Signals.tsx` · `Enneagram.tsx` · `lib/attendance-signals.ts` |
+| **C** | 강의 도우미 | `pages/Lessons.tsx` · `Compose.tsx` · `components/LessonNotes.tsx` · `lib/compose.ts` · 교안 콘텐츠 |
+| **D** | 분반 · 보강 도우미 **+ 상담 도우미** | `pages/Counseling.tsx` · `CounselCases.tsx` · 보강 자료 원문(`content/evangelist/**`) |
+| **E** | 자료실 (공지 · 어록 · 외부 매체 포함) | `pages/Library.tsx` · `SeriesReader.tsx` · `Notices.tsx` · `Quotes.tsx` · `lib/quote-picker.ts` · 시리즈·어록 콘텐츠 |
+| **리드** | 사명자 심방 도우미 | `pages/Care.tsx` |
 
 **공유 파일**(`lib/types.ts` · `store.tsx` · `permissions.ts` · `App.tsx` · `shell/**` ·
 `index.css` · `docs/**`)은 리드만 고친다. 실수로 건드리면 `CODEOWNERS`가 잡아
