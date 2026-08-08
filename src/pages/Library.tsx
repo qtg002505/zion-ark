@@ -6,7 +6,8 @@ import { useStore } from "../lib/store";
 import { canToggleFeatured, canWriteLibrary } from "../lib/permissions";
 import {
   EVANGELIST_MAKEUP_FOLDERS,
-  INSTRUCTOR_EARLY_FOLDERS,
+  INSTRUCTOR_BATGARI_FOLDERS,
+  INSTRUCTOR_OTHER_FOLDERS,
   LIBRARY_CATEGORY_LABELS,
   LIBRARY_FOLDERS,
   LIBRARY_SECTION_LABELS,
@@ -60,7 +61,10 @@ export function Library() {
   const folderGroups: { label: string | null; folders: string[] }[] =
     section === "instructor"
       ? [
-          { label: "개강 초반", folders: INSTRUCTOR_EARLY_FOLDERS },
+          // 묶음 이름은 내비(`shell/nav.ts`)와 반드시 같아야 한다 —
+          // 2026-08-07 밭갈이 개편 때 내비만 바뀌어 같은 폴더를 두 이름으로 부르던 것을 맞췄다.
+          { label: "밭갈이", folders: INSTRUCTOR_BATGARI_FOLDERS },
+          { label: "그 밖의 강사 자료", folders: INSTRUCTOR_OTHER_FOLDERS },
           { label: "보강 자료", folders: EVANGELIST_MAKEUP_FOLDERS },
         ]
       : [{ label: null, folders }];

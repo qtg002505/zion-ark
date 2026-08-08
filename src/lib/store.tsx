@@ -61,7 +61,10 @@ const SEED_MATERIALS: LibraryMaterial[] = [
     externalUrl: null,
     isFeatured: false,
     section: "instructor",
-    folderPath: ["성경 밭갈이"],
+    // 2026-08-07 「성경 밭갈이」 폴더가 밭갈이 개편(PR #9)으로 사라져 여기로 옮겼다.
+    // 폴더 이름을 바꿀 때는 이 시드의 folderPath도 함께 본다 — 어긋나면 자료가
+    // 「전체」에만 뜨고 폴더로는 영영 닿지 않는다 (폴더 건수도 0으로 보인다).
+    folderPath: ["초등 초반 밭갈이"],
     createdBy: "콘텐츠팀",
     createdByRole: "content_admin",
     createdAt: "2026-08-02T09:00:00.000Z",
