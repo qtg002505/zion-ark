@@ -15,6 +15,14 @@ import type {
   WorkspaceEntry,
   WorkspaceKind,
 } from "./types";
+import type {
+  StudentStatusOverride,
+  StudentFeedbackRecord,
+  FeedbackEdit,
+  FeedbackKind,
+  ChecklistProgress,
+  CourseLevel,
+} from "../content/student-profiles";
 
 /**
  * 데이터 스토어 — 백엔드 연동 전 프로토타입 저장소.
@@ -31,6 +39,11 @@ const WEEKNOTE_KEY = "zion_ark_week_notes";
 const CASE_KEY = "zion_ark_counsel_cases";
 const TIP_KEY = "zion_ark_counseling_tips";
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
+const STATUS_OVERRIDE_KEY = "zion_ark_student_status_overrides";
+const STUDENT_FEEDBACK_KEY = "zion_ark_student_feedback";
+const FEEDBACK_EDIT_KEY = "zion_ark_student_feedback_edits";
+const FEEDBACK_DELETED_KEY = "zion_ark_student_feedback_deleted";
+const CHECKLIST_KEY = "zion_ark_checklist_progress";
 
 function nowIso() {
   return new Date().toISOString();
@@ -343,6 +356,15 @@ interface StoreValue {
   counselCases: CounselCase[];
   counselingTips: CounselingTip[];
   tipReports: TipReport[];
+  studentStatusOverrides: StudentStatusOverride[];
+  /** 담당자가 상세 페이지에서 직접 남긴 보강·상담 기록 — 씨앗 데이터와 합쳐서 보여준다 */
+  studentFeedback: StudentFeedbackRecord[];
+  /** 씨앗 기록(수정 불가한 고정 텍스트) 위에 덮어쓸 내용 — id별 */
+  feedbackEdits: FeedbackEdit[];
+  /** 지운 기록의 id 목록 — 씨앗 기록은 배열에서 못 지우니 숨김 처리한다 */
+  deletedFeedbackIds: string[];
+  /** 초·중·고 단계 항목 체크 — 수강생별·레벨별·항목별 완료 여부 */
+  checklistProgress: ChecklistProgress[];
   addMaterial: (input: {
     category: LibraryCategory;
     title: string;
@@ -405,6 +427,50 @@ interface StoreValue {
   resolveTipReport: (reportId: string, resolvedBy: string) => void;
   /** 관리자 숨김·해제 — 소프트 삭제 (hiddenAt 기입, 데이터는 남긴다) */
   setTipHidden: (id: string, hidden: boolean, adminName: string) => void;
+  /**
+   * 수강생 상태 표시줄(소속·상태·유월·신앙 상태) 수동 변경 — 필드 단위로 덮어쓴다.
+   * 권한 판정(`canEditCohortRecord`)은 호출부(화면)가 먼저 확인한다.
+   */
+  setStudentStatus: (
+    studentKey: string,
+    patch: Partial<
+      Pick<
+        StudentStatusOverride,
+        "fellowship" | "grade" | "faithType" | "faithStatus" | "note" | "availableTime" | "interests"
+      >
+    >,
+    updatedBy: string,
+    updatedByRole: RoleCode,
+  ) => void;
+  /** 보강·상담·특이사항·메모 기록 추가 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다) */
+  addStudentFeedback: (input: {
+    studentKey: string;
+    kind: FeedbackKind;
+    date: string;
+    subject?: string;
+    text: string;
+    checklistItems?: number[];
+    by: string;
+    byRole: RoleCode;
+  }) => void;
+  /**
+   * 기록 수정 — store에서 만든 기록(`StudentFeedbackRecord`)은 배열 항목을 바로 고치고,
+   * 씨앗 기록(`seed-`로 시작하는 id)은 `feedbackEdits`에 덮어쓸 내용만 남긴다.
+   */
+  updateStudentFeedback: (
+    id: string,
+    patch: { date: string; subject?: string; text: string; checklistItems?: number[] },
+  ) => void;
+  /** 기록 삭제 — store 기록은 배열에서 지우고, 씨앗 기록은 `deletedFeedbackIds`에 넣어 숨긴다 */
+  deleteStudentFeedback: (id: string) => void;
+  /** 단계 항목 체크 토글 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다) */
+  toggleChecklistItem: (
+    studentKey: string,
+    level: CourseLevel,
+    itemNo: number,
+    updatedBy: string,
+    updatedByRole: RoleCode,
+  ) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -422,6 +488,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     load(TIP_KEY, SEED_TIPS),
   );
   const [tipReports, setTipReports] = useState<TipReport[]>(() => load(TIP_REPORT_KEY, []));
+  const [studentStatusOverrides, setStudentStatusOverrides] = useState<StudentStatusOverride[]>(() =>
+    loadPlain<StudentStatusOverride>(STATUS_OVERRIDE_KEY),
+  );
+  const [studentFeedback, setStudentFeedback] = useState<StudentFeedbackRecord[]>(() =>
+    load(STUDENT_FEEDBACK_KEY, []),
+  );
+  const [feedbackEdits, setFeedbackEdits] = useState<FeedbackEdit[]>(() =>
+    loadPlain<FeedbackEdit>(FEEDBACK_EDIT_KEY),
+  );
+  const [deletedFeedbackIds, setDeletedFeedbackIds] = useState<string[]>(() =>
+    loadPlain<string>(FEEDBACK_DELETED_KEY),
+  );
+  const [checklistProgress, setChecklistProgress] = useState<ChecklistProgress[]>(() =>
+    loadPlain<ChecklistProgress>(CHECKLIST_KEY),
+  );
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -463,6 +544,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTipReports(next);
   }, []);
 
+  const persistStudentStatusOverrides = useCallback((next: StudentStatusOverride[]) => {
+    localStorage.setItem(STATUS_OVERRIDE_KEY, JSON.stringify(next));
+    setStudentStatusOverrides(next);
+  }, []);
+
+  const persistStudentFeedback = useCallback((next: StudentFeedbackRecord[]) => {
+    localStorage.setItem(STUDENT_FEEDBACK_KEY, JSON.stringify(next));
+    setStudentFeedback(next);
+  }, []);
+
+  const persistFeedbackEdits = useCallback((next: FeedbackEdit[]) => {
+    localStorage.setItem(FEEDBACK_EDIT_KEY, JSON.stringify(next));
+    setFeedbackEdits(next);
+  }, []);
+
+  const persistDeletedFeedbackIds = useCallback((next: string[]) => {
+    localStorage.setItem(FEEDBACK_DELETED_KEY, JSON.stringify(next));
+    setDeletedFeedbackIds(next);
+  }, []);
+
+  const persistChecklistProgress = useCallback((next: ChecklistProgress[]) => {
+    localStorage.setItem(CHECKLIST_KEY, JSON.stringify(next));
+    setChecklistProgress(next);
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       materials,
@@ -473,6 +579,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       counselCases,
       counselingTips,
       tipReports,
+      studentStatusOverrides,
+      studentFeedback,
       addMaterial: (input) => {
         const item: LibraryMaterial = {
           id: uid(),
@@ -628,6 +736,72 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
+      setStudentStatus: (studentKey, patch, updatedBy, updatedByRole) => {
+        const existing = studentStatusOverrides.find((o) => o.studentKey === studentKey);
+        const merged: StudentStatusOverride = {
+          studentKey,
+          fellowship: patch.fellowship ?? existing?.fellowship,
+          grade: patch.grade ?? existing?.grade,
+          faithType: patch.faithType ?? existing?.faithType,
+          faithStatus: patch.faithStatus ?? existing?.faithStatus,
+          note: patch.note ?? existing?.note,
+          availableTime: patch.availableTime ?? existing?.availableTime,
+          interests: patch.interests ?? existing?.interests,
+          updatedBy,
+          updatedByRole,
+          updatedAt: nowIso(),
+        };
+        persistStudentStatusOverrides([
+          merged,
+          ...studentStatusOverrides.filter((o) => o.studentKey !== studentKey),
+        ]);
+      },
+      addStudentFeedback: (input) => {
+        const item: StudentFeedbackRecord = { id: uid(), ...input };
+        persistStudentFeedback([item, ...studentFeedback]);
+      },
+      feedbackEdits,
+      deletedFeedbackIds,
+      updateStudentFeedback: (id, patch) => {
+        if (id.startsWith("seed-")) {
+          persistFeedbackEdits([
+            { id, ...patch },
+            ...feedbackEdits.filter((e) => e.id !== id),
+          ]);
+          return;
+        }
+        persistStudentFeedback(studentFeedback.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+      },
+      deleteStudentFeedback: (id) => {
+        if (id.startsWith("seed-")) {
+          if (!deletedFeedbackIds.includes(id)) {
+            persistDeletedFeedbackIds([id, ...deletedFeedbackIds]);
+          }
+          return;
+        }
+        persistStudentFeedback(studentFeedback.filter((f) => f.id !== id));
+      },
+      checklistProgress,
+      toggleChecklistItem: (studentKey, level, itemNo, updatedBy, updatedByRole) => {
+        const existing = checklistProgress.find(
+          (c) => c.studentKey === studentKey && c.level === level && c.itemNo === itemNo,
+        );
+        const rest = checklistProgress.filter(
+          (c) => !(c.studentKey === studentKey && c.level === level && c.itemNo === itemNo),
+        );
+        persistChecklistProgress([
+          {
+            studentKey,
+            level,
+            itemNo,
+            checked: !existing?.checked,
+            updatedBy,
+            updatedByRole,
+            updatedAt: nowIso(),
+          },
+          ...rest,
+        ]);
+      },
     }),
     [
       materials,
@@ -638,6 +812,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       counselCases,
       counselingTips,
       tipReports,
+      studentStatusOverrides,
+      studentFeedback,
+      feedbackEdits,
+      deletedFeedbackIds,
+      checklistProgress,
       persistMaterials,
       persistEntries,
       persistNotes,
@@ -646,6 +825,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persistCases,
       persistTips,
       persistTipReports,
+      persistStudentStatusOverrides,
+      persistStudentFeedback,
+      persistFeedbackEdits,
+      persistDeletedFeedbackIds,
+      persistChecklistProgress,
     ],
   );
 
