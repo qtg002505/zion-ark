@@ -58,9 +58,11 @@ export const LIBRARY_SECTION_LABELS: Record<LibrarySection, string> = {
 /**
  * 강사 도우미 「밭갈이」 묶음 (2026-08-07 팀 5차 회의 — 종전 「개강 초반」에서 갈라냄).
  *
- * ⚠️ `밭갈이`는 정의를 못 받은 어휘다 — **화면 이름 문자열로만 쓰고 코드 값(enum·DB 코드·
- * 역할/스코프 코드)으로 굳히지 않는다.** 정의가 오면 이 배열의 문자열만 고치면 되고,
- * 데이터 계약은 손댈 곳이 없다. `folderPath`에 담기는 값도 이 문자열 그대로다.
+ * `밭갈이`의 정의는 2026-08-08에 받았다 (`src/content/glossary.ts`). 그래도 **화면 이름
+ * 문자열로만 쓰고 코드 값(enum·DB 코드·역할/스코프 코드)으로 굳히지 않는다** — 굳혀서 얻는
+ * 것이 없고 표현이 다듬어지면 후방 마이그레이션이 되기 때문이다(불변식 10).
+ * 이름을 바꿔야 하면 이 배열의 문자열을 고치되, **저장된 자료의 `folderPath`도 함께 본다**
+ * (2026-08-07에 실제로 어긋나 자료가 폴더에서 빠진 적이 있다).
  */
 export const INSTRUCTOR_BATGARI_FOLDERS = [
   "개강 세미나",
@@ -84,9 +86,9 @@ export const INSTRUCTOR_EARLY_FOLDERS = [
 /**
  * 전도사 도우미 「보강 자료」 폴더 (2026-08-06 카테고리 확정).
  *
- * ⚠️ `영적전환`은 정의를 못 받은 어휘 목록에 있다 (`docs/decisions/OPEN_QUESTIONS.md` §C).
+ * ⚠️ `영적전환`이 상담 테마의 `신앙전환`과 같은 것인지 아직 확인받지 못했다
+ * (`docs/decisions/OPEN_QUESTIONS.md` §C-1). 같다고 단정해 이름을 합치지 않는다.
  * 나머지도 같은 취급이다 — **화면 이름으로만 쓰고 코드 값(enum·DB 코드)으로 굳히지 않는다.**
- * 정의가 오면 이 배열의 문자열만 고치면 된다.
  */
 export const EVANGELIST_MAKEUP_FOLDERS = [
   "영적전환",
@@ -103,7 +105,7 @@ export const EVANGELIST_MAKEUP_FOLDERS = [
  *
  * `instructor` 구획은 두 묶음을 함께 담는다 (강사 개강 초반 + 전도사 보강).
  * 둘 다 "가르칠 때 쓰는 자료"라 구획이 같고, 내비에서만 갈라 보여 준다.
- * ⚠️ `밭갈이`·`영인지`도 정의 미확정 어휘다 — 위와 같은 이유로 문자열로 둔다.
+ * 폴더 이름의 뜻은 `src/content/glossary.ts`에 있다 — 정의는 받았지만 문자열로 둔다.
  */
 export const LIBRARY_FOLDERS: Record<LibrarySection, string[]> = {
   instructor: [...INSTRUCTOR_EARLY_FOLDERS, ...EVANGELIST_MAKEUP_FOLDERS],
