@@ -1,13 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BookOpenText, ExternalLink, Folder, FolderOpen, Plus, Search, Star, X } from "lucide-react";
+import { BookOpenText, ExternalLink, FolderOpen, Plus, Search, Star, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canToggleFeatured, canWriteLibrary } from "../lib/permissions";
 import {
-  EVANGELIST_MAKEUP_FOLDERS,
-  INSTRUCTOR_BATGARI_FOLDERS,
-  INSTRUCTOR_OTHER_FOLDERS,
   LIBRARY_CATEGORY_LABELS,
   LIBRARY_FOLDERS,
   LIBRARY_SECTION_LABELS,
@@ -33,6 +30,11 @@ function isSection(v: string | null): v is LibrarySection {
  * 아니므로 무세션 401 원칙은 그대로다.
  *
  * 기존 카테고리(`standard_lecture` 등)는 데이터 계약이라 그대로 두고, 구획·폴더를 더했다.
+ *
+ * ⚠️ **폴더 목록을 이 화면에 두지 않는다** (2026-08-09 리드 지시). 종전에는 왼쪽 사이드바와
+ * 이 화면이 같은 폴더 목록을 각각 그려 **카테고리가 두 군데에 떴다.** 폴더 이동은
+ * 사이드바(`src/shell/nav.ts`) 한 곳에서만 하고, 이 화면은 **고른 폴더의 자료**만 보여 준다.
+ * 폴더를 늘릴 때 고칠 곳도 `LIBRARY_FOLDERS` → `nav.ts` 한 줄기로 좁아진다.
  */
 export function Library() {
   const session = useSession();
@@ -53,22 +55,6 @@ export function Library() {
 
   const folders = LIBRARY_FOLDERS[section];
 
-  /**
-   * 폴더 묶음 — 「강사 도우미 자료실」은 한 구획 안에 두 갈래가 있다
-   * (강사가 기수를 열 때 쓰는 것 / 전도사가 보강에 쓰는 것). 평평하게 열 개를 늘어놓으면
-   * 누가 쓰는 자료인지 구분이 안 되므로, 내비와 같은 이름으로 갈라 보여 준다.
-   */
-  const folderGroups: { label: string | null; folders: string[] }[] =
-    section === "instructor"
-      ? [
-          // 묶음 이름은 내비(`shell/nav.ts`)와 반드시 같아야 한다 —
-          // 2026-08-07 밭갈이 개편 때 내비만 바뀌어 같은 폴더를 두 이름으로 부르던 것을 맞췄다.
-          { label: "밭갈이", folders: INSTRUCTOR_BATGARI_FOLDERS },
-          { label: "그 밖의 강사 자료", folders: INSTRUCTOR_OTHER_FOLDERS },
-          { label: "보강 자료", folders: EVANGELIST_MAKEUP_FOLDERS },
-        ]
-      : [{ label: null, folders }];
-
   const list = useMemo(() => {
     const q = query.trim();
     return materials
@@ -82,17 +68,6 @@ export function Library() {
       })
       .filter((m) => !q || m.title.includes(q) || m.body.includes(q));
   }, [materials, section, folder, legacyTab, query]);
-
-  /** 폴더별 자료 수 — 어디에 무엇이 있는지 눈으로 가늠하게 */
-  const counts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of materials) {
-      if ((m.section ?? "instructor") !== section) continue;
-      const top = (m.folderPath ?? [])[0] ?? "(폴더 없음)";
-      map.set(top, (map.get(top) ?? 0) + 1);
-    }
-    return map;
-  }, [materials, section]);
 
   function go(next: { section?: LibrarySection; folder?: string | null }) {
     const s = next.section ?? section;
@@ -110,7 +85,7 @@ export function Library() {
         title={LIBRARY_SECTION_LABELS[section]}
         desc={
           section === "instructor"
-            ? "가르칠 때 쓰는 교안입니다. 폴더에서 골라 보세요."
+            ? "가르칠 때 쓰는 교안입니다. 폴더는 왼쪽 메뉴에서 고릅니다."
             : "교안 밖의 지식·전달 자료입니다. 상황에 맞게 가져다 씁니다."
         }
         action={
@@ -127,30 +102,36 @@ export function Library() {
         }
       />
 
-      {/* 구획 전환 */}
-      <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="자료실 구획">
-        {SECTIONS.map((s) => (
-          <button
-            key={s}
-            role="tab"
-            aria-selected={section === s}
-            onClick={() => go({ section: s, folder: null })}
-            className={
-              "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition sm:px-4 " +
-              (section === s ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-            }
-          >
-            {LIBRARY_SECTION_LABELS[s]}
-          </button>
-        ))}
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5">
-          <Search size={13} className="text-ink-soft" />
+      {/*
+        구획 전환 + 검색.
+        검색칸은 `role="tablist"` 밖에 둔다 — 탭이 아닌 요소를 탭 목록에 넣으면 보조기술이
+        탭으로 읽고, 좁은 화면에서는 탭 줄 안에 갇혀 잘려 보인다.
+      */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="자료실 구획">
+          {SECTIONS.map((s) => (
+            <button
+              key={s}
+              role="tab"
+              aria-selected={section === s}
+              onClick={() => go({ section: s, folder: null })}
+              className={
+                "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition sm:px-4 " +
+                (section === s ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+              }
+            >
+              {LIBRARY_SECTION_LABELS[s]}
+            </button>
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
+          <Search size={13} className="shrink-0 text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="제목·내용 검색"
             aria-label="자료 검색"
-            className="w-28 bg-transparent text-[12px] outline-none sm:w-36"
+            className="min-w-0 flex-1 bg-transparent text-[12px] outline-none"
           />
         </div>
       </div>
@@ -176,58 +157,31 @@ export function Library() {
         </div>
       )}
 
-      <div className="grid grid-cols-6 gap-4 max-md:grid-cols-1">
-        {/* 폴더 */}
-        <nav aria-label="폴더" className="col-span-2 max-md:col-span-1">
-          <div className="rounded-card border border-zion-100 bg-white p-2 shadow-sm">
-            <button
-              onClick={() => go({ folder: null })}
-              className={
-                "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
-                (!folder ? "bg-zion-700 font-semibold text-white" : "text-ink hover:bg-zion-50")
-              }
-            >
-              {!folder ? <FolderOpen size={15} /> : <Folder size={15} className="text-zion-400" />}
-              <span className="flex-1">전체</span>
-              <span className={"text-[11px] " + (!folder ? "text-white/70" : "text-ink-soft")}>
-                {[...counts.values()].reduce((a, b) => a + b, 0)}
-              </span>
+      {/*
+        지금 보고 있는 폴더. 폴더 **목록**은 왼쪽 사이드바에만 두고 여기서 되풀이하지 않는다
+        (2026-08-09 리드 지시 — 카테고리가 두 군데 뜨던 것을 없앴다).
+      */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-ink-soft">
+        <FolderOpen size={14} className="shrink-0 text-zion-500" />
+        {folder ? (
+          <>
+            <span className="font-semibold text-ink">{folder}</span>
+            <span>· {list.length}건</span>
+            <button onClick={() => go({ folder: null })} className="font-semibold text-zion-700 hover:underline">
+              구획 전체 보기
             </button>
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-ink">구획 전체</span>
+            <span>· {list.length}건 — 폴더는 왼쪽 메뉴에서 고릅니다</span>
+          </>
+        )}
+      </div>
 
-            {folderGroups.map((g) => (
-              <div key={g.label ?? "all"}>
-                {g.label && (
-                  <div className="mt-2 px-2.5 pt-1 pb-0.5 text-[11px] font-bold text-ink-soft">{g.label}</div>
-                )}
-                {g.folders.map((f) => {
-                  const active = folder === f;
-                  return (
-                    <button
-                      key={f}
-                      onClick={() => go({ folder: f })}
-                      className={
-                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
-                        (active ? "bg-zion-700 font-semibold text-white" : "text-ink hover:bg-zion-50")
-                      }
-                    >
-                      {active ? <FolderOpen size={15} /> : <Folder size={15} className="text-zion-400" />}
-                      <span className="min-w-0 flex-1 truncate">{f}</span>
-                      <span className={"text-[11px] " + (active ? "text-white/70" : "text-ink-soft")}>
-                        {counts.get(f) ?? 0}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 px-1 text-[11px] leading-relaxed text-ink-soft">
-            폴더는 회의에서 정한 축입니다. 하위 폴더를 더 나눌 수 있게 구조를 잡아 두었습니다.
-          </p>
-        </nav>
-
+      <div>
         {/* 목록 + 본문 */}
-        <div className="col-span-4 max-md:col-span-1">
+        <div>
           {selected ? (
             <Card>
               <button

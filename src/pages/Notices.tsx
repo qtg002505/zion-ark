@@ -34,7 +34,7 @@ export function Notices() {
   return (
     <div>
       <PageHeader
-        crumb="자료실"
+        crumb="공지 · 어록"
         title="공지사항"
         desc={`총회 공지는 전국 공통, 지파 공지는 소속 지파(${session.tribe})만 표시됩니다.`}
         action={

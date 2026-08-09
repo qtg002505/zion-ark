@@ -93,7 +93,7 @@ export function Quotes() {
   return (
     <div>
       <PageHeader
-        crumb="자료실"
+        crumb="공지 · 어록"
         title="총회장님 어록"
         desc={`주제별 정리본 ${QUOTE_ITEMS.length.toLocaleString()}건 · 주제 ${QUOTE_TOPIC_LIST.length}개 — 원문 그대로 탑재 (오탈자만 수정, 변형·압축 없음)`}
         action={
