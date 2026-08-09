@@ -899,13 +899,13 @@ function LevelChecklistCard({
                 disabled={!canEdit}
                 onClick={() => onToggle(level, g.no, qi, standard.weekly ? recordWeek : undefined)}
                 className={
-                  "flex w-full items-start gap-2 rounded-lg px-1.5 py-1.5 text-left transition " +
+                  "flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition " +
                   (canEdit ? "hover:bg-zion-50" : "cursor-default")
                 }
               >
                 <span
                   className={
-                    "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition " +
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition " +
                     (checked ? "border-zion-700 bg-zion-700 text-white" : "border-zion-200 text-transparent")
                   }
                 >
@@ -922,7 +922,7 @@ function LevelChecklistCard({
                   </span>
                 </span>
                 {standard.weekly && checked && week && (
-                  <span className="mt-0.5 shrink-0 rounded-full bg-zion-100 px-1.5 py-0.5 text-[10px] font-medium text-zion-700">
+                  <span className="shrink-0 rounded-full bg-zion-100 px-1.5 py-0.5 text-[10px] font-medium text-zion-700">
                     {week}주차
                   </span>
                 )}
