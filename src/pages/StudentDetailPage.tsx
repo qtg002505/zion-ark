@@ -915,7 +915,7 @@ function LevelChecklistCard({
                   <span
                     className={
                       "block whitespace-pre-line text-[12px] leading-relaxed " +
-                      (checked ? "text-ink-soft line-through" : "text-ink")
+                      (checked ? "text-ink-soft" : "text-ink")
                     }
                   >
                     {q}
