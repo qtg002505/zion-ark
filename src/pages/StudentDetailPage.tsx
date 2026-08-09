@@ -36,7 +36,7 @@ const COURSE_LEVELS: CourseLevel[] = ["초등", "중등", "고등"];
 /**
  * 수강생 정보 상세 — 참고 화면(상세보드 1.png) 구조를 그대로 옮긴 개인별 전체 페이지.
  *
- * `/students-dashboard`의 목록·요약 패널에서 화살표(›)를 누르면 여기로 온다.
+ * `/students`의 목록·요약 패널에서 화살표(›)를 누르면 여기로 온다.
  *
  * ⚠️ 상단 상태 표시줄(소속·등급·유월·신앙 상태)은 **기본정보로 자동 지정되지만, 해당
  * 기수의 강사·전도사가 직접 바꿀 수 있다**(2026-08-09 확정). 자동값은 출결·나이·성별에서
@@ -72,7 +72,7 @@ export function StudentDetailPage() {
       <div>
         <PageHeader crumb="수강생 관리 도우미" title="수강생을 찾을 수 없습니다" />
         <Link
-          to="/students-dashboard"
+          to="/students"
           className="flex w-fit items-center gap-1 rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
         >
           <ArrowLeft size={13} /> 수강생관리 도우미로 돌아가기
@@ -152,7 +152,7 @@ export function StudentDetailPage() {
         desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${student.division} — 조회 범위: ${studentScopeLabel(session)}`}
         action={
           <Link
-            to="/students-dashboard"
+            to="/students"
             className="flex items-center gap-1 rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
           >
             <ArrowLeft size={13} /> 목록으로
