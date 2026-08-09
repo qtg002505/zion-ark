@@ -18,6 +18,8 @@ import {
 import { attendanceStreak, readSignals } from "../lib/attendance-signals";
 import { gradeOf, GRADE_LABELS, SUGGESTIONS, growthScore, type Grade } from "../lib/student-grade";
 import { weekdayOf } from "../lib/date-format";
+import { CHECKLIST_STANDARDS, type ChecklistGroup } from "../content/checklist-standards";
+import { Accordion } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
 const FELLOWSHIPS: Fellowship[] = ["청년회", "장년회", "부녀회", "자문회"];
@@ -29,32 +31,6 @@ const RING_STROKE: Record<Grade, string> = {
   D: "stroke-red-500",
 };
 
-/**
- * 참고 화면(상세보드 1.png)의 「초등 단계 항목 체크리스트」 8항목 — 자리만 먼저 만든다.
- * ⚠️ 항목별 진행률·판정 기준은 원본을 받은 적이 없어 전부 0%로 둔다(불변식 5 — 교리 콘텐츠는
- * 원문 그대로 이관, 지어내지 않는다). 원본이 오면 여기 라벨을 확인하고 `StudentProfile`에
- * 진행률 필드를 추가해 연결한다.
- */
-const ELEMENTARY_CHECKLIST = [
-  { no: 1, label: "신실" },
-  { no: 2, label: "수업(실업조)" },
-  { no: 3, label: "은혜로 섬김" },
-  { no: 4, label: "헌결 및 말씀순" },
-  { no: 5, label: "마음열기(사랑과 소통)" },
-  { no: 6, label: "말씀의 열매(서로담화)" },
-  { no: 7, label: "본질" },
-  { no: 8, label: "우림(오픈)" },
-];
-
-/**
- * 초·중·고 단계 체크리스트 — 리드가 "자료는 추후에 준다"고 해서 초등 8항목만 채우고
- * 중등·고등은 빈 배열로 자리만 둔다. `LevelChecklistCard`가 이 목록으로 탭을 만든다.
- */
-const LEVEL_CHECKLISTS: Record<CourseLevel, { no: number; label: string }[]> = {
-  초등: ELEMENTARY_CHECKLIST,
-  중등: [],
-  고등: [],
-};
 const COURSE_LEVELS: CourseLevel[] = ["초등", "중등", "고등"];
 
 /**
@@ -115,6 +91,12 @@ export function StudentDetailPage() {
   const yuwol = override?.faithType ?? (p.faithType === "비오픈" ? "비오픈" : "오픈");
   const faithStatus = override?.faithStatus ?? p.faithStatus;
   const note = override?.note ?? p.note;
+  // 이력 목록 — 지금 값은 안 넣는다(위에 이미 보이므로). "최초"(씨앗 값)를 맨 끝에 덧붙인다:
+  // override가 처음 생길 때는 store가 씨앗을 몰라 이력에 못 넣으므로 여기서 항상 붙여 준다
+  const noteHistory: { text: string; label: string }[] = [
+    ...(override?.noteHistory ?? []).map((h) => ({ text: h.text, label: `${h.editedBy} · ${h.editedAt.slice(0, 10)}` })),
+    { text: p.note, label: "최초" },
+  ];
   const availableTime = override?.availableTime ?? p.availableTime;
   const interests = override?.interests ?? p.interests;
   const score = growthScore(student);
@@ -321,7 +303,15 @@ export function StudentDetailPage() {
         </Card>
 
         <Card>
-          <SectionTitle>출석 개요</SectionTitle>
+          <div className="mb-2.5 flex items-center justify-between">
+            <SectionTitle>출석 개요</SectionTitle>
+            <Link
+              to="/cohort?tab=attendance"
+              className="text-[11px] font-semibold text-zion-700 hover:underline"
+            >
+              기수 출석현황 →
+            </Link>
+          </div>
           <dl className="space-y-1.5 text-[12px]">
             <Row label="출석률" value={`${student.attendanceRate}% (${student.presentCount}/${student.totalSessions}회)`} />
             <Row
@@ -330,19 +320,15 @@ export function StudentDetailPage() {
             />
           </dl>
 
-          <div className="mt-3 border-t border-zion-100 pt-3">
-            <div className="mb-1.5 flex items-center justify-between text-[11px]">
-              <span className="text-ink-soft">개인 출석률 · 기수 평균 비교</span>
-              <span className="text-ink-soft">
-                {student.name} {student.attendanceRate}% · {COHORT.cohort} {cohortAvgRate}%
-              </span>
-            </div>
-            <svg viewBox="0 0 120 44" preserveAspectRatio="none" className="h-14 w-full">
+          <div className="mt-3 rounded-lg border border-zion-100 p-3">
+            <div className="mb-1.5 text-[12px] font-semibold text-ink-soft">개인 출석률 · 기수 평균 비교</div>
+            <svg viewBox="0 0 120 44" preserveAspectRatio="none" className="h-12 w-full">
               <polyline
                 points={cohortSeries
                   .map((v, i) => `${(i / (cohortSeries.length - 1)) * 120},${42 - (v / 100) * 38}`)
                   .join(" ")}
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 className="stroke-zion-300"
                 strokeWidth="2"
                 strokeDasharray="4 3"
@@ -354,36 +340,34 @@ export function StudentDetailPage() {
                   .map((v, i) => `${(i / (individualSeries.length - 1)) * 120},${42 - (v / 100) * 38}`)
                   .join(" ")}
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 className="stroke-zion-700"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              {individualSeries.map((v, i) => {
-                const inStreak = i >= individualSeries.length - streak;
-                const cx = (i / (individualSeries.length - 1)) * 120;
-                const cy = 42 - (v / 100) * 38;
-                return inStreak ? (
-                  <circle key={i} cx={cx} cy={cy} r="3" fill="white" className="stroke-zion-700" strokeWidth="2" />
-                ) : (
-                  <circle key={i} cx={cx} cy={cy} r="1.5" className="fill-zion-700" />
-                );
-              })}
+              {individualSeries.map((v, i) => (
+                <circle
+                  key={i}
+                  cx={(i / (individualSeries.length - 1)) * 120}
+                  cy={42 - (v / 100) * 38}
+                  r="0"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  className={i >= individualSeries.length - streak ? "stroke-amber-500" : "stroke-zion-700"}
+                />
+              ))}
             </svg>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-[10.5px] text-ink-soft">
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-0 w-3 border-t-2 border-zion-700" /> {student.name}(실선)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-0 w-3 border-t-2 border-dashed border-zion-300" /> {COHORT.cohort}(점선)
-              </span>
-              {streak > 0 && (
-                <span className="flex items-center gap-1">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-zion-700 bg-white" /> 연속 출석{" "}
-                  {streak}회
-                </span>
-              )}
+            <div className="mt-1 flex justify-between text-[9.5px] text-ink-soft">
+              <span>{student.name} · {student.attendanceRate}%(실선)</span>
+              <span>{COHORT.cohort} · {cohortAvgRate}%(점선)</span>
             </div>
+            {streak > 0 && (
+              <div className="mt-1 flex items-center gap-1 text-[9.5px] text-ink-soft">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" /> 연속 출석 {streak}회
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -458,13 +442,23 @@ export function StudentDetailPage() {
               <polyline
                 points={trend.map((v, i) => `${(i / (trend.length - 1)) * 120},${42 - (v / 100) * 38}`).join(" ")}
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 className="stroke-zion-700"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               {trend.map((v, i) => (
-                <circle key={i} cx={(i / (trend.length - 1)) * 120} cy={42 - (v / 100) * 38} r="2.5" className="fill-zion-700" />
+                <circle
+                  key={i}
+                  cx={(i / (trend.length - 1)) * 120}
+                  cy={42 - (v / 100) * 38}
+                  r="0"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  className="stroke-zion-700"
+                />
               ))}
             </svg>
             <div className="mt-1 flex justify-between text-[9.5px] text-ink-soft">
@@ -487,14 +481,15 @@ export function StudentDetailPage() {
           <LevelChecklistCard
             progress={checklistProgress.filter((c) => c.studentKey === student.key)}
             canEdit={canEdit}
-            onToggle={(level, itemNo) =>
-              toggleChecklistItem(student.key, level, itemNo, session.name, session.roleCode)
+            onToggle={(level, groupNo, qIndex, week) =>
+              toggleChecklistItem(student.key, level, groupNo, qIndex, session.name, session.roleCode, week)
             }
           />
         </div>
 
         <MemoTimelineCard
           note={note}
+          noteHistory={noteHistory}
           canEdit={canEdit}
           onSaveNote={(v) => setStudentStatus(student.key, { note: v }, session.name, session.roleCode)}
           entries={combinedFeedback}
@@ -681,6 +676,7 @@ const MEMO_KINDS: FeedbackKind[] = ["makeup", "counsel", "note", "memo"];
  */
 function MemoTimelineCard({
   note,
+  noteHistory,
   canEdit,
   onSaveNote,
   entries,
@@ -689,6 +685,7 @@ function MemoTimelineCard({
   onDelete,
 }: {
   note: string;
+  noteHistory: { text: string; label: string }[];
   canEdit: boolean;
   onSaveNote: (v: string) => void;
   entries: { id: string; kind: FeedbackKind; date: string; subject?: string; text: string; by: string; checklistItems?: number[] }[];
@@ -698,6 +695,7 @@ function MemoTimelineCard({
 }) {
   const [filter, setFilter] = useState<FeedbackKind | "all">("all");
   const [open, setOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [kind, setKind] = useState<FeedbackKind>("note");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [subject, setSubject] = useState("");
@@ -729,9 +727,26 @@ function MemoTimelineCard({
         )}
       </div>
 
-      <div className="mb-3 rounded-lg bg-zion-50 p-2.5 text-[12.5px] leading-relaxed text-ink">
+      <div className="mb-1 rounded-lg bg-zion-50 p-2.5 text-[12.5px] leading-relaxed text-ink">
         <EditableText value={note} canEdit={canEdit} onSave={onSaveNote} multiline />
       </div>
+      <button
+        type="button"
+        onClick={() => setHistoryOpen((v) => !v)}
+        className="mb-3 text-[11px] font-semibold text-zion-700 hover:underline"
+      >
+        {historyOpen ? "이전 특이사항 숨기기" : `이전 특이사항 보기 (${noteHistory.length}건)`}
+      </button>
+      {historyOpen && (
+        <ul className="mb-3 space-y-1.5 border-l-2 border-zion-100 pl-3">
+          {noteHistory.map((h, i) => (
+            <li key={i} className="text-[11.5px] leading-relaxed">
+              <span className="text-ink-soft">{h.label}</span>
+              <p className="text-ink">{h.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {open && (
         <form onSubmit={submit} className="mb-3 space-y-1.5 rounded-lg border border-zion-100 bg-zion-50 p-2.5">
@@ -823,28 +838,113 @@ function MemoTimelineCard({
  * 초·중·고 단계 체크리스트 — 레벨 탭을 오가며 항목을 직접 체크한다.
  * 중등·고등은 아직 항목 원본이 없어 "자료 대기" 상태로 둔다(리드가 추후 제공 예정).
  */
+const SECTION_GRADE_TONE: Record<"A" | "B" | "C", string> = {
+  A: "text-emerald-700",
+  B: "text-amber-700",
+  C: "text-ink-soft",
+};
+
 function LevelChecklistCard({
   progress,
   canEdit,
   onToggle,
 }: {
-  progress: { level: CourseLevel; itemNo: number; checked: boolean }[];
+  progress: { level: CourseLevel; groupNo: number; qIndex: number; checked: boolean; week?: number }[];
   canEdit: boolean;
-  onToggle: (level: CourseLevel, itemNo: number) => void;
+  onToggle: (level: CourseLevel, groupNo: number, qIndex: number, week?: number) => void;
 }) {
   const [level, setLevel] = useState<CourseLevel>("초등");
-  const items = LEVEL_CHECKLISTS[level];
-  const checkedNos = new Set(progress.filter((p) => p.level === level && p.checked).map((p) => p.itemNo));
-  const doneCount = items.filter((item) => checkedNos.has(item.no)).length;
-  const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
+  const [recordWeek, setRecordWeek] = useState(1);
+  const standard = CHECKLIST_STANDARDS[level];
+  const levelProgress = progress.filter((p) => p.level === level);
+
+  const isChecked = (groupNo: number, qIndex: number) =>
+    levelProgress.some((p) => p.groupNo === groupNo && p.qIndex === qIndex && p.checked);
+  const weekOf = (groupNo: number, qIndex: number) =>
+    levelProgress.find((p) => p.groupNo === groupNo && p.qIndex === qIndex)?.week;
+
+  const totalQuestions = standard.groups.reduce((sum, g) => sum + g.questions.length, 0);
+  const doneCount = standard.groups.reduce(
+    (sum, g) => sum + g.questions.filter((_, qi) => isChecked(g.no, qi)).length,
+    0,
+  );
+  const pct = totalQuestions ? Math.round((doneCount / totalQuestions) * 100) : 0;
+
+  function sectionScore(section: { groupNos: number[]; gradeA: number; gradeB: number }) {
+    const groups = standard.groups.filter((g) => section.groupNos.includes(g.no));
+    const total = groups.reduce((sum, g) => sum + g.questions.length, 0);
+    const done = groups.reduce(
+      (sum, g) => sum + g.questions.filter((_, qi) => isChecked(g.no, qi)).length,
+      0,
+    );
+    const grade: "A" | "B" | "C" = done >= section.gradeA ? "A" : done >= section.gradeB ? "B" : "C";
+    return { done, total, grade };
+  }
+
+  const accordionItems = standard.groups.map((g: ChecklistGroup) => {
+    const groupDone = g.questions.filter((_, qi) => isChecked(g.no, qi)).length;
+    return {
+      id: `${level}-${g.no}`,
+      title: `${g.no}. ${g.label}`,
+      hint: `${groupDone}/${g.questions.length} 체크`,
+      content: (
+        <div className="space-y-1">
+          {g.questions.map((q, qi) => {
+            const checked = isChecked(g.no, qi);
+            const week = weekOf(g.no, qi);
+            return (
+              <button
+                key={qi}
+                type="button"
+                disabled={!canEdit}
+                onClick={() => onToggle(level, g.no, qi, standard.weekly ? recordWeek : undefined)}
+                className={
+                  "flex w-full items-start gap-2 rounded-lg px-1.5 py-1.5 text-left transition " +
+                  (canEdit ? "hover:bg-zion-50" : "cursor-default")
+                }
+              >
+                <span
+                  className={
+                    "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition " +
+                    (checked ? "border-zion-700 bg-zion-700 text-white" : "border-zion-200 text-transparent")
+                  }
+                >
+                  ✓
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={
+                      "block whitespace-pre-line text-[12px] leading-relaxed " +
+                      (checked ? "text-ink-soft line-through" : "text-ink")
+                    }
+                  >
+                    {q}
+                  </span>
+                </span>
+                {standard.weekly && checked && week && (
+                  <span className="mt-0.5 shrink-0 rounded-full bg-zion-100 px-1.5 py-0.5 text-[10px] font-medium text-zion-700">
+                    {week}주차
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ),
+    };
+  });
 
   return (
     <Card>
-      <div className="mb-2.5 flex items-center justify-between">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
         <SectionTitle>단계 항목 체크리스트</SectionTitle>
         <span className="rounded-full border border-zion-100 bg-zion-50 px-2.5 py-1 text-[11px] font-medium text-ink-soft">
-          {doneCount}/{items.length} · {pct}%
+          단계목표 완성 {doneCount}/{totalQuestions} · {pct}%
         </span>
+      </div>
+
+      <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-zion-100">
+        <div className="h-full rounded-full bg-zion-600 transition-all" style={{ width: `${pct}%` }} />
       </div>
 
       <div className="mb-3 flex gap-1 rounded-lg bg-zion-100 p-1" role="tablist" aria-label="단계">
@@ -865,41 +965,49 @@ function LevelChecklistCard({
         ))}
       </div>
 
-      {items.length === 0 ? (
-        <p className="py-6 text-center text-[12px] text-ink-soft">
-          {level} 단계 항목 원본이 아직 없습니다 — 자료가 오면 채웁니다.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-          {items.map((item) => {
-            const checked = checkedNos.has(item.no);
-            return (
-              <button
-                key={item.no}
-                type="button"
-                disabled={!canEdit}
-                onClick={() => onToggle(level, item.no)}
-                className={
-                  "flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition " +
-                  (canEdit ? "hover:bg-zion-50" : "cursor-default")
-                }
-              >
-                <span
-                  className={
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition " +
-                    (checked ? "border-zion-700 bg-zion-700 text-white" : "border-zion-200 text-transparent")
-                  }
-                >
-                  ✓
-                </span>
-                <span className={"text-[12px] " + (checked ? "text-ink-soft line-through" : "text-ink")}>
-                  {item.no}. {item.label}
-                </span>
-              </button>
-            );
-          })}
+      {standard.goal && (
+        <div className="mb-3 rounded-lg bg-zion-50 px-3 py-2 text-[12px] text-zion-800">
+          <span className="font-semibold">목표</span> · {standard.goal}
         </div>
       )}
+
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {standard.sections.map((s, i) => {
+          const { done, total, grade } = sectionScore(s);
+          return (
+            <span
+              key={i}
+              className="rounded-full border border-zion-100 bg-white px-2.5 py-1 text-[11px] text-ink-soft"
+            >
+              {s.groupNos.join("·")}번 구간 {done}/{total} ·{" "}
+              <span className={"font-semibold " + SECTION_GRADE_TONE[grade]}>{grade}</span>
+            </span>
+          );
+        })}
+      </div>
+
+      {standard.weekly && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11.5px] text-ink-soft">
+          <span>지금 체크하면 남길 주차</span>
+          <div className="flex flex-wrap gap-1">
+            {Array.from({ length: standard.weekCount ?? 6 }, (_, i) => i + 1).map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setRecordWeek(w)}
+                className={
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium transition " +
+                  (recordWeek === w ? "bg-zion-700 text-white" : "bg-zion-50 text-ink-soft hover:bg-zion-100")
+                }
+              >
+                {w}주차
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Accordion items={accordionItems} resetKey={level} defaultOpenFirst={false} compact />
     </Card>
   );
 }
@@ -908,7 +1016,7 @@ function LevelChecklistCard({
 function ChecklistPicker({ selected, onToggle }: { selected: number[]; onToggle: (no: number) => void }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {ELEMENTARY_CHECKLIST.map((item) => {
+      {CHECKLIST_STANDARDS.초등.groups.map((item) => {
         const active = selected.includes(item.no);
         return (
           <button
@@ -1032,7 +1140,7 @@ function FeedbackItem({
           {entry.checklistItems && entry.checklistItems.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {entry.checklistItems.map((no) => {
-                const item = ELEMENTARY_CHECKLIST.find((c) => c.no === no);
+                const item = CHECKLIST_STANDARDS.초등.groups.find((c) => c.no === no);
                 return (
                   <span key={no} className="rounded-full bg-zion-50 px-1.5 py-0.5 text-[10px] text-zion-700">
                     {no}. {item?.label ?? ""}

@@ -463,13 +463,16 @@ interface StoreValue {
   ) => void;
   /** 기록 삭제 — store 기록은 배열에서 지우고, 씨앗 기록은 `deletedFeedbackIds`에 넣어 숨긴다 */
   deleteStudentFeedback: (id: string) => void;
-  /** 단계 항목 체크 토글 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다) */
+  /** 단계 세부 질문 체크 토글 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다).
+   * `week`는 중등처럼 주차 칸이 있는 레벨에서만 넘긴다 */
   toggleChecklistItem: (
     studentKey: string,
     level: CourseLevel,
-    itemNo: number,
+    groupNo: number,
+    qIndex: number,
     updatedBy: string,
     updatedByRole: RoleCode,
+    week?: number,
   ) => void;
 }
 
@@ -738,6 +741,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       setStudentStatus: (studentKey, patch, updatedBy, updatedByRole) => {
         const existing = studentStatusOverrides.find((o) => o.studentKey === studentKey);
+        // 특이사항을 실제로 바꿀 때만 직전 값을 이력에 쌓는다(최근 20건, 최신이 앞).
+        // 최초 수정(existing.note가 아직 없을 때)은 씨앗 값이라 store가 몰라 이력에 못 넣는다 —
+        // 화면에서 씨앗 값(StudentProfile.note)을 이력 맨 아래 "최초" 항목으로 따로 보여준다.
+        const noteChanged = patch.note !== undefined && existing?.note !== undefined && patch.note !== existing.note;
+        const noteHistory = noteChanged
+          ? [
+              {
+                text: existing!.note!,
+                editedBy: existing!.updatedBy,
+                editedByRole: existing!.updatedByRole,
+                editedAt: existing!.updatedAt,
+              },
+              ...(existing?.noteHistory ?? []),
+            ].slice(0, 20)
+          : existing?.noteHistory;
         const merged: StudentStatusOverride = {
           studentKey,
           fellowship: patch.fellowship ?? existing?.fellowship,
@@ -745,6 +763,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           faithType: patch.faithType ?? existing?.faithType,
           faithStatus: patch.faithStatus ?? existing?.faithStatus,
           note: patch.note ?? existing?.note,
+          noteHistory,
           availableTime: patch.availableTime ?? existing?.availableTime,
           interests: patch.interests ?? existing?.interests,
           updatedBy,
@@ -782,19 +801,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         persistStudentFeedback(studentFeedback.filter((f) => f.id !== id));
       },
       checklistProgress,
-      toggleChecklistItem: (studentKey, level, itemNo, updatedBy, updatedByRole) => {
+      toggleChecklistItem: (studentKey, level, groupNo, qIndex, updatedBy, updatedByRole, week) => {
         const existing = checklistProgress.find(
-          (c) => c.studentKey === studentKey && c.level === level && c.itemNo === itemNo,
+          (c) =>
+            c.studentKey === studentKey &&
+            c.level === level &&
+            c.groupNo === groupNo &&
+            c.qIndex === qIndex,
         );
         const rest = checklistProgress.filter(
-          (c) => !(c.studentKey === studentKey && c.level === level && c.itemNo === itemNo),
+          (c) =>
+            !(
+              c.studentKey === studentKey &&
+              c.level === level &&
+              c.groupNo === groupNo &&
+              c.qIndex === qIndex
+            ),
         );
         persistChecklistProgress([
           {
             studentKey,
             level,
-            itemNo,
+            groupNo,
+            qIndex,
             checked: !existing?.checked,
+            week: week ?? existing?.week,
             updatedBy,
             updatedByRole,
             updatedAt: nowIso(),

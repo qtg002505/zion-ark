@@ -44,6 +44,14 @@ export const FEEDBACK_KIND_LABELS: Record<FeedbackKind, string> = {
   memo: "메모",
 };
 
+/** 특이사항을 고칠 때마다 밀려나는 직전 값 한 건 — `WeeklyPlan`의 `PlanRevision`과 같은 패턴 */
+export interface NoteRevision {
+  text: string;
+  editedBy: string;
+  editedByRole: RoleCode;
+  editedAt: string;
+}
+
 /**
  * 상단 상태 표시줄(소속·상태·유월·신앙 상태) 수동 변경 기록.
  *
@@ -65,6 +73,8 @@ export interface StudentStatusOverride {
   faithStatus?: FaithStatus;
   /** 특이사항 — 표·상세 카드에 짧게 뜨는 한 줄. 있으면 씨앗 값(`StudentProfile.note`) 대신 쓴다 */
   note?: string;
+  /** note를 덮어쓸 때마다 직전 값을 여기 쌓는다(최근 20건, 최신이 앞) — 최초값(씨앗)은 안 들어간다 */
+  noteHistory?: NoteRevision[];
   /** 연락 가능 시간대 — 있으면 씨앗 값(`StudentProfile.availableTime`) 대신 쓴다 */
   availableTime?: string;
   /** 관심사 · 메모 — 있으면 씨앗 값(`StudentProfile.interests`) 대신 쓴다 */
@@ -113,14 +123,18 @@ export interface FeedbackEdit {
 export type CourseLevel = "초등" | "중등" | "고등";
 
 /**
- * 수강생별 단계 항목 체크 — 항목 하나를 뗐는지 여부. 씨앗 데이터가 아니라 전부 담당자가
- * 직접 체크한 기록이라 `store.tsx`가 곧바로 배열로 저장한다(수정 오버레이 필요 없음).
+ * 수강생별 단계 세부 질문 체크 — 그룹(`no`) 안의 질문 하나(`qIndex`, 0부터)를 뗐는지 여부.
+ * 씨앗 데이터가 아니라 전부 담당자가 직접 체크한 기록이라 `store.tsx`가 곧바로 배열로
+ * 저장한다(수정 오버레이 필요 없음). `week`는 중등처럼 주차 칸이 있는 레벨에서만 쓴다
+ * (`content/checklist-standards.ts`의 `weekly`) — 어느 주차에 확인했는지를 남긴다.
  */
 export interface ChecklistProgress {
   studentKey: string;
   level: CourseLevel;
-  itemNo: number;
+  groupNo: number;
+  qIndex: number;
   checked: boolean;
+  week?: number;
   updatedBy: string;
   updatedByRole: RoleCode;
   updatedAt: string;
