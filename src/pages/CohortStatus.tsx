@@ -73,7 +73,7 @@ export function CohortStatus() {
       : Math.round(students.reduce((a, s) => a + s.attendanceRate, 0) / students.length);
 
   /**
-   * 전추율 — 보강까지 마친 것을 출석으로 함께 센 실제 출석률 (2026-08-10 리드 어휘).
+   * 보강 포함 출석률 — 보강까지 마친 것을 출석으로 함께 센 실제 출석률.
    * 대면만 세면 보강으로 따라잡은 사람이 결석자와 같이 묶여 실제보다 나빠 보인다.
    */
   const rates = useMemo(() => cohortRates(students), [students]);
@@ -143,21 +143,22 @@ export function CohortStatus() {
             </Card>
 
             {/*
-              2026-08-10 리드 지시로 「대면 시간대」 그래프를 걷어내고 이 자리에 전추율을 놓았다.
+              2026-08-10 리드 지시로 「대면 시간대」 그래프를 걷어내고 이 자리에 보강 포함 출석률을 놓았다.
               시간대 집계(`slotCounts`)는 데이터에 그대로 남아 있다 — 보강 편성 때 다시
               필요해질 수 있어 지우지 않았다(불변식 10). 화면에서만 뺀 것이다.
             */}
             <Card className="col-span-2 max-md:col-span-1">
-              <div className="mb-1 text-[14px] font-bold text-zion-900">전추율 (보강 포함 실제 출석률)</div>
+              <div className="mb-1 text-[14px] font-bold text-zion-900">보강 포함 출석률</div>
               <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-                최근 8주 기준 <strong className="text-zion-800">{rates.jeonchu}%</strong> — 대면만 세면{" "}
-                {rates.presentOnly}%입니다. <strong className="text-zion-800">차이 {rates.jeonchu - rates.presentOnly}%p</strong>가
+                최근 8주 기준 <strong className="text-zion-800">{rates.withMakeup}%</strong> — 대면만 세면{" "}
+                {rates.presentOnly}%입니다.{" "}
+                <strong className="text-zion-800">차이 {rates.withMakeup - rates.presentOnly}%p</strong>가
                 보강으로 따라잡은 몫입니다.
               </p>
               {(
                 [
-                  ["전추율 (대면 + 보강 완료)", rates.jeonchu],
-                  ["대면 출석률", rates.presentOnly],
+                  ["보강 포함 (대면 + 보강 완료)", rates.withMakeup],
+                  ["대면만", rates.presentOnly],
                 ] as const
               ).map(([label, v]) => (
                 <div key={label} className="mb-2.5">
@@ -234,7 +235,7 @@ export function CohortStatus() {
 function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
   const weekCount = Math.max(0, ...students.map((s) => s.recentWeeks.length));
   const rows = [...students].sort((a, b) => {
-    const d = rateOf(a).jeonchu - rateOf(b).jeonchu;
+    const d = rateOf(a).withMakeup - rateOf(b).withMakeup;
     return d !== 0 ? d : a.attendanceRate - b.attendanceRate;
   });
 
@@ -244,7 +245,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
         <div>
           <div className="text-[14px] font-bold text-zion-900">최근 {weekCount}주 출결</div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            전추율이 낮은 사람이 위에 옵니다 — 먼저 볼 사람이 먼저 보이게 했습니다.
+            보강 포함 출석률이 낮은 사람이 위에 옵니다 — 먼저 볼 사람이 먼저 보이게 했습니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[11px]">
@@ -274,8 +275,8 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
               <th className="pb-2 text-center font-medium" colSpan={weekCount}>
                 최근 → 이전
               </th>
-              <th className="pb-2 text-right font-medium">전추율</th>
-              <th className="pb-2 text-right font-medium">대면</th>
+              <th className="pb-2 text-right font-medium">보강 포함</th>
+              <th className="pb-2 text-right font-medium">대면만</th>
               <th className="pb-2 pl-3 font-medium">상태</th>
             </tr>
           </thead>
@@ -303,7 +304,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
                       </td>
                     );
                   })}
-                  <td className="py-2 text-right font-semibold text-zion-800">{r.jeonchu}%</td>
+                  <td className="py-2 text-right font-semibold text-zion-800">{r.withMakeup}%</td>
                   <td className="py-2 text-right text-[12px] text-ink-soft">{r.presentOnly}%</td>
                   <td className="py-2 pl-3">
                     <StatusBadge status={s.status} />
@@ -317,8 +318,8 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
         출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음
-        동기화를 기다립니다. 「전추율」은 보강 완료(△)를 출석으로 함께 센 값이고, 「대면」은 대면
-        출석(O)만 센 값입니다.
+        동기화를 기다립니다. 「보강 포함」은 보강 완료(△)를 출석으로 함께 센 값이고, 「대면만」은
+        대면 출석(O)만 센 값입니다.
       </p>
     </Card>
   );

@@ -214,6 +214,45 @@ export interface PlanRevision {
 }
 
 /**
+ * 달력형 주간계획 항목 (2026-08-10 리드 지시) — 기수 일정이 유동적이라 주차 칸에 글을
+ * 몰아 적는 방식으로는 담기지 않았다. **날짜에 항목을 자유롭게 붙이는** 구조로 바꾼다.
+ *
+ * ⚠️ 종전 `WeeklyPlan`(주차별 글)을 **지우지 않는다.** 이미 적어 둔 계획이 사라지면
+ * 후방 마이그레이션이 된다(불변식 10). 달력이 주 화면이 되고, 종전 주차별 글은
+ * 화면 아래에 그대로 남겨 함께 본다.
+ *
+ * 권한은 종전과 같다 — **해당 기수의 강사·전도사만** 고친다(`canEditCohortRecord`).
+ */
+export type PlanEntryKind = "progress" | "makeup" | "event" | "note";
+
+export const PLAN_ENTRY_LABELS: Record<PlanEntryKind, string> = {
+  progress: "진도",
+  makeup: "보강",
+  event: "행사",
+  note: "메모",
+};
+
+export interface PlanEntry {
+  id: string;
+  /** 어느 기수의 계획인지 — 권한 판정 기준 */
+  cohortKey: string;
+  /** YYYY-MM-DD */
+  date: string;
+  kind: PlanEntryKind;
+  title: string;
+  /**
+   * 진도 항목이면 회차 번호. 진도표 파일을 올리면 이 값이 채워진다 —
+   * 주간계획과 진도표를 **한 파일로 함께 반영**하기 위한 자리다.
+   */
+  session: number | null;
+  /** 파일 업로드로 들어온 항목인지 — 사람이 적은 것과 구분해 다시 올릴 때 갈아끼운다 */
+  fromUpload: boolean;
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+}
+
+/**
  * 주차별 출석 사유·극복 기록 (2026-08-06 확정) — **해당 기수의 강사·전도사가 적는다.**
  * 자동 산출이 아니라 사람이 남기는 기록이므로, 누가 적었는지 함께 남긴다.
  */

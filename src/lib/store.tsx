@@ -8,6 +8,8 @@ import type {
   LibraryMaterial,
   LibrarySection,
   QuoteCategory,
+  PlanEntry,
+  PlanEntryKind,
   RoleCode,
   TipReport,
   WeekNote,
@@ -37,6 +39,7 @@ const NOTE_KEY = "zion_ark_lesson_notes";
 const PLAN_KEY = "zion_ark_weekly_plans";
 const WEEKNOTE_KEY = "zion_ark_week_notes";
 const CASE_KEY = "zion_ark_counsel_cases";
+const PLAN_ENTRY_KEY = "zion_ark_plan_entries";
 const TIP_KEY = "zion_ark_counseling_tips";
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
 const STATUS_OVERRIDE_KEY = "zion_ark_student_status_overrides";
@@ -356,6 +359,8 @@ interface StoreValue {
   counselCases: CounselCase[];
   counselingTips: CounselingTip[];
   tipReports: TipReport[];
+  /** 달력형 주간계획 항목 — 종전 `plans`(주차별 글)와 함께 쓴다 */
+  planEntries: PlanEntry[];
   studentStatusOverrides: StudentStatusOverride[];
   /** 담당자가 상세 페이지에서 직접 남긴 보강·상담 기록 — 씨앗 데이터와 합쳐서 보여준다 */
   studentFeedback: StudentFeedbackRecord[];
@@ -427,6 +432,34 @@ interface StoreValue {
   resolveTipReport: (reportId: string, resolvedBy: string) => void;
   /** 관리자 숨김·해제 — 소프트 삭제 (hiddenAt 기입, 데이터는 남긴다) */
   setTipHidden: (id: string, hidden: boolean, adminName: string) => void;
+  /* 달력형 주간계획 — 권한(canEditCohortRecord)은 호출부가 먼저 본다 */
+  addPlanEntry: (input: {
+    cohortKey: string;
+    date: string;
+    kind: PlanEntryKind;
+    title: string;
+    session?: number | null;
+    updatedBy: string;
+    updatedByRole: RoleCode;
+  }) => void;
+  updatePlanEntry: (
+    id: string,
+    input: { date?: string; kind?: PlanEntryKind; title?: string; session?: number | null },
+    updatedBy: string,
+    updatedByRole: RoleCode,
+  ) => void;
+  deletePlanEntry: (id: string) => void;
+  /**
+   * 진도표 파일에서 읽은 항목으로 갈아끼운다 (파일 업로드 연동).
+   * **사람이 직접 적은 항목은 건드리지 않는다** — 업로드로 들어온 것(`fromUpload`)만
+   * 지우고 새로 넣는다. 그래야 파일을 다시 올려도 손으로 적은 메모가 살아남는다.
+   */
+  replaceUploadedPlanEntries: (
+    cohortKey: string,
+    rows: { date: string; kind: PlanEntryKind; title: string; session: number | null }[],
+    updatedBy: string,
+    updatedByRole: RoleCode,
+  ) => void;
   /**
    * 수강생 상태 표시줄(소속·상태·유월·신앙 상태) 수동 변경 — 필드 단위로 덮어쓴다.
    * 권한 판정(`canEditCohortRecord`)은 호출부(화면)가 먼저 확인한다.
@@ -491,6 +524,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     load(TIP_KEY, SEED_TIPS),
   );
   const [tipReports, setTipReports] = useState<TipReport[]>(() => load(TIP_REPORT_KEY, []));
+  const [planEntries, setPlanEntries] = useState<PlanEntry[]>(() => load(PLAN_ENTRY_KEY, []));
   const [studentStatusOverrides, setStudentStatusOverrides] = useState<StudentStatusOverride[]>(() =>
     loadPlain<StudentStatusOverride>(STATUS_OVERRIDE_KEY),
   );
@@ -547,6 +581,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTipReports(next);
   }, []);
 
+  const persistPlanEntries = useCallback((next: PlanEntry[]) => {
+    localStorage.setItem(PLAN_ENTRY_KEY, JSON.stringify(next));
+    setPlanEntries(next);
+  }, []);
+
   const persistStudentStatusOverrides = useCallback((next: StudentStatusOverride[]) => {
     localStorage.setItem(STATUS_OVERRIDE_KEY, JSON.stringify(next));
     setStudentStatusOverrides(next);
@@ -582,6 +621,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       counselCases,
       counselingTips,
       tipReports,
+      planEntries,
       studentStatusOverrides,
       studentFeedback,
       addMaterial: (input) => {
@@ -739,6 +779,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
+      addPlanEntry: ({ session = null, ...input }) => {
+        const item: PlanEntry = {
+          id: uid(),
+          ...input,
+          session,
+          fromUpload: false,
+          updatedAt: nowIso(),
+        };
+        persistPlanEntries([...planEntries, item]);
+      },
+      updatePlanEntry: (id, input, updatedBy, updatedByRole) => {
+        persistPlanEntries(
+          planEntries.map((e) =>
+            e.id === id ? { ...e, ...input, updatedBy, updatedByRole, updatedAt: nowIso() } : e,
+          ),
+        );
+      },
+      deletePlanEntry: (id) => {
+        persistPlanEntries(planEntries.filter((e) => e.id !== id));
+      },
+      replaceUploadedPlanEntries: (cohortKey, rows, updatedBy, updatedByRole) => {
+        // 이 기수의 업로드분만 걷어낸다 — 손으로 적은 것과 다른 기수 것은 그대로 둔다
+        const kept = planEntries.filter((e) => !(e.cohortKey === cohortKey && e.fromUpload));
+        const added: PlanEntry[] = rows.map((r) => ({
+          id: uid(),
+          cohortKey,
+          date: r.date,
+          kind: r.kind,
+          title: r.title,
+          session: r.session,
+          fromUpload: true,
+          updatedBy,
+          updatedByRole,
+          updatedAt: nowIso(),
+        }));
+        persistPlanEntries([...kept, ...added]);
+      },
       setStudentStatus: (studentKey, patch, updatedBy, updatedByRole) => {
         const existing = studentStatusOverrides.find((o) => o.studentKey === studentKey);
         // 특이사항을 실제로 바꿀 때만 직전 값을 이력에 쌓는다(최근 20건, 최신이 앞).
@@ -843,11 +920,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       counselCases,
       counselingTips,
       tipReports,
+      planEntries,
       studentStatusOverrides,
       studentFeedback,
       feedbackEdits,
       deletedFeedbackIds,
       checklistProgress,
+      persistPlanEntries,
       persistMaterials,
       persistEntries,
       persistNotes,
