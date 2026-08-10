@@ -1,5 +1,15 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, Plus, Search, ShieldAlert, ThumbsUp, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Pencil,
+  Plus,
+  Scale,
+  Search,
+  ShieldAlert,
+  ThumbsUp,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteCounselCase } from "../lib/permissions";
@@ -7,6 +17,7 @@ import { ROLE_LABELS, type CounselCase } from "../lib/types";
 import { PageHeader, Card } from "./common";
 
 type Filter = "all" | "success" | "failure";
+type SortKey = "popular" | "recent";
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "전체" },
@@ -38,17 +49,66 @@ export function scanPII(text: string): string[] {
 }
 
 /**
- * 상담 사례 (2026-08-06 확정) — 강사 도우미의 공유 자산.
+ * 법적 주의 — 스토킹처벌법 (2026-08-10 리드 지시).
+ *
+ * 수강생을 향한 과도한 열심이 **처벌 대상 행위**가 될 수 있다는 것을 상담 화면에 고정으로
+ * 알린다. 상담 도우미(`/counseling`)도 이 카드를 함께 쓴다.
+ * ⚠️ 법률 자문이 아니라 주의 안내다 — 구체적 사안은 반드시 전문가 확인을 안내한다.
+ */
+export function LegalNotice() {
+  return (
+    <Card className="mt-5 border-red-200">
+      <div className="mb-2 flex items-center gap-1.5 text-[14px] font-bold text-red-700">
+        <Scale size={15} /> 법적 주의 — 스토킹처벌법
+      </div>
+      <p className="mb-2 text-[13px] leading-relaxed text-ink">
+        「스토킹범죄의 처벌 등에 관한 법률」(2021년 시행)은 <strong>상대방 의사에 반해
+        정당한 이유 없이 반복되는 접근·연락</strong>을 범죄로 처벌합니다 — 3년 이하 징역 또는
+        3천만 원 이하 벌금. 좋은 뜻이라도 상대가 원치 않으면 법 위반이 됩니다.
+      </p>
+      <ul className="space-y-1.5 text-[13px] leading-relaxed text-ink">
+        <li>
+          · <strong>「문고리 심방」 금지</strong> — 부재중 집 앞을 찾아가 기다리거나 문에 물건을
+          걸어 두는 행위는 주거 부근 접근·물건 두기로 처벌될 수 있습니다
+        </li>
+        <li>
+          · <strong>끊어 보내는 메시지도 횟수가 누적됩니다</strong> — 한 내용을 여러 번에 나눠
+          보내면 법원은 각각을 따로 세어 반복성을 인정한 판결이 있습니다
+        </li>
+        <li>
+          · 연락처 차단·거절 의사 표시 뒤의 연락, 다른 번호·계정으로 이어 가는 연락은 반복성의
+          근거가 됩니다
+        </li>
+        <li>
+          · <strong>상대가 그만해 달라고 하면 그 자리에서 멈춥니다.</strong> 이후 접촉은 담당자
+          한 사람이 공식 경로로만 합니다
+        </li>
+      </ul>
+      <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+        실제 행정·사법 처리 사례가 있는 사안입니다. 이 안내는 법률 자문이 아니며, 구체적인 일이
+        생기면 지파 신학부를 거쳐 전문가에게 확인합니다.
+      </p>
+    </Card>
+  );
+}
+
+/**
+ * 상담 사례 (2026-08-06 확정 · 2026-08-10 보강) — 실제 상담 글을 쌓는 아카이브.
  *
  * 성공 사례만 모으지 않는다. **놓친 경우가 더 많이 배운다** — 결과가 나빴던 사례도 같은
  * 무게로 싣고, 어느 쪽인지만 표시한다. 개인을 특정할 수 있는 것은 담지 않는다.
+ *
+ * 2026-08-10 리드 지시 반영: 최신순/인기순 정렬 · 도움됨 1인 1회 토글 ·
+ * 본인 글 수정/삭제 · 법적 주의(스토킹처벌법) 고정 노출.
  */
 export function CounselCases() {
   const session = useSession();
-  const { counselCases, addCounselCase, markCaseHelpful } = useStore();
+  const { counselCases, addCounselCase, updateCounselCase } = useStore();
   const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<SortKey>("popular"); // 상담 도우미와 같은 기본값 (지시문 §2-5)
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<CounselCase | null>(null);
 
   const writable = canWriteCounselCase(session);
 
@@ -58,8 +118,13 @@ export function CounselCases() {
       .filter((c) => filter === "all" || c.outcome === filter)
       .filter(
         (c) => !q || c.situation.includes(q) || c.approach.includes(q) || c.result.includes(q),
+      )
+      .sort((a, b) =>
+        sort === "popular"
+          ? b.helpfulBy.length - a.helpfulBy.length || b.createdAt.localeCompare(a.createdAt)
+          : b.createdAt.localeCompare(a.createdAt),
       );
-  }, [counselCases, filter, query]);
+  }, [counselCases, filter, sort, query]);
 
   const successCount = counselCases.filter((c) => c.outcome === "success").length;
 
@@ -107,8 +172,29 @@ export function CounselCases() {
             </button>
           ))}
         </div>
-        <div className="flex flex-1 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-1.5">
-          <Search size={13} className="text-ink-soft" />
+        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="정렬">
+          {(
+            [
+              ["popular", "인기순"],
+              ["recent", "최신순"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={sort === key}
+              onClick={() => setSort(key)}
+              className={
+                "rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
+                (sort === key ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-1.5">
+          <Search size={13} className="shrink-0 text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -121,7 +207,7 @@ export function CounselCases() {
 
       <p className="mb-3 text-[12px] text-ink-soft">
         모두 {counselCases.length}건 · 돌아온 경우 {successCount}건 · 놓친 경우{" "}
-        {counselCases.length - successCount}건
+        {counselCases.length - successCount}건 — 예시 글의 작성자·누른 사람은 전원 가상 인물입니다
       </p>
 
       {list.length === 0 ? (
@@ -131,24 +217,35 @@ export function CounselCases() {
       ) : (
         <div className="space-y-3">
           {list.map((c) => (
-            <CaseCard key={c.id} item={c} onHelpful={() => markCaseHelpful(c.id)} />
+            <CaseCard key={c.id} item={c} onEdit={() => setEditing(c)} />
           ))}
         </div>
       )}
 
-      {formOpen && writable && (
+      <LegalNotice />
+
+      {(formOpen || editing) && writable && (
         <CaseForm
-          onClose={() => setFormOpen(false)}
-          onSubmit={(input) => {
-            addCounselCase({
-              ...input,
-              tribe: session.tribe,
-              church: session.church,
-              cohort: session.cohort,
-              createdBy: session.name,
-              createdByRole: session.roleCode,
-            });
+          editing={editing}
+          onClose={() => {
             setFormOpen(false);
+            setEditing(null);
+          }}
+          onSubmit={(input) => {
+            if (editing) {
+              updateCounselCase(editing.id, input);
+            } else {
+              addCounselCase({
+                ...input,
+                tribe: session.tribe,
+                church: session.church,
+                cohort: session.cohort,
+                createdBy: session.name,
+                createdByRole: session.roleCode,
+              });
+            }
+            setFormOpen(false);
+            setEditing(null);
           }}
         />
       )}
@@ -156,8 +253,14 @@ export function CounselCases() {
   );
 }
 
-function CaseCard({ item, onHelpful }: { item: CounselCase; onHelpful: () => void }) {
+function CaseCard({ item, onEdit }: { item: CounselCase; onEdit: () => void }) {
+  const session = useSession();
+  const { toggleCaseHelpful, deleteCounselCase } = useStore();
   const success = item.outcome === "success";
+  // 시범 로그인은 이름이 곧 계정 — 실연동 시 서버가 user_id로 다시 판정한다
+  const mine = item.createdBy === session.name && item.createdByRole === session.roleCode;
+  const pressed = item.helpfulBy.includes(session.name);
+
   return (
     <article className="rounded-card border border-zion-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -192,22 +295,53 @@ function CaseCard({ item, onHelpful }: { item: CounselCase; onHelpful: () => voi
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zion-100 pt-2.5">
         <span className="text-[11px] text-ink-soft">
           {item.createdBy} ({ROLE_LABELS[item.createdByRole]}) · {item.createdAt.slice(0, 10)}
+          {item.updatedAt && " · 수정됨"}
         </span>
-        <button
-          onClick={onHelpful}
-          className="flex items-center gap-1 rounded-lg border border-zion-100 px-2.5 py-1 text-[11px] font-semibold text-zion-700 transition hover:border-zion-300 hover:bg-zion-50"
-        >
-          <ThumbsUp size={12} /> 도움됨 {item.helpful}
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => toggleCaseHelpful(item.id, session.name)}
+            aria-pressed={pressed}
+            className={
+              "flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition " +
+              (pressed
+                ? "border-zion-500 bg-zion-50 text-zion-800"
+                : "border-zion-100 text-zion-700 hover:border-zion-300 hover:bg-zion-50")
+            }
+          >
+            <ThumbsUp size={12} /> 도움됨 {item.helpfulBy.length}
+          </button>
+          {mine && (
+            <>
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-1 rounded-lg border border-zion-100 px-2.5 py-1 text-[11px] font-semibold text-zion-700 transition hover:border-zion-300"
+              >
+                <Pencil size={12} /> 수정
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm("이 사례를 지울까요? 되돌릴 수 없습니다.")) {
+                    deleteCounselCase(item.id);
+                  }
+                }}
+                className="flex items-center gap-1 rounded-lg border border-zion-100 px-2.5 py-1 text-[11px] font-semibold text-ink-soft transition hover:border-zion-300"
+              >
+                <Trash2 size={12} /> 삭제
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </article>
   );
 }
 
 function CaseForm({
+  editing,
   onClose,
   onSubmit,
 }: {
+  editing: CounselCase | null;
   onClose: () => void;
   onSubmit: (input: {
     situation: string;
@@ -216,10 +350,10 @@ function CaseForm({
     outcome: "success" | "failure";
   }) => void;
 }) {
-  const [situation, setSituation] = useState("");
-  const [approach, setApproach] = useState("");
-  const [result, setResult] = useState("");
-  const [outcome, setOutcome] = useState<"success" | "failure">("success");
+  const [situation, setSituation] = useState(editing?.situation ?? "");
+  const [approach, setApproach] = useState(editing?.approach ?? "");
+  const [result, setResult] = useState(editing?.result ?? "");
+  const [outcome, setOutcome] = useState<"success" | "failure">(editing?.outcome ?? "success");
   const [error, setError] = useState<string | null>(null);
 
   // 입력 중에도 걸리는 표현을 보여 준다 — 제출할 때 처음 알면 다시 쓰게 되어서다
@@ -247,9 +381,16 @@ function CaseForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="상담 사례 남기기">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={editing ? "상담 사례 수정" : "상담 사례 남기기"}
+    >
       <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 className="mb-1 text-[16px] font-bold text-zion-900">상담 사례 남기기</h2>
+        <h2 className="mb-1 text-[16px] font-bold text-zion-900">
+          {editing ? "상담 사례 수정" : "상담 사례 남기기"}
+        </h2>
         <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
           소속은 지파 · 교회 · 센터까지만 자동으로 붙습니다. 본문에는 이름 · 연락처 · 분반 · 나이를
           적지 않습니다.
@@ -315,7 +456,7 @@ function CaseForm({
             disabled={hits.length > 0}
             className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
           >
-            올리기
+            {editing ? "고치기" : "올리기"}
           </button>
         </div>
       </form>

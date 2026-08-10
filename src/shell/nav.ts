@@ -1,9 +1,10 @@
 import type { RoleCode, Session } from "../lib/types";
 import {
+  ARCHIVE_FOLDERS,
+  EVANGELIST_CONTENT_FOLDERS,
   EVANGELIST_MAKEUP_FOLDERS,
   INSTRUCTOR_BATGARI_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
-  LIBRARY_FOLDERS,
 } from "../lib/types";
 import {
   LayoutDashboard,
@@ -187,10 +188,11 @@ const NAV_GROUPS: NavGroup[] = [
         items: folderItems("instructor", EVANGELIST_MAKEUP_FOLDERS),
       },
       {
-        // 2026-08-08 자료실에서 이관 — 실제 열람 동선을 보강 쪽으로 모은다
+        // 2026-08-08 자료실에서 이관 — 실제 열람 동선을 보강 쪽으로 모은다.
+        // 2026-08-10 자료실이 아카이브 위주로 축소되면서 이관 3종만 여기 남는다
         label: "보강 콘텐츠",
         icon: BookOpenText,
-        items: folderItems("external", LIBRARY_FOLDERS.external),
+        items: folderItems("external", EVANGELIST_CONTENT_FOLDERS),
       },
     ],
   },
@@ -250,6 +252,16 @@ const NAV_GROUPS: NavGroup[] = [
           { to: "/series/creation", label: "천지창조", icon: ScrollText },
           { to: "/series/acts", label: "예수그리스도의 행전", icon: ScrollText },
         ],
+      },
+      {
+        /**
+         * 아카이브 (2026-08-10 리드 지시) — 자료실은 대용량 장기 보관 위주로 축소한다.
+         * 실무 교육 자료는 강의·분반보강 도우미가 가져갔다.
+         * ⚠️ 파일 원본(도서 스캔·영상)은 R2 대기 — 지금은 폴더 자리와 외부 링크만 담긴다.
+         */
+        label: "아카이브",
+        icon: FolderClosed,
+        items: folderItems("external", ARCHIVE_FOLDERS),
       },
       {
         /**

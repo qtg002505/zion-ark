@@ -107,9 +107,22 @@ export const EVANGELIST_MAKEUP_FOLDERS = [
  * 둘 다 "가르칠 때 쓰는 자료"라 구획이 같고, 내비에서만 갈라 보여 준다.
  * 폴더 이름의 뜻은 `src/content/glossary.ts`에 있다 — 정의는 받았지만 문자열로 둔다.
  */
+/** 분반·보강 도우미로 이관된 실무 교육 콘텐츠 3종 — 자료실이 아니라 보강 파트에서 연다 */
+export const EVANGELIST_CONTENT_FOLDERS = ["영인지", "성경기초상식", "하나님에 대한 필요성"];
+
+/**
+ * 자료실 아카이브 폴더 (2026-08-10 리드 지시) — 자료실은 **대용량 장기 보관 아카이브**
+ * 위주로 축소한다. 실무 교육 자료는 강의·분반보강 도우미가 가져갔다.
+ *
+ * ⚠️ 파일 원본(도서 스캔·영상)은 R2가 붙어야 올라간다 — 지금은 폴더 자리와 외부 링크만.
+ * ⚠️ `계시록 사파`는 **정의를 못 받은 어휘**다 — 화면 문자열로만 두고 코드 값으로 굳히지
+ * 않는다 (`docs/decisions/OPEN_QUESTIONS.md` §C).
+ */
+export const ARCHIVE_FOLDERS = ["지파별 취합 도서", "실상 뮤지컬 영상", "계시록 사파"];
+
 export const LIBRARY_FOLDERS: Record<LibrarySection, string[]> = {
   instructor: [...INSTRUCTOR_EARLY_FOLDERS, ...EVANGELIST_MAKEUP_FOLDERS],
-  external: ["영인지", "성경기초상식", "하나님에 대한 필요성"],
+  external: [...EVANGELIST_CONTENT_FOLDERS, ...ARCHIVE_FOLDERS],
 };
 
 export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
@@ -124,6 +137,13 @@ export interface LibraryMaterial {
   title: string;
   body: string;
   externalUrl: string | null;
+  /**
+   * 수업용 PPT 링크 (2026-08-10 리드 지시 — 교안·영상 원스톱 매칭).
+   * ⚠️ 파일 원본 업로드는 R2 몫이다 — 지금은 외부 저장소 URL만 담는다. 전방 추가 컬럼.
+   */
+  pptUrl?: string | null;
+  /** 강의 현장 영상 링크 (비메오·위플 등). 비메오만 사이트 안 재생, 나머지는 새 탭 */
+  videoUrl?: string | null;
   /** 우수 지정 — headquarters_admin만 토글 (확정 결정 4) */
   isFeatured: boolean;
   /** 어느 구획인지 (2026-08-06 추가) */
@@ -289,7 +309,13 @@ export interface CounselCase {
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;
-  helpful: number;
+  /** 마지막 수정 시각 — 본인 글 수정이 열리면서 추가 (2026-08-10) */
+  updatedAt?: string;
+  /**
+   * 도움됨을 누른 사람 목록 — **정본** (2026-08-10, 상담법과 같은 계약).
+   * 종전 `helpful: number`는 무한 클릭이 가능했다. 카운트는 항상 이 배열 길이다.
+   */
+  helpfulBy: string[];
 }
 
 /**
@@ -331,6 +357,46 @@ export interface TipReport {
   createdAt: string;
   resolvedAt: string | null;
   resolvedBy: string | null;
+}
+
+/**
+ * 강별 수업 자료 링크 (2026-08-10 리드 지시 — 교안·영상 원스톱 매칭).
+ * 교안 원문은 정적 콘텐츠라 그대로 두고, **링크만 옆에 붙인다** — 강 하나에 한 벌.
+ * `lessonKey`는 현장 기록(`LessonNote.lessonKey`)과 같은 축이다 (예: "elementary-3").
+ */
+export interface LessonResource {
+  lessonKey: string;
+  pptUrl: string | null;
+  videoUrl: string | null;
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+}
+
+/**
+ * 수강생 반응 기록 (2026-08-10 리드 지시 — 상태차트 자동화).
+ * 붙여넣은 피드백을 문장 단위로 갈라 긍정/부정/특이로 나눠 쌓는다.
+ *
+ * ⚠️ 분류는 **제안일 뿐**이고 저장 전에 담당자가 고칠 수 있다 — 사람을 판정하는 것이
+ * 아니라 기록을 정리하는 것이다(불변식 4). 분류 근거(걸린 낱말)를 함께 보여 준다.
+ * ⚠️ 분류는 **브라우저 안에서만** 돈다. 수강생 기록을 바깥 AI에 보내지 않는다(불변식 4).
+ */
+export type ReactionSentiment = "positive" | "negative" | "notable";
+
+export const REACTION_LABELS: Record<ReactionSentiment, string> = {
+  positive: "긍정 반응",
+  negative: "부정 반응",
+  notable: "특이사항",
+};
+
+export interface StudentReaction {
+  id: string;
+  studentKey: string;
+  sentiment: ReactionSentiment;
+  text: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
 }
 
 /** 출결 어휘 — attendance-adapter 계약 (CLAUDE.md §4) */

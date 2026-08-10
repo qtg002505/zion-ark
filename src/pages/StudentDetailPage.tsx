@@ -1,6 +1,14 @@
 import { useState, type ReactNode, type FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Sparkles, UserCircle2, StickyNote, PencilLine } from "lucide-react";
+import {
+  ArrowLeft,
+  ClipboardPaste,
+  Sparkles,
+  Trash2,
+  UserCircle2,
+  StickyNote,
+  PencilLine,
+} from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, canEditCohortRecord } from "../lib/permissions";
@@ -25,6 +33,8 @@ import {
   type Grade,
 } from "../lib/student-grade";
 import { weekdayOf } from "../lib/date-format";
+import { classifyFeedback, type ClassifiedLine } from "../lib/reaction-classify";
+import { REACTION_LABELS, type ReactionSentiment } from "../lib/types";
 import { CHECKLIST_STANDARDS, type ChecklistGroup } from "../content/checklist-standards";
 import { Accordion } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
@@ -516,11 +526,212 @@ export function StudentDetailPage() {
         />
       </div>
 
+      {/* 반응 기록 — 붙여넣기 자동 분류 + 인수인계용 누적 차트 (2026-08-10 리드 지시) */}
+      <ReactionChart studentKey={student.key} canEdit={canEdit} />
+
       <p className="mt-4 text-[11px] leading-relaxed text-ink-soft">
         시범 목업 데이터(가상 인물)입니다. 원문 개인정보는 담당 범위 밖으로 반출되지 않으며, 이
         화면의 값은 출결 계약(`Student`)과 분리된 시연용 프로필(`student-profiles.ts`)에서 옵니다.
       </p>
     </div>
+  );
+}
+
+/**
+ * 반응 기록 차트 (2026-08-10 리드 지시 — 수강생 상태차트 자동화).
+ *
+ * 다른 곳(메신저·수기 메모)에 적힌 피드백을 **붙여넣으면** 문장 단위로 갈라
+ * 긍정/부정/특이사항으로 나눠 준다. 담당자가 갈래를 고친 뒤 저장하면 누적되고,
+ * **담당자가 바뀔 때 이 차트가 곧 인수인계 기록**이 된다 — 새 담당자는 이 사람의 반응
+ * 흐름을 처음부터 다시 묻지 않아도 된다.
+ *
+ * ⚠️ 분류는 브라우저 안 낱말 규칙이다(`reaction-classify.ts`) — 수강생 기록을 바깥 AI에
+ * 보내지 않는다(불변식 4). 자동 분류는 제안이고 저장 전 사람이 확정한다.
+ */
+const SENTIMENTS: ReactionSentiment[] = ["positive", "negative", "notable"];
+
+const SENTIMENT_TONE: Record<ReactionSentiment, string> = {
+  positive: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  negative: "bg-red-50 text-red-600 border-red-200",
+  notable: "bg-amber-50 text-amber-700 border-amber-200",
+};
+
+function ReactionChart({ studentKey, canEdit }: { studentKey: string; canEdit: boolean }) {
+  const session = useSession();
+  const { studentReactions, addStudentReactions, deleteStudentReaction } = useStore();
+  const [raw, setRaw] = useState("");
+  const [preview, setPreview] = useState<ClassifiedLine[] | null>(null);
+
+  const mine = studentReactions.filter((r) => r.studentKey === studentKey);
+  const count = (s: ReactionSentiment) => mine.filter((r) => r.sentiment === s).length;
+
+  function runClassify() {
+    const lines = classifyFeedback(raw);
+    setPreview(lines.length > 0 ? lines : null);
+  }
+
+  function save() {
+    if (!preview) return;
+    addStudentReactions(
+      preview.map((l) => ({ studentKey, sentiment: l.sentiment, text: l.text })),
+      session.name,
+      session.roleCode,
+    );
+    setRaw("");
+    setPreview(null);
+  }
+
+  return (
+    <Card className="mt-4">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[13px] font-bold text-zion-900">
+          <ClipboardPaste size={14} className="text-zion-600" /> 반응 기록 (인수인계용)
+        </div>
+        <div className="flex gap-1.5">
+          {SENTIMENTS.map((s) => (
+            <span key={s} className={"rounded-lg border px-2 py-0.5 text-[11px] font-bold " + SENTIMENT_TONE[s]}>
+              {REACTION_LABELS[s]} {count(s)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
+        메신저·수기 메모의 피드백을 붙여넣으면 문장 단위로 긍정/부정/특이로 나눠 드립니다.
+        <strong className="text-ink"> 분류는 제안일 뿐이며 저장 전에 직접 고칠 수 있습니다.</strong>{" "}
+        분류는 이 브라우저 안에서만 돌고 바깥으로 나가지 않습니다. 담당자가 바뀌면 이 기록이
+        그대로 인수인계 차트가 됩니다.
+      </p>
+
+      {canEdit && !preview && (
+        <div>
+          <textarea
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            rows={3}
+            placeholder={"예)\n오늘 말씀 듣고 많이 감동받았다고 함\n다음 주는 야근이라 저녁 참석이 어렵다고 함"}
+            className="w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+          />
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="text-[10.5px] text-ink-soft">
+              다른 수강생의 이름·연락처는 붙여넣기 전에 지워 주세요.
+            </span>
+            <button
+              onClick={runClassify}
+              disabled={raw.trim().length < 3}
+              className="shrink-0 rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+            >
+              자동 분류
+            </button>
+          </div>
+        </div>
+      )}
+
+      {preview && (
+        <div className="rounded-lg bg-zion-50 p-3">
+          <div className="mb-2 text-[12px] font-semibold text-ink">
+            분류 결과 {preview.length}건 — 갈래를 확인하고 저장하세요
+          </div>
+          <ul className="space-y-1.5">
+            {preview.map((l, i) => (
+              <li key={i} className="flex items-start gap-2 rounded-lg border border-zion-100 bg-white px-2.5 py-2">
+                <select
+                  value={l.sentiment}
+                  onChange={(e) =>
+                    setPreview(
+                      preview.map((x, xi) =>
+                        xi === i ? { ...x, sentiment: e.target.value as ReactionSentiment } : x,
+                      ),
+                    )
+                  }
+                  aria-label="분류 갈래"
+                  className={
+                    "shrink-0 rounded-lg border px-1.5 py-1 text-[11px] font-bold outline-none " +
+                    SENTIMENT_TONE[l.sentiment]
+                  }
+                >
+                  {SENTIMENTS.map((s) => (
+                    <option key={s} value={s}>
+                      {REACTION_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12.5px] leading-relaxed text-ink">{l.text}</div>
+                  {l.matched.length > 0 && (
+                    <div className="mt-0.5 text-[10px] text-ink-soft">
+                      근거: {[...new Set(l.matched)].join(", ")}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setPreview(preview.filter((_, xi) => xi !== i))}
+                  aria-label="이 줄 빼기"
+                  className="shrink-0 rounded p-1 text-ink-soft hover:bg-zion-50"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2.5 flex justify-end gap-2">
+            <button
+              onClick={() => setPreview(null)}
+              className="rounded-lg px-3 py-1.5 text-[12px] text-ink-soft hover:bg-white"
+            >
+              취소
+            </button>
+            <button
+              onClick={save}
+              disabled={preview.length === 0}
+              className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:bg-zion-300"
+            >
+              {preview.length}건 저장
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mine.length > 0 && (
+        <div className="mt-3 grid grid-cols-3 gap-3 max-md:grid-cols-1">
+          {SENTIMENTS.map((s) => (
+            <div key={s}>
+              <div className={"mb-1.5 rounded-lg border px-2 py-1 text-center text-[11px] font-bold " + SENTIMENT_TONE[s]}>
+                {REACTION_LABELS[s]} {count(s)}건
+              </div>
+              <ul className="space-y-1">
+                {mine
+                  .filter((r) => r.sentiment === s)
+                  .map((r) => (
+                    <li key={r.id} className="group flex items-start gap-1.5 rounded-lg bg-zion-50/60 px-2 py-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12px] leading-relaxed text-ink">{r.text}</div>
+                        <div className="mt-0.5 text-[9.5px] text-ink-soft">
+                          {r.createdAt.slice(0, 10)} · {r.createdBy}
+                        </div>
+                      </div>
+                      {canEdit && (
+                        <button
+                          onClick={() => deleteStudentReaction(r.id)}
+                          aria-label="기록 지우기"
+                          className="shrink-0 rounded p-0.5 text-ink-soft opacity-0 transition group-hover:opacity-100 hover:text-red-600"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {mine.length === 0 && !preview && (
+        <p className="py-2 text-center text-[12px] text-ink-soft">
+          아직 쌓인 반응 기록이 없습니다.{canEdit ? "" : " 담당 사명자가 기록하면 표시됩니다."}
+        </p>
+      )}
+    </Card>
   );
 }
 

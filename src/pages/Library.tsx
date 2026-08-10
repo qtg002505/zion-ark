@@ -13,6 +13,7 @@ import {
   type LibraryMaterial,
   type LibrarySection,
 } from "../lib/types";
+import { MediaLinks } from "../components/MediaLinks";
 import { PageHeader, Card } from "./common";
 
 const CATEGORIES: LibraryCategory[] = ["standard_lecture", "class_material", "excellent_plan"];
@@ -224,9 +225,11 @@ export function Library() {
                   </button>
                 )}
               </div>
+              {/* 세부 설명(본문) · PPT · 영상이 한 화면에 이어진다 (2026-08-10 리드 지시) */}
               <div className="mt-4 whitespace-pre-wrap border-t border-zion-100 pt-4 text-[14px] leading-relaxed text-ink">
                 {selected.body}
               </div>
+              <MediaLinks pptUrl={selected.pptUrl} videoUrl={selected.videoUrl} />
               {selected.externalUrl && (
                 <a
                   href={selected.externalUrl}
@@ -297,6 +300,8 @@ function MaterialForm({
     title: string;
     body: string;
     externalUrl: string | null;
+    pptUrl: string | null;
+    videoUrl: string | null;
     section: LibrarySection;
     folderPath: string[];
   }) => void;
@@ -307,6 +312,8 @@ function MaterialForm({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("");
+  const [ppt, setPpt] = useState("");
+  const [video, setVideo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const folders = LIBRARY_FOLDERS[sec];
@@ -317,8 +324,9 @@ function MaterialForm({
       setError("제목 2자 이상, 본문 5자 이상 입력해 주세요.");
       return;
     }
-    if (url.trim() && !/^https?:\/\//.test(url.trim())) {
-      setError("외부 링크는 http(s):// 로 시작해야 합니다.");
+    const bad = [url, ppt, video].find((u) => u.trim() && !/^https?:\/\//.test(u.trim()));
+    if (bad !== undefined) {
+      setError("링크는 http(s):// 로 시작해야 합니다.");
       return;
     }
     onSubmit({
@@ -326,6 +334,8 @@ function MaterialForm({
       title: title.trim(),
       body: body.trim(),
       externalUrl: url.trim() || null,
+      pptUrl: ppt.trim() || null,
+      videoUrl: video.trim() || null,
       section: sec,
       folderPath: [folder],
     });
@@ -409,8 +419,30 @@ function MaterialForm({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://…"
-          className="mb-4 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />
+
+        {/* 교안·영상 원스톱 매칭 (2026-08-10) — 파일 원본 업로드는 R2 대기, 지금은 링크만 */}
+        <div className="mb-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-ink">수업용 PPT 링크 (선택)</label>
+            <input
+              value={ppt}
+              onChange={(e) => setPpt(e.target.value)}
+              placeholder="https://… (외부 저장소)"
+              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-ink">강의 영상 링크 (선택)</label>
+            <input
+              value={video}
+              onChange={(e) => setVideo(e.target.value)}
+              placeholder="https://vimeo.com/… 또는 위플 주소"
+              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+            />
+          </div>
+        </div>
 
         {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 

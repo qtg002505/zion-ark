@@ -3,6 +3,9 @@ import type {
   CounselCase,
   CounselingTip,
   LessonNote,
+  LessonResource,
+  StudentReaction,
+  ReactionSentiment,
   LessonNoteKind,
   LibraryCategory,
   LibraryMaterial,
@@ -41,6 +44,8 @@ const WEEKNOTE_KEY = "zion_ark_week_notes";
 const CASE_KEY = "zion_ark_counsel_cases";
 const PLAN_ENTRY_KEY = "zion_ark_plan_entries";
 const TIP_KEY = "zion_ark_counseling_tips";
+const LESSON_RES_KEY = "zion_ark_lesson_resources";
+const REACTION_KEY = "zion_ark_student_reactions";
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
 const STATUS_OVERRIDE_KEY = "zion_ark_student_status_overrides";
 const STUDENT_FEEDBACK_KEY = "zion_ark_student_feedback";
@@ -228,7 +233,7 @@ const SEED_CASES: CounselCase[] = [
     createdBy: "콘텐츠팀",
     createdByRole: "content_admin",
     createdAt: "2026-08-04T09:00:00.000Z",
-    helpful: 4,
+    helpfulBy: ["이본보기", "김가상", "박모형", "최견본"],
   },
   {
     id: "seed-case-2",
@@ -243,9 +248,18 @@ const SEED_CASES: CounselCase[] = [
     createdBy: "콘텐츠팀",
     createdByRole: "content_admin",
     createdAt: "2026-08-04T09:20:00.000Z",
-    helpful: 6,
+    helpfulBy: ["이본보기", "김가상", "박모형", "최견본", "정보기", "한사례"],
   },
 ];
+
+/**
+ * 상담 사례 이관 (2026-08-10) — 종전 `helpful: number`는 무한 클릭이 가능했다.
+ * 누른 사람 목록(`helpfulBy`)으로 바꾸고, 옛 데이터는 빈 목록으로 시작한다 —
+ * 숫자만 있고 누가 눌렀는지 모르는 값은 1인 1회를 보증할 수 없어 이어받지 않는다.
+ */
+function migrateCases(stored: (CounselCase & { helpful?: number })[]): CounselCase[] {
+  return stored.map((c) => ({ ...c, helpfulBy: c.helpfulBy ?? [] }));
+}
 
 /**
  * 상담법 UGC 시드 — 인기순 정렬이 실제로 갈리는 것을 보여 주기 위해 도움됨 수를 다르게 둔다.
@@ -375,6 +389,10 @@ interface StoreValue {
     title: string;
     body: string;
     externalUrl: string | null;
+    /** 수업용 PPT 링크 — 파일 원본은 R2 대기, 지금은 외부 저장소 URL */
+    pptUrl: string | null;
+    /** 강의 현장 영상 링크 (비메오·위플 등) */
+    videoUrl: string | null;
     section: LibrarySection;
     folderPath: string[];
     createdBy: string;
@@ -409,8 +427,32 @@ interface StoreValue {
     editedByRole: RoleCode;
   }) => void;
   saveWeekNote: (input: WeekNote) => void;
-  addCounselCase: (input: Omit<CounselCase, "id" | "createdAt" | "helpful">) => void;
-  markCaseHelpful: (id: string) => void;
+  addCounselCase: (input: Omit<CounselCase, "id" | "createdAt" | "updatedAt" | "helpfulBy">) => void;
+  /** 본인 글만 — 권한 대조는 화면이 먼저 한다 */
+  updateCounselCase: (
+    id: string,
+    input: Pick<CounselCase, "situation" | "approach" | "result" | "outcome">,
+  ) => void;
+  deleteCounselCase: (id: string) => void;
+  /** 도움됨 토글 — 계정당 1회. 카운트는 helpfulBy 길이에서 재계산된다 */
+  toggleCaseHelpful: (id: string, userName: string) => void;
+  /** 강별 수업 자료 링크 — 강 하나에 한 벌, 있으면 갈아끼운다 */
+  lessonResources: LessonResource[];
+  setLessonResource: (input: {
+    lessonKey: string;
+    pptUrl: string | null;
+    videoUrl: string | null;
+    updatedBy: string;
+    updatedByRole: RoleCode;
+  }) => void;
+  /** 수강생 반응 기록 — 붙여넣기 분류 결과를 담당자 확인 후 쌓는다 */
+  studentReactions: StudentReaction[];
+  addStudentReactions: (
+    rows: { studentKey: string; sentiment: ReactionSentiment; text: string }[],
+    createdBy: string,
+    createdByRole: RoleCode,
+  ) => void;
+  deleteStudentReaction: (id: string) => void;
   /* 상담법 UGC (3단계) — 권한 판정은 permissions.ts가 하고 여기는 저장만 한다 */
   addCounselingTip: (input: {
     themeNo: number;
@@ -519,7 +561,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [lessonNotes, setLessonNotes] = useState<LessonNote[]>(() => load(NOTE_KEY, SEED_NOTES));
   const [plans, setPlans] = useState<WeeklyPlan[]>(() => load(PLAN_KEY, []));
   const [weekNotes, setWeekNotes] = useState<WeekNote[]>(() => loadPlain<WeekNote>(WEEKNOTE_KEY));
-  const [counselCases, setCounselCases] = useState<CounselCase[]>(() => load(CASE_KEY, SEED_CASES));
+  const [counselCases, setCounselCases] = useState<CounselCase[]>(() =>
+    migrateCases(load(CASE_KEY, SEED_CASES)),
+  );
+  const [lessonResources, setLessonResources] = useState<LessonResource[]>(() =>
+    loadPlain<LessonResource>(LESSON_RES_KEY),
+  );
+  const [studentReactions, setStudentReactions] = useState<StudentReaction[]>(() =>
+    load(REACTION_KEY, []),
+  );
   const [counselingTips, setCounselingTips] = useState<CounselingTip[]>(() =>
     load(TIP_KEY, SEED_TIPS),
   );
@@ -586,6 +636,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPlanEntries(next);
   }, []);
 
+  const persistLessonResources = useCallback((next: LessonResource[]) => {
+    localStorage.setItem(LESSON_RES_KEY, JSON.stringify(next));
+    setLessonResources(next);
+  }, []);
+
+  const persistReactions = useCallback((next: StudentReaction[]) => {
+    localStorage.setItem(REACTION_KEY, JSON.stringify(next));
+    setStudentReactions(next);
+  }, []);
+
   const persistStudentStatusOverrides = useCallback((next: StudentStatusOverride[]) => {
     localStorage.setItem(STATUS_OVERRIDE_KEY, JSON.stringify(next));
     setStudentStatusOverrides(next);
@@ -622,6 +682,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       counselingTips,
       tipReports,
       planEntries,
+      lessonResources,
+      studentReactions,
       studentStatusOverrides,
       studentFeedback,
       addMaterial: (input) => {
@@ -701,10 +763,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         persistWeekNotes([input, ...rest]);
       },
       addCounselCase: (input) => {
-        persistCases([{ id: uid(), ...input, createdAt: nowIso(), helpful: 0 }, ...counselCases]);
+        persistCases([{ id: uid(), ...input, createdAt: nowIso(), helpfulBy: [] }, ...counselCases]);
       },
-      markCaseHelpful: (id) => {
-        persistCases(counselCases.map((c) => (c.id === id ? { ...c, helpful: c.helpful + 1 } : c)));
+      updateCounselCase: (id, input) => {
+        persistCases(
+          counselCases.map((c) => (c.id === id ? { ...c, ...input, updatedAt: nowIso() } : c)),
+        );
+      },
+      deleteCounselCase: (id) => {
+        persistCases(counselCases.filter((c) => c.id !== id));
+      },
+      toggleCaseHelpful: (id, userName) => {
+        persistCases(
+          counselCases.map((c) => {
+            if (c.id !== id) return c;
+            // 몇 번을 눌러도 한 사람은 한 표다 — 상담법(counseling_tip_helpful)과 같은 계약
+            const has = c.helpfulBy.includes(userName);
+            return {
+              ...c,
+              helpfulBy: has ? c.helpfulBy.filter((n) => n !== userName) : [...c.helpfulBy, userName],
+            };
+          }),
+        );
+      },
+      setLessonResource: ({ lessonKey, ...rest }) => {
+        const next = lessonResources.filter((r) => r.lessonKey !== lessonKey);
+        // 둘 다 비우면 그 강의 링크를 지우는 것이다 — 빈 껍데기를 남기지 않는다
+        if (rest.pptUrl || rest.videoUrl) {
+          next.push({ lessonKey, ...rest, updatedAt: nowIso() });
+        }
+        persistLessonResources(next);
+      },
+      addStudentReactions: (rows, createdBy, createdByRole) => {
+        const items: StudentReaction[] = rows.map((r) => ({
+          id: uid(),
+          ...r,
+          createdBy,
+          createdByRole,
+          createdAt: nowIso(),
+        }));
+        persistReactions([...items, ...studentReactions]);
+      },
+      deleteStudentReaction: (id) => {
+        persistReactions(studentReactions.filter((r) => r.id !== id));
       },
       addCounselingTip: (input) => {
         const item: CounselingTip = {
@@ -921,12 +1022,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       counselingTips,
       tipReports,
       planEntries,
+      lessonResources,
+      studentReactions,
       studentStatusOverrides,
       studentFeedback,
       feedbackEdits,
       deletedFeedbackIds,
       checklistProgress,
       persistPlanEntries,
+      persistLessonResources,
+      persistReactions,
       persistMaterials,
       persistEntries,
       persistNotes,

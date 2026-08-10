@@ -6,6 +6,7 @@ import { HIGH_LESSONS } from "../content/lessons-high";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { LessonNotes } from "../components/LessonNotes";
+import { LessonResources } from "../components/LessonResources";
 import { INSTRUCTOR_BATGARI_FOLDERS } from "../lib/types";
 import { PageHeader, Card } from "./common";
 
@@ -222,6 +223,8 @@ export function Lessons() {
                 <div className="text-[12px] font-semibold text-zion-700">{elCurrent.lessonNo}강</div>
                 <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{elCurrent.title}</h2>
                 <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
+                {/* 교안 바로 아래 그 강의 PPT·영상 — 원스톱 매칭 (2026-08-10) */}
+                <LessonResources lessonKey={`elementary-${elCurrent.lessonNo}`} />
                 <LessonNotes
                   lessonKey={`elementary-${elCurrent.lessonNo}`}
                   lessonLabel={`초등 ${elCurrent.lessonNo}강 — ${elCurrent.title}`}
@@ -237,6 +240,7 @@ export function Lessons() {
                   </div>
                 )}
                 <Accordion items={highItems} resetKey={`high-${highCurrent.id}`} />
+                <LessonResources lessonKey={`high-${highCurrent.id}`} />
                 <LessonNotes
                   lessonKey={`high-${highCurrent.id}`}
                   lessonLabel={`고등 ${highCurrent.label} — ${highCurrent.title}`}

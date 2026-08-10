@@ -23,7 +23,8 @@ import {
 } from "../lib/permissions";
 import { ROLE_LABELS, type CounselingTip } from "../lib/types";
 import { termsForTheme } from "../content/glossary";
-import { scanPII } from "./CounselCases";
+import { TEMPERAMENT_GUIDES } from "../content/temperament-guides";
+import { scanPII, LegalNotice } from "./CounselCases";
 import { PageHeader, Card } from "./common";
 
 /**
@@ -112,6 +113,12 @@ export function Counseling() {
           <CasesLink />
         ) : t.no === 12 ? (
           <PromptBuilder />
+        ) : t.no === 10 ? (
+          // ⑩은 성향 가이드 종합(에니어그램 + MBTI·기질·핵심감정·오행)을 상담법 위에 얹는다
+          <>
+            <TemperamentGuides />
+            <TipSection theme={t} />
+          </>
         ) : (
           <TipSection theme={t} />
         ),
@@ -147,6 +154,9 @@ export function Counseling() {
           지침 전문은 별도 「상담 지침」 문서로 링크될 예정입니다 (원문 수령 대기).
         </p>
       </Card>
+
+      {/* 스토킹처벌법 주의 — 상담 사례 화면과 같은 카드를 쓴다 (2026-08-10 리드 지시) */}
+      <LegalNotice />
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
         미리 실린 예시 글의 작성자는 <strong className="text-ink">전원 가상 인물</strong>입니다.
@@ -345,6 +355,50 @@ function ThemeGlossary({ themeNo }: { themeNo: number }) {
           </div>
         ))}
       </dl>
+    </div>
+  );
+}
+
+/**
+ * ⑩ 성향 참고 종합 (2026-08-10 리드 지시) — 에니어그램 + MBTI·기질·핵심감정·오행.
+ * 에니어그램은 내부 원문이 있어 화면이 따로 있고, 나머지 넷은 일반 참고 지식 요약이다
+ * (`src/content/temperament-guides.ts` — 내부 원문 수령 시 교체).
+ */
+function TemperamentGuides() {
+  const items: AccordionItem[] = TEMPERAMENT_GUIDES.map((g) => ({
+    id: `guide-${g.name}`,
+    title: g.name,
+    hint: g.intro.slice(0, 40) + "…",
+    content: (
+      <div>
+        <p className="mb-2.5 text-[13px] leading-relaxed text-ink">{g.intro}</p>
+        <dl className="space-y-2">
+          {g.items.map((it) => (
+            <div key={it.title} className="rounded-lg bg-zion-50/60 p-2.5">
+              <dt className="text-[12px] font-bold text-zion-800">{it.title}</dt>
+              <dd className="mt-0.5 text-[12px] leading-relaxed text-ink">{it.body}</dd>
+            </div>
+          ))}
+        </dl>
+        {g.note && <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">⚠️ {g.note}</p>}
+      </div>
+    ),
+  }));
+
+  return (
+    <div className="mb-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-[13px] font-bold text-zion-900">성향 가이드 종합</div>
+        <Link to="/enneagram" className="text-[12px] font-semibold text-zion-700 hover:underline">
+          에니어그램 (내부 원문) →
+        </Link>
+      </div>
+      <Accordion items={items} defaultOpenFirst={false} compact />
+      <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+        ⚠️ 성향 분류는 <strong className="text-ink">사람을 판정하는 도구가 아닙니다.</strong> 대화를
+        여는 실마리로만 쓰고, 수강생을 유형으로 단정해 기록하지 않습니다. MBTI·기질·핵심감정·오행은
+        일반 참고 지식 요약이며 내부 교육 원문이 오면 교체됩니다.
+      </p>
     </div>
   );
 }
@@ -690,6 +744,18 @@ function PromptBuilder() {
       <div className="mt-3">
         <PromptBox prompt={prompt} />
       </div>
+
+      {/*
+        하이브리드 방식 (2026-08-10 리드 확정 재확인) — 사이트 안에 실시간 대화 API를 넣지
+        않는다. 비용 부담과 신학 지식 한계(환각) 때문이다. 여기서는 프롬프트 복사까지만 하고,
+        심층 분석은 외부 커스텀 GPT(또는 잼스)에서 한다. ⚠️ 링크 주소는 아직 수령 전이다.
+      */}
+      <p className="mt-2.5 rounded-lg bg-zion-50 p-2.5 text-[12px] leading-relaxed text-ink-soft">
+        복사한 프롬프트는 <strong className="text-ink">외부 커스텀 GPT</strong> 창에 붙여 넣어
+        대화합니다. 전용 상담 GPT 주소는 준비되는 대로 이 자리에 버튼으로 연결됩니다 (주소 수령
+        대기). 사이트가 직접 답을 만들지 않는 것은 비용과 오답(환각) 위험을 피하기 위한
+        확정 방침입니다.
+      </p>
     </div>
   );
 }
