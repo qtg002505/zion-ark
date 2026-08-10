@@ -1,5 +1,15 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, History, Lock, Plus, Trash2, Upload, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  History,
+  Lock,
+  Plus,
+  Star,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf } from "../lib/permissions";
@@ -160,6 +170,13 @@ export function WeeklyPlanPage() {
         </div>
       </div>
 
+      {/*
+        왼쪽 달력 · 오른쪽 중요 일정 (2026-08-10 리드 지시 — 월간 플래너 구성).
+        기수 전체가 지키는 날을 달력에서 찾지 않고 옆에서 바로 보게 한다.
+        좁은 화면에서는 1단으로 쌓인다 — 7열 달력과 목록을 나란히 두면 둘 다 뭉갠다.
+      */}
+      <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-1">
+      <div className="col-span-3 max-lg:col-span-1">
       {/* 달력 — 좁은 화면에서는 가로로 넘긴다. 7열을 억지로 줄이면 글자가 뭉갠다 */}
       <div className="-mx-1 overflow-x-auto px-1">
         <div className="min-w-[640px]">
@@ -220,11 +237,18 @@ export function WeeklyPlanPage() {
                     {list.slice(0, 3).map((e) => (
                       <div
                         key={e.id}
-                        className={"truncate rounded px-1 py-0.5 text-[10px] font-medium " + KIND_TONE[e.kind]}
-                        title={`${PLAN_ENTRY_LABELS[e.kind]} — ${e.title}`}
+                        className={
+                          "flex items-center gap-0.5 truncate rounded px-1 py-0.5 text-[10px] font-medium " +
+                          KIND_TONE[e.kind]
+                        }
+                        title={`${PLAN_ENTRY_LABELS[e.kind]} — ${e.title}${e.important ? " (중요)" : ""}`}
                       >
-                        {e.session != null && `${e.session}강 `}
-                        {e.title}
+                        {/* 중요 표시는 색이 아니라 별로 — 칸이 작아 색만으로는 구별이 어렵다 */}
+                        {e.important && <Star size={8} className="shrink-0 fill-current" />}
+                        <span className="truncate">
+                          {e.session != null && `${e.session}강 `}
+                          {e.title}
+                        </span>
                       </div>
                     ))}
                     {list.length > 3 && (
@@ -238,8 +262,18 @@ export function WeeklyPlanPage() {
         </div>
       </div>
 
+      </div>
+
+        {/* 오른쪽: 중요 일정 — 별을 켠 것만 모인다 */}
+        <ImportantList
+          entries={planEntries.filter((e) => e.cohortKey === cohortKey && e.important)}
+          canEdit={canEdit}
+          onPick={(d) => setPicked(d)}
+        />
+      </div>
+
       {picked && (
-        <DayPanel
+        <DayDialog
           date={picked}
           entries={byDate.get(picked) ?? []}
           canEdit={canEdit}
@@ -259,9 +293,102 @@ export function WeeklyPlanPage() {
   );
 }
 
-/* ── 하루 상세 — 항목을 더하고 고치고 지운다 ── */
+/* ── 중요 일정 — 달력 옆에 모아 둔다 ── */
 
-function DayPanel({
+function ImportantList({
+  entries,
+  canEdit,
+  onPick,
+}: {
+  entries: PlanEntry[];
+  canEdit: boolean;
+  onPick: (date: string) => void;
+}) {
+  const session = useSession();
+  const { togglePlanImportant } = useStore();
+  const today = todayYmd();
+
+  // 다가오는 것이 위로 — 지난 일정은 아래로 내리되 지우지는 않는다(기록이다)
+  const sorted = [...entries].sort((a, b) => {
+    const aPast = a.date < today;
+    const bPast = b.date < today;
+    if (aPast !== bPast) return aPast ? 1 : -1;
+    return aPast ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
+  });
+
+  return (
+    <Card className="col-span-1 self-start">
+      <div className="mb-1 flex items-center gap-1.5 text-[13px] font-bold text-zion-900">
+        <Star size={14} className="fill-gold-500 text-gold-500" /> 중요 일정
+      </div>
+      <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
+        기수 전체가 지키는 날을 여기 모읍니다. 달력에서 날짜를 눌러 일정에 별을 켜면 올라옵니다.
+      </p>
+
+      {sorted.length === 0 ? (
+        <p className="py-6 text-center text-[12px] leading-relaxed text-ink-soft">
+          아직 중요 표시한 일정이 없습니다.
+          {canEdit ? (
+            <>
+              <br />
+              날짜를 눌러 일정을 넣고 ☆를 켜 보세요.
+            </>
+          ) : null}
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {sorted.map((e) => {
+            const past = e.date < today;
+            const d = new Date(e.date + "T00:00:00");
+            return (
+              <li key={e.id}>
+                <div
+                  className={
+                    "flex items-start gap-1.5 rounded-lg border px-2 py-1.5 " +
+                    (past ? "border-zion-100 bg-zion-50/50 opacity-70" : "border-gold-500/40 bg-gold-100/40")
+                  }
+                >
+                  <button
+                    onClick={() => onPick(e.date)}
+                    className="min-w-0 flex-1 text-left"
+                    title="그 날짜 열기"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className={"text-[11px] font-bold " + (past ? "text-ink-soft" : "text-gold-700")}>
+                        {d.getMonth() + 1}.{d.getDate()} ({WEEKDAYS[d.getDay()]})
+                      </span>
+                      <span className={"rounded px-1 text-[9.5px] font-bold " + KIND_TONE[e.kind]}>
+                        {PLAN_ENTRY_LABELS[e.kind]}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[12px] leading-snug text-ink">
+                      {e.session != null && <strong className="mr-1 text-zion-800">{e.session}강</strong>}
+                      {e.title}
+                    </div>
+                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => togglePlanImportant(e.id, session.name, session.roleCode)}
+                      aria-label={`${e.title} 중요 해제`}
+                      title="중요 해제"
+                      className="shrink-0 rounded p-0.5 text-gold-600 transition hover:bg-white"
+                    >
+                      <Star size={12} className="fill-gold-500" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/* ── 하루 상세 — 작은 팝업. 항목을 더하고 지우고 중요 표시한다 ── */
+
+function DayDialog({
   date,
   entries,
   canEdit,
@@ -275,13 +402,30 @@ function DayPanel({
   onClose: () => void;
 }) {
   const session = useSession();
-  const { addPlanEntry, deletePlanEntry } = useStore();
+  const { addPlanEntry, deletePlanEntry, togglePlanImportant } = useStore();
   const [kind, setKind] = useState<PlanEntryKind>("progress");
   const [title, setTitle] = useState("");
   const [sessionNo, setSessionNo] = useState("");
+  const [important, setImportant] = useState(false);
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const returnFocusRef = useRef<Element | null>(null);
 
   const d = new Date(date + "T00:00:00");
   const label = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
+
+  // 팝업이 뜨면 바로 적을 수 있게 입력칸에 focus, Esc로 닫기, 닫으면 원래 자리로
+  useEffect(() => {
+    returnFocusRef.current = document.activeElement;
+    titleRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      (returnFocusRef.current as HTMLElement | null)?.focus?.();
+    };
+  }, [onClose]);
 
   function add(e: React.FormEvent) {
     e.preventDefault();
@@ -292,15 +436,29 @@ function DayPanel({
       kind,
       title: title.trim(),
       session: kind === "progress" && sessionNo.trim() ? Number(sessionNo) : null,
+      important,
       updatedBy: session.name,
       updatedByRole: session.roleCode,
     });
     setTitle("");
     setSessionNo("");
+    setImportant(false);
+    titleRef.current?.focus(); // 연달아 적을 수 있게
   }
 
   return (
-    <Card className="mt-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${label} 일정`}
+        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
+      >
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[15px] font-bold text-zion-900">
           {label}
@@ -339,13 +497,30 @@ function DayPanel({
                 {e.updatedBy} ({ROLE_LABELS[e.updatedByRole]})
               </span>
               {canEdit && (
-                <button
-                  onClick={() => deletePlanEntry(e.id)}
-                  aria-label={`${e.title} 지우기`}
-                  className="shrink-0 rounded p-1 text-ink-soft transition hover:bg-zion-50 hover:text-red-600"
-                >
-                  <Trash2 size={13} />
-                </button>
+                <>
+                  {/* 별을 켜면 달력 옆 「중요 일정」에 올라간다 */}
+                  <button
+                    onClick={() => togglePlanImportant(e.id, session.name, session.roleCode)}
+                    aria-pressed={!!e.important}
+                    aria-label={e.important ? `${e.title} 중요 해제` : `${e.title} 중요 표시`}
+                    title={e.important ? "중요 해제" : "중요 일정으로 표시"}
+                    className={
+                      "shrink-0 rounded p-1 transition " +
+                      (e.important
+                        ? "text-gold-600 hover:bg-gold-100/60"
+                        : "text-zion-300 hover:bg-zion-50 hover:text-gold-600")
+                    }
+                  >
+                    <Star size={13} className={e.important ? "fill-gold-500" : ""} />
+                  </button>
+                  <button
+                    onClick={() => deletePlanEntry(e.id)}
+                    aria-label={`${e.title} 지우기`}
+                    className="shrink-0 rounded p-1 text-ink-soft transition hover:bg-zion-50 hover:text-red-600"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </>
               )}
             </li>
           ))}
@@ -377,21 +552,33 @@ function DayPanel({
             />
           )}
           <input
+            ref={titleRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="예) 비유한 짐승과 머리 / 목요일 저녁 보강 (3명)"
-            className="min-w-0 flex-1 rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+            className="min-w-0 flex-1 basis-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
           />
+          <label className="flex items-center gap-1.5 text-[12px] text-ink">
+            <input
+              type="checkbox"
+              checked={important}
+              onChange={(e) => setImportant(e.target.checked)}
+              className="accent-gold-600"
+            />
+            <Star size={12} className={important ? "fill-gold-500 text-gold-500" : "text-zion-300"} />
+            중요 일정
+          </label>
           <button
             type="submit"
             disabled={title.trim().length === 0}
-            className="flex items-center gap-1 rounded-lg bg-zion-800 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+            className="ml-auto flex items-center gap-1 rounded-lg bg-zion-800 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
           >
             <Plus size={14} /> 추가
           </button>
         </form>
       )}
-    </Card>
+      </div>
+    </div>
   );
 }
 

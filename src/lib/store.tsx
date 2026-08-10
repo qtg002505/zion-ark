@@ -499,16 +499,25 @@ interface StoreValue {
     kind: PlanEntryKind;
     title: string;
     session?: number | null;
+    important?: boolean;
     updatedBy: string;
     updatedByRole: RoleCode;
   }) => void;
   updatePlanEntry: (
     id: string,
-    input: { date?: string; kind?: PlanEntryKind; title?: string; session?: number | null },
+    input: {
+      date?: string;
+      kind?: PlanEntryKind;
+      title?: string;
+      session?: number | null;
+      important?: boolean;
+    },
     updatedBy: string,
     updatedByRole: RoleCode,
   ) => void;
   deletePlanEntry: (id: string) => void;
+  /** 중요 표시 토글 — 켜면 달력 옆 「중요 일정」에 모인다 */
+  togglePlanImportant: (id: string, updatedBy: string, updatedByRole: RoleCode) => void;
   /**
    * 진도표 파일에서 읽은 항목으로 갈아끼운다 (파일 업로드 연동).
    * **사람이 직접 적은 항목은 건드리지 않는다** — 업로드로 들어온 것(`fromUpload`)만
@@ -937,15 +946,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      addPlanEntry: ({ session = null, ...input }) => {
+      addPlanEntry: ({ session = null, important = false, ...input }) => {
         const item: PlanEntry = {
           id: uid(),
           ...input,
           session,
+          important,
           fromUpload: false,
           updatedAt: nowIso(),
         };
         persistPlanEntries([...planEntries, item]);
+      },
+      togglePlanImportant: (id, updatedBy, updatedByRole) => {
+        persistPlanEntries(
+          planEntries.map((e) =>
+            e.id === id
+              ? { ...e, important: !e.important, updatedBy, updatedByRole, updatedAt: nowIso() }
+              : e,
+          ),
+        );
       },
       updatePlanEntry: (id, input, updatedBy, updatedByRole) => {
         persistPlanEntries(

@@ -267,6 +267,12 @@ export interface PlanEntry {
   session: number | null;
   /** 파일 업로드로 들어온 항목인지 — 사람이 적은 것과 구분해 다시 올릴 때 갈아끼운다 */
   fromUpload: boolean;
+  /**
+   * 중요 표시 — 켜면 달력 옆 「중요 일정」 목록에 모인다 (2026-08-10 리드 지시).
+   * 기수 전체가 지키는 날(이면유월 마지막 날짜 같은 것)을 달력에서 찾지 않고 바로 보게 한다.
+   * ⚠️ 전방 추가 필드다 — 이 값이 없는 옛 항목은 중요하지 않은 것으로 본다.
+   */
+  important?: boolean;
   updatedBy: string;
   updatedByRole: RoleCode;
   updatedAt: string;
