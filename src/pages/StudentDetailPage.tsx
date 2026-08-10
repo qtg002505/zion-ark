@@ -16,19 +16,26 @@ import {
   type CourseLevel,
 } from "../content/student-profiles";
 import { attendanceStreak, readSignals } from "../lib/attendance-signals";
-import { gradeOf, GRADE_LABELS, SUGGESTIONS, growthScore, type Grade } from "../lib/student-grade";
+import {
+  GRADES,
+  gradeOf,
+  GRADE_LABELS,
+  SUGGESTIONS,
+  growthScore,
+  type Grade,
+} from "../lib/student-grade";
 import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS, type ChecklistGroup } from "../content/checklist-standards";
 import { Accordion } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
 const FELLOWSHIPS: Fellowship[] = ["청년회", "장년회", "부녀회", "자문회"];
-const GRADES: Grade[] = ["A", "B", "C", "D"];
 const RING_STROKE: Record<Grade, string> = {
   A: "stroke-emerald-500",
   B: "stroke-amber-500",
   C: "stroke-violet-500",
-  D: "stroke-red-500",
+  D: "stroke-orange-500",
+  E: "stroke-red-500",
 };
 
 const COURSE_LEVELS: CourseLevel[] = ["초등", "중등", "고등"];

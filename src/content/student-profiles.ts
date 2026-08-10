@@ -1,5 +1,6 @@
 import { STUDENTS } from "./cohort-mock";
 import type { RoleCode } from "../lib/types";
+import type { Grade } from "../lib/student-grade";
 
 /**
  * 수강생 프로필 — 「수강생관리 도우미」 상세 화면(2026-08-09)에서 쓰는 인적사항·성향·메모.
@@ -67,7 +68,8 @@ export interface NoteRevision {
 export interface StudentStatusOverride {
   studentKey: string;
   fellowship?: Fellowship;
-  grade?: "A" | "B" | "C" | "D";
+  /** 사람이 직접 지정한 등급 — 없으면 출결로 자동 판정한다 (`student-grade.ts`) */
+  grade?: Grade;
   /** 유월 — 이 축은 오픈/비오픈 둘뿐이다. 신앙전환은 유월 기준으로는 이미 "오픈"이다 */
   faithType?: "오픈" | "비오픈";
   faithStatus?: FaithStatus;

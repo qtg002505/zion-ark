@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, Megaphone } from "lucide-react";
 import { useSession } from "../lib/auth";
@@ -5,6 +6,16 @@ import { useStore } from "../lib/store";
 import { isFieldStaff, studentScopeLabel } from "../lib/permissions";
 import { STUDENTS, COHORT, SCHEDULE } from "../content/cohort-mock";
 import { readAll } from "../lib/attendance-signals";
+import { rateOf } from "../lib/attendance-rate";
+import {
+  GRADES,
+  GRADE_LABELS,
+  GRADE_RANGE,
+  GRADE_TONE,
+  effectiveGrade,
+  isOverridden,
+} from "../lib/student-grade";
+import { STUDENT_PROFILES } from "../content/student-profiles";
 import { PageHeader, Card, StatTile } from "./common";
 
 /**
@@ -17,7 +28,7 @@ import { PageHeader, Card, StatTile } from "./common";
  */
 export function Overview() {
   const session = useSession();
-  const { entries } = useStore();
+  const { entries, studentStatusOverrides } = useStore();
 
   const students = STUDENTS;
   const total = students.length;
@@ -30,6 +41,37 @@ export function Overview() {
   const earlyCount = readAll(students).filter((r) => r.isEarly).length;
 
   const pinned = entries.filter((e) => e.kind === "notice_hq" && e.pinned).slice(0, 2);
+
+  /**
+   * 명단 한 줄 — 등급·오픈 여부·출석률을 한 자리에 모은다 (2026-08-10 리드 지시).
+   *
+   * **등급은 사람이 바꾼 값이 먼저다.** 안 바꿨으면 출결로 자동 판정한다.
+   * **오픈 여부**는 유월 축(오픈/비오픈)만 본다 — `신앙전환`은 유월로는 이미 오픈이다.
+   */
+  const roster = useMemo(() => {
+    const byKey = new Map(studentStatusOverrides.map((o) => [o.studentKey, o]));
+    return students
+      .map((s) => {
+        const ov = byKey.get(s.key);
+        const profile = STUDENT_PROFILES[s.key];
+        const faith = ov?.faithType ?? profile?.faithType ?? "비오픈";
+        return {
+          student: s,
+          grade: effectiveGrade(s, ov?.grade),
+          manual: isOverridden(s, ov?.grade),
+          opened: faith !== "비오픈",
+          rate: rateOf(s),
+        };
+      })
+      .sort(
+        (a, b) =>
+          GRADES.indexOf(a.grade) - GRADES.indexOf(b.grade) ||
+          b.student.attendanceRate - a.student.attendanceRate,
+      );
+  }, [students, studentStatusOverrides]);
+
+  const openedCount = roster.filter((r) => r.opened).length;
+  const gradeCounts = GRADES.map((g) => ({ g, n: roster.filter((r) => r.grade === g).length }));
 
   return (
     <div>
@@ -85,6 +127,106 @@ export function Overview() {
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* 등급별 명단 — 한눈에 훑는 자리 (2026-08-10 리드 지시) */}
+      <Card className="mt-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-[14px] font-bold text-zion-900">등급별 명단</h2>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
+              등급은 <strong className="text-ink">누적 출석률</strong>로 자동 매겨지고,
+              담당 사명자가 화면에서 바꾸면 그 값이 우선합니다(직접 지정 표시).
+              <strong className="text-ink"> 노란 줄이 오픈된 분</strong>입니다 — 모두 {openedCount}명.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {gradeCounts.map(({ g, n }) => (
+              <span
+                key={g}
+                className={"rounded-lg border px-2 py-1 text-[11px] font-bold " + GRADE_TONE[g]}
+                title={`${GRADE_LABELS[g]} — 자동 기준 ${GRADE_RANGE[g]}`}
+              >
+                {g} {GRADE_LABELS[g]} {n}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* 좁은 화면에서는 표만 가로로 넘긴다 */}
+        <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[620px] text-[13px]">
+            <thead>
+              <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
+                <th className="pb-2 font-medium">등급</th>
+                <th className="pb-2 font-medium">이름</th>
+                <th className="pb-2 font-medium">분반</th>
+                <th className="pb-2 font-medium">오픈</th>
+                <th className="pb-2 text-right font-medium">누적</th>
+                <th className="pb-2 text-right font-medium">보강 포함</th>
+                <th className="pb-2 text-right font-medium">대면만</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roster.map((r, i) => {
+                const first = i === 0 || roster[i - 1].grade !== r.grade;
+                return (
+                  <tr
+                    key={r.student.key}
+                    className={
+                      "border-b border-zion-100 last:border-0 " +
+                      // 오픈된 분은 줄 전체를 노랗게 — 색만으로 전하지 않도록 「오픈」 글자도 함께 둔다
+                      (r.opened ? "bg-gold-100/50" : "") +
+                      (first ? " border-t-2 border-t-zion-200" : "")
+                    }
+                  >
+                    <td className="py-2 pr-2">
+                      {first ? (
+                        <span className={"rounded border px-1.5 py-0.5 text-[11px] font-bold " + GRADE_TONE[r.grade]}>
+                          {r.grade} {GRADE_LABELS[r.grade]}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-ink-soft">{r.grade}</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-2 font-medium text-ink">
+                      {r.student.name}
+                      {r.manual && (
+                        <span className="ml-1 text-[10px] text-ink-soft" title="담당자가 직접 지정한 등급">
+                          직접 지정
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-2 text-[12px] text-ink-soft">{r.student.division}</td>
+                    <td className="py-2 pr-2">
+                      {r.opened ? (
+                        <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[11px] font-bold text-gold-700">
+                          오픈
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-ink-soft">비오픈</span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right font-semibold text-zion-800">
+                      {r.student.attendanceRate}%
+                    </td>
+                    <td className="py-2 text-right text-ink">{r.rate.withMakeup}%</td>
+                    <td className="py-2 text-right text-[12px] text-ink-soft">{r.rate.presentOnly}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
+          「누적」은 진도 전체 기준이고 등급을 매기는 값입니다. 「보강 포함」·「대면만」은 최근 8주
+          기준입니다. 등급을 바꾸려면{" "}
+          <Link to="/students-dashboard" className="text-zion-700 underline">
+            수강생 현황
+          </Link>
+          에서 그 사람을 열어 고칩니다.
+        </p>
       </Card>
 
       {/* 점검자가 지금 손대야 할 곳 */}

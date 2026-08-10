@@ -88,7 +88,7 @@ export function StudentsDashboard() {
   );
 
   const gradeCounts = useMemo(() => {
-    const c: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0 };
+    const c: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
     rows.forEach((r) => c[r.grade]++);
     return c;
   }, [rows]);
@@ -99,7 +99,7 @@ export function StudentsDashboard() {
     [rows, divisionFilter],
   );
   const divisionGradeCounts = useMemo(() => {
-    const c: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0 };
+    const c: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
     divisionScoped.forEach((r) => c[r.grade]++);
     return c;
   }, [divisionScoped]);
