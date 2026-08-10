@@ -9,21 +9,31 @@ description: 시온 아크(ZION ARK) 웹 프로토타입 저장소(scj)의 작�
 프로토타입**이다. 규칙의 원문은 저장소 `CLAUDE.md`이고, 이 스킬은 **실제로 해 보고 알아낸
 절차와 함정**을 작업 유형별로 정리한 것이다. 충돌하면 `CLAUDE.md`가 우선한다.
 
-## 세션 시작
+## 세션 시작 — 이 순서로 읽고 바로 시작한다
 
-1. `docs/HANDOFF.md` — 직전 세션이 끝낸 것, 대기 중인 것, 함정
+1. **`docs/HANDOFF.md`** — 지금 상태·다음 할 일·막힌 것. **이거 하나면 시작할 수 있다**
 2. `git log --oneline -5` / `git status --short`
-3. 화면·메뉴를 건드리면 `docs/ARCHITECTURE.md`도 읽는다
+3. 필요할 때만: `docs/HISTORY.md`(지난 기록 — "왜 이렇게 됐나"를 찾을 때만) ·
+   `docs/decisions/OPEN_QUESTIONS.md`(리드 답 대기) · `docs/TEAMWORK.md`(파트 분담)
+
+⚠️ **처음부터 여러 문서를 통째로 읽지 않는다.** HANDOFF가 78KB까지 자라 세션마다 토큰을
+낭비하던 것을 2026-08-11에 갈랐다 — 같은 실수를 되풀이하지 않는다. 필요한 파일만 열고,
+큰 파일은 `Grep`으로 필요한 대목만 본다.
 
 개발 셸은 Windows PowerShell (`npm.cmd`, `npx.cmd`). 미리보기는 Bash로 서버를 띄우지 말고
-`.claude/launch.json`의 `zion-ark-dev`(5173)를 쓴다.
+`.claude/launch.json`의 `zion-ark-dev`를 쓴다 (`autoPort: true` — 다른 세션이 5173을 쓰고
+있어도 알아서 다른 포트로 뜬다).
 
 ## 셸 함정 — 이것 때문에 여러 번 막혔다
 
 **PowerShell에 한글이 든 스크립트를 넘기지 않는다.** PowerShell 5.1이 한글을 ANSI로 읽어
 `sed`·정규식·문자열이 깨지고 파서 오류가 난다. 한글이 섞인 처리는 **Node 스크립트(.mjs)로
-작성해 `node`로 실행**한다. 실제로 파일 복사 스크립트를 PowerShell로 짰다가 전부 깨져
-Node로 다시 쓴 적이 있다.
+작성해 `node`로 실행**한다. 파일 복사 스크립트를 PowerShell로 짰다가 전부 깨져 Node로 다시
+쓴 적이 있고, `-replace`로 소스 파일을 고쳤다가 **파일 전체 한글이 깨져 다시 쓴 적도 있다.**
+
+**커밋 메시지에 큰따옴표를 넣지 않는다.** here-string(`@'…'@`) 안이라도 `"…"`가 있으면
+PowerShell이 파싱을 깨뜨려 `pathspec … did not match` 오류가 난다. 인용이 필요하면
+`「…」`를 쓴다. (이 함정으로 커밋이 세 번 실패했다.)
 
 **Bash 도구는 작업 디렉터리가 초기화된다.** `cd`가 다음 호출로 이어지지 않으니
 `cd <절대경로> && ...` 형태로 매번 지정한다.
@@ -61,7 +71,23 @@ Node로 다시 쓴 적이 있다.
 5. 좁은 화면을 함께 본다 — 2단 구성은 `max-md:grid-cols-1`, 탭 줄은 `overflow-x-auto`,
    표는 표만 가로 스크롤(`min-w-[560px]`)
 
+**이미 만들어 둔 것을 먼저 찾는다** — 같은 것을 두 벌 만들면 한쪽만 고쳐지는 일이 반드시 생긴다:
+`Accordion` · `AnchoredPopover`(칸 옆에서 열리는 팝오버) · `StudentDetailModal` ·
+`MediaLinks`(PPT·영상) · `FavoriteButton` · `PromptBox` · `common.tsx`(PageHeader·Card·StatTile)
+
+**화면을 페이지와 팝업 양쪽에서 써야 하면** 복제하지 말고 props로 가른다 —
+`StudentDetailPage`가 `studentKey`·`embedded`를 받는 방식이 본보기다.
+
+⚠️ **`useEffect`를 배열·객체 정체성에 걸지 않는다.** 스토어를 구독하는 화면은 렌더마다 새
+배열을 받으므로 열림 상태가 매번 초기화된다. `Accordion`이 도움됨을 누를 때마다 접히던 것이
+이 때문이었다 — id 목록을 문자열로 이어 붙여(`items.map(i => i.id).join("|")`) 그것에 건다.
+
+⚠️ **경로를 없앨 때는 지우지 말고 리다이렉트한다** (`<Navigate to=… replace />`).
+북마크와 옛 링크가 죽는다. `/students` → `/students-dashboard`가 그 예다.
+
 ### 3. 팀 공유 프리뷰 배포
+
+**리드는 화면 작업을 마칠 때마다 프리뷰 링크를 갱신해 보여 준다** (2026-08-10 요청).
 
 ```
 npm.cmd run build:preview
@@ -69,6 +95,13 @@ npm.cmd run build:preview
 
 `preview/zion-ark-preview.html`(자체 포함 단일 HTML)이 만들어진다. 이걸 아티팩트로 발행하되
 **같은 파일 경로로 다시 발행해야 링크가 유지된다** — 팀이 쓰던 주소가 바뀌면 안 된다.
+주소: `https://claude.ai/code/artifact/97c2d451-7903-4c8f-8ede-09b5d72c7d25`
+(`Artifact` 도구에 `url`로 이 주소를 넘긴다.)
+
+⚠️ "이 세션이 최신 버전을 못 봤다"며 거부되면 **`force: true`**를 쓴다 — 이 아티팩트는 손으로
+고치는 문서가 아니라 소스에서 나온 빌드 산출물이라 덮어써도 잃을 것이 없다.
+⚠️ **음원·대용량 자산은 이 단일 HTML에 안 들어간다.** 아티팩트에서 음악이 안 나오는 것은
+결함이 아니다 — **음악 확인은 GitHub Pages 링크에서** 한다고 함께 알린다.
 
 두 가지가 이미 해결돼 있으니 건드리지 않는다:
 - 정적 호스팅에는 서버 라우팅이 없다 → `.env.preview`의 `VITE_ROUTER=hash`
@@ -82,6 +115,30 @@ npm.cmd run build:preview
 시안은 `Design/`(Next.js+shadcn 템플릿, 참조용·git 제외). 스택이 달라 컴포넌트를 그대로 쓰지
 않고 **토큰과 레이아웃 패턴만** 가져온다. 팔레트는 `src/index.css`의 `@theme` 한 곳에서 고친다.
 
+**색을 바꾸면 대비를 실측한다.** ⚠️ `getComputedStyle`은 `oklch(...)` 문자열을 그대로 돌려줘
+숫자를 rgb로 잘못 읽는다 — **캔버스에 칠해 픽셀을 읽어야** 정확하다. 이걸 모르고 "본문 대비
+1.01"이라는 엉뚱한 값을 얻은 적이 있다. 본문·버튼·뱃지 조합이 WCAG AA(4.5) 이상인지 본다.
+
+```js
+const cv = document.createElement('canvas'); cv.width = cv.height = 1;
+const ctx = cv.getContext('2d', { willReadFrequently: true });
+const px = c => { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1,1); ctx.fillStyle = c;
+  ctx.fillRect(0,0,1,1); const d = ctx.getImageData(0,0,1,1).data; return [d[0],d[1],d[2]]; };
+```
+
+2026-08-10 네이비 전환은 **`@theme` 한 곳 수정으로 끝났다** — 화면 파일을 한 곳도 안 고쳤다.
+색 하드코딩을 막아 온 규칙이 값을 한 셈이니 앞으로도 화면에 색을 직접 쓰지 않는다.
+
+### 5. 파일·자산 다루기 (음원·문서)
+
+- 원본은 폴더에 두고 **Node 스크립트로 `public/` 아래에 복사**한다 (`scripts/copy-music.mjs`가 본보기)
+- ⚠️ 파일명의 `[` `]` `#` `~`를 걷어낸다 — 남으면 Vite dev 서버가 **403**을 내 조용히 실패한다
+- ⚠️ 경로에 `import.meta.env.BASE_URL`을 붙인다. Pages는 하위 경로로 서비스되므로
+  `/music/…`처럼 적으면 **배포본에서만 404**가 난다
+- ⚠️ **원본 폴더를 함께 커밋하지 않는다** — 같은 파일이 두 벌 들어간다. `.gitignore`에 넣는다
+- 엑셀(xlsx)은 외부 패키지 없이 다룬다 (`src/lib/xlsx.ts`) — zip + XML이고 읽기는 브라우저
+  내장 `DecompressionStream`을 쓴다. 번들을 수백 KB 불리지 않기 위한 선택이다
+
 ## 검증 — 핸드오프 전
 
 ```
@@ -90,7 +147,10 @@ npm.cmd run build
 ```
 
 화면을 건드렸으면 미리보기에서 직접 열어 보고:
-- 콘솔 오류 0 (편집 중 남은 HMR 오류는 새로고침 후 다시 본다)
+- **콘솔 오류 0 — 반드시 새 탭에서 확인한다.** ⚠️ 파일을 크게 고치거나 지우면 개발 서버가
+  HMR 오류(`Failed to reload …` · `useStore는 StoreProvider 안에서만 사용` · 404/500)를
+  남기는데, **이건 결함이 아니라 잔재다.** 새로고침만으로는 콘솔 기록이 남아 계속 보이므로
+  `tabs_create`로 **새 탭을 열어** 확인한다. 이 세션에서만 네 번 헷갈렸다
 - 모바일 폭(375)에서 가로 넘침 0 —
   `document.body.scrollWidth === document.documentElement.clientWidth`
 - **외부 사이트 임베드 가능 여부는 개발용 인앱 브라우저를 믿지 않는다.** 인앱 브라우저는
@@ -116,6 +176,24 @@ npm.cmd run build
 - **PR 머지 권한**: 파트 파일만 고친 PR은 팀원이 직접 머지한다. `CODEOWNERS`에 걸린
   공유 파일을 건드리면 자동으로 리드 승인 대기가 된다 (`docs/TEAMWORK.md`)
 
+## 브라우저로 검증하는 요령 (토큰을 아끼는 길이기도 하다)
+
+스크린샷은 **브라우저 패널이 열려 있지 않으면 실패한다.** 대신 `javascript_tool`로 **필요한
+값만 뽑아 확인**한다 — 화면을 통째로 읽는 것보다 정확하고 훨씬 싸다.
+
+```js
+// 한 번에 여러 가지를 재서 왕복을 줄인다
+JSON.stringify({
+  overflow: document.body.scrollWidth === document.documentElement.clientWidth,
+  hasX: document.querySelector('main').textContent.includes('찾는 말'),
+  rows: document.querySelectorAll('main tbody tr').length,
+})
+```
+
+- 로그인은 `localStorage.setItem('zion_ark_session', …)`로 건너뛴다 (역할을 바꿔 볼 때도)
+- `read_page`/`get_page_text`는 결과가 크다 — **꼭 필요할 때만** 쓰고 `max_chars`를 줄인다
+- 저장 결과는 화면이 아니라 `localStorage`에서 확인하는 편이 확실하다
+
 ## 자동화 브라우저에서 스크롤 검증 시 주의
 
 `window.scrollTo()`가 **scroll 이벤트를 안 낼 때가 있다** — 스크롤 기반 UI(맨 위로 버튼 등)가
@@ -134,7 +212,16 @@ npm.cmd run build
 - 외부 매체 중계(프록시) — 상대 매체 약관 확인이 선행이다
 - 데이터 계약(역할 코드·카테고리·kind·출결 어휘) 변경이 필요해 보일 때
 
-## 마무리
+## 마무리 — 매번 이 순서로 끝낸다
 
-`docs/HANDOFF.md`를 갱신한다. 화면·메뉴·권한 구조가 바뀌었으면 `docs/ARCHITECTURE.md`도.
-새로 밟은 함정은 반드시 적는다 — 다음 세션이 같은 데서 막히지 않게 하는 것이 이 문서들의 목적이다.
+1. `npx.cmd tsc -b --noEmit` → `npm.cmd run build`
+2. **새 탭**에서 콘솔 0 · 375px 넘침 0
+3. 커밋 → push (커밋 메시지에 **큰따옴표 금지**)
+4. `npm.cmd run build:preview` → 아티팩트 **같은 주소로** 재발행 (`force: true`)
+5. 문서 갱신 — **`docs/HANDOFF.md`는 "지금 상태"만 고친다.**
+   지난 작업 기록은 `docs/HISTORY.md`에 덧붙이고, **새로 밟은 함정은 이 스킬에 적는다.**
+   ⚠️ HANDOFF에 세션 기록을 쌓지 않는다 — 그래서 78KB까지 자랐다(2026-08-11에 갈랐다)
+6. 화면·권한 구조가 바뀌었으면 `docs/ARCHITECTURE.md`도
+
+리드에게 보고할 때는 **무엇을 했는지 · 확인한 것 · 막힌 것 · 다음 선택지**를 짧게 적고
+프리뷰 링크를 함께 준다. 어투는 존댓말(`CLAUDE.md`).
