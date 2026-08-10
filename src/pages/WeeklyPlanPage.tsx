@@ -5,6 +5,7 @@ import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf } from "../lib/permissions";
 import { PLAN_ENTRY_LABELS, ROLE_LABELS, type PlanEntry, type PlanEntryKind } from "../lib/types";
 import { COHORT, SCHEDULE } from "../content/cohort-mock";
+import { buildXlsx, downloadBlob, readXlsx } from "../lib/xlsx";
 import { PageHeader, Card } from "./common";
 
 /** 종전 주차별 글 — 달력으로 옮긴 뒤에도 이미 적어 둔 것은 남겨 함께 본다 */
@@ -401,10 +402,7 @@ function ProgressUpload({ cohortKey }: { cohortKey: string }) {
   const { replaceUploadedPlanEntries } = useStore();
   const [msg, setMsg] = useState<string | null>(null);
 
-  /**
-   * 공통 양식 — 이 열 이름 그대로 쓰면 그대로 읽힌다.
-   * ⚠️ 엑셀이 CSV를 열 때 한글이 깨지지 않도록 **BOM**을 붙인다.
-   */
+  /** 공통 양식 — 이 열 이름·순서 그대로 쓰면 그대로 읽힌다 (2026-08-10 리드 지시로 엑셀) */
   function downloadTemplate() {
     const rows = [
       ["날짜", "구분", "회차", "내용"],
@@ -412,13 +410,7 @@ function ProgressUpload({ cohortKey }: { cohortKey: string }) {
       ["2026-08-13", "보강", "", "예) 목요일 저녁 보강"],
       ["2026-08-17", "행사", "", "예) 새신자 교육"],
     ];
-    const csv = "﻿" + rows.map((r) => r.join(",")).join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "진도표_양식.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(buildXlsx(rows, "진도표"), "진도표_양식.xlsx");
   }
 
   const KIND_BY_LABEL: Record<string, PlanEntryKind> = {
@@ -428,39 +420,68 @@ function ProgressUpload({ cohortKey }: { cohortKey: string }) {
     메모: "note",
   };
 
+  /**
+   * 날짜 칸 읽기 — 사람이 엑셀에서 손대면 `2026-08-11` 말고 `2026. 8. 11` 처럼
+   * 적히기도 한다. 흔한 형태는 받아 준다. 그래도 못 읽으면 그 줄만 건너뛴다.
+   */
+  function normalizeDate(raw: string): string | null {
+    const s = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = /^(\d{4})[.\-/\s]+(\d{1,2})[.\-/\s]+(\d{1,2})\.?$/.exec(s);
+    if (!m) return null;
+    return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  }
+
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
+    setMsg("읽는 중…");
+
+    let table: string[][];
+    try {
+      table = file.name.toLowerCase().endsWith(".csv")
+        ? (await file.text())
+            .replace(/^﻿/, "")
+            .split(/\r?\n/)
+            .filter((l) => l.trim())
+            .map((l) => l.split(",").map((c) => c.trim()))
+        : await readXlsx(file);
+    } catch {
+      setMsg("파일을 읽지 못했습니다. 양식을 내려받아 그대로 채운 뒤 다시 올려 주세요.");
+      e.target.value = "";
+      return;
+    }
+
     const rows: { date: string; kind: PlanEntryKind; title: string; session: number | null }[] = [];
     let skipped = 0;
 
-    for (const [i, line] of lines.entries()) {
-      const cols = line.split(",").map((c) => c.trim());
-      if (i === 0 && cols[0] === "날짜") continue; // 머리글
-      const [date, kindLabel, sessionNo, ...rest] = cols;
-      const title = rest.join(",").trim();
-      // 날짜 형식이 어긋나면 통째로 실패시키지 않고 그 줄만 건너뛴다
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !title) {
-        skipped++;
+    for (const [i, cols] of table.entries()) {
+      if (i === 0 && (cols[0] ?? "").includes("날짜")) continue; // 머리글
+      const date = normalizeDate(cols[0] ?? "");
+      const title = (cols[3] ?? "").trim();
+      // 한 줄이 어긋나도 통째로 실패시키지 않는다 — 그 줄만 건너뛰고 몇 줄인지 알린다
+      if (!date || !title) {
+        if ((cols[0] ?? "").trim() || title) skipped++;
         continue;
       }
+      const sessionNo = (cols[2] ?? "").trim();
       rows.push({
         date,
-        kind: KIND_BY_LABEL[kindLabel ?? ""] ?? "note",
+        kind: KIND_BY_LABEL[(cols[1] ?? "").trim()] ?? "note",
         title,
-        session: sessionNo && /^\d+$/.test(sessionNo) ? Number(sessionNo) : null,
+        session: /^\d+$/.test(sessionNo) ? Number(sessionNo) : null,
       });
     }
 
     if (rows.length === 0) {
-      setMsg(`읽을 수 있는 줄이 없습니다. 양식을 내려받아 열 순서를 맞춰 주세요.`);
+      setMsg("읽을 수 있는 줄이 없습니다. 양식을 내려받아 열 순서(날짜·구분·회차·내용)를 맞춰 주세요.");
       e.target.value = "";
       return;
     }
     replaceUploadedPlanEntries(cohortKey, rows, session.name, session.roleCode);
-    setMsg(`${rows.length}건을 달력에 반영했습니다.${skipped > 0 ? ` (형식이 맞지 않은 ${skipped}줄은 건너뛰었습니다)` : ""}`);
+    setMsg(
+      `${rows.length}건을 달력에 반영했습니다.${skipped > 0 ? ` (읽지 못한 ${skipped}줄은 건너뛰었습니다)` : ""}`,
+    );
     e.target.value = "";
   }
 
@@ -475,7 +496,13 @@ function ProgressUpload({ cohortKey }: { cohortKey: string }) {
         </button>
         <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-zion-800 px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-zion-700">
           <Upload size={14} /> 진도표 올리기
-          <input type="file" accept=".csv,text/csv" onChange={onFile} className="hidden" />
+          {/* 엑셀이 기본이고 CSV도 받는다 — 이미 CSV로 만들어 둔 것이 있을 수 있다 */}
+          <input
+            type="file"
+            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+            onChange={onFile}
+            className="hidden"
+          />
         </label>
       </div>
       {msg && <span className="max-w-[280px] text-right text-[11px] leading-relaxed text-ink-soft">{msg}</span>}
