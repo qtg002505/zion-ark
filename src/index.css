@@ -2,32 +2,43 @@
 
 @theme {
   /**
-   * 시온 아크 팔레트 — Design/ 대시보드 시안(녹색·화이트) 기준.
-   * 클래스명(zion-*, gold-*)은 유지하고 값만 시안에 맞춘다.
+   * 시온 아크 팔레트 — **네이비(짙은 남색) 주색** (2026-08-10 리드 지시).
+   * 종전 녹색(hue 155)에서 남색(hue 255~265)으로 옮겼다 — 신뢰감을 주는 색으로 가자는
+   * 판단이다. **클래스명(`zion-*`)은 그대로 두고 값만 바꿨다** — 화면 파일을 한 곳도
+   * 고치지 않아도 전부 따라온다. 색을 화면에 하드코딩하지 않아 온 덕이다.
+   *
+   * 밝기(L) 단계는 종전 값을 지켰다 — 대비가 이미 검증된 배치라 그대로 두면 글자 가독성이
+   * 유지된다. 남색은 같은 채도에서 더 어둡게 읽히므로 중간 단계의 L을 조금 올렸다.
+   *
    * 정식 브랜드 hex가 확보되면 여기만 고친다.
    */
-  --color-zion-50: oklch(0.985 0.008 155);
-  --color-zion-100: oklch(0.955 0.018 155);
-  --color-zion-200: oklch(0.91 0.04 155);
-  --color-zion-300: oklch(0.83 0.07 155);
-  --color-zion-400: oklch(0.7 0.12 155);
-  --color-zion-500: oklch(0.55 0.18 155);
-  --color-zion-600: oklch(0.48 0.165 155);
-  --color-zion-700: oklch(0.42 0.15 155);
-  --color-zion-800: oklch(0.34 0.115 155);
-  --color-zion-900: oklch(0.25 0.075 155);
-  --color-zion-950: oklch(0.16 0.045 155);
+  --color-zion-50: oklch(0.985 0.005 258);
+  --color-zion-100: oklch(0.955 0.014 258);
+  --color-zion-200: oklch(0.905 0.032 258);
+  --color-zion-300: oklch(0.825 0.06 259);
+  --color-zion-400: oklch(0.69 0.105 260);
+  --color-zion-500: oklch(0.55 0.15 261);
+  --color-zion-600: oklch(0.47 0.145 262);
+  --color-zion-700: oklch(0.4 0.13 263);
+  --color-zion-800: oklch(0.32 0.105 264);
+  --color-zion-900: oklch(0.24 0.075 265);
+  --color-zion-950: oklch(0.16 0.05 265);
 
-  /* 보조 강조 — 우수 교안 지정·출처 표기 등에 쓴다 */
+  /**
+   * 보조 강조 — 우수 교안 지정 · 출처 표기 · **NEW 뱃지**에 쓴다.
+   * 남색 위에서 금색이 더 또렷해져 종전보다 강조 효과가 좋다.
+   */
   --color-gold-100: oklch(0.965 0.04 85);
   --color-gold-300: oklch(0.87 0.1 85);
-  --color-gold-500: oklch(0.74 0.14 80);
-  --color-gold-600: oklch(0.64 0.14 75);
-  --color-gold-700: oklch(0.52 0.12 75);
+  --color-gold-500: oklch(0.78 0.145 82);
+  --color-gold-600: oklch(0.68 0.145 78);
+  /* 0.55 → 0.52: gold-100 바탕에서 대비 4.47이라 AA(4.5)에 못 미쳤다 */
+  --color-gold-700: oklch(0.52 0.125 76);
 
-  --color-surface: oklch(0.98 0.005 120);
-  --color-ink: oklch(0.25 0.02 120);
-  --color-ink-soft: oklch(0.55 0.02 120);
+  /* 바탕·본문 글자도 남색 쪽으로 아주 살짝 기울인다 — 주색과 겉돌지 않게 */
+  --color-surface: oklch(0.98 0.004 258);
+  --color-ink: oklch(0.25 0.02 260);
+  --color-ink-soft: oklch(0.55 0.02 260);
 
   --radius-card: 1rem;
 

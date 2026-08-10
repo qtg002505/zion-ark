@@ -118,7 +118,7 @@ export const EVANGELIST_CONTENT_FOLDERS = ["영인지", "성경기초상식", "�
  * ⚠️ `계시록 사파`는 **정의를 못 받은 어휘**다 — 화면 문자열로만 두고 코드 값으로 굳히지
  * 않는다 (`docs/decisions/OPEN_QUESTIONS.md` §C).
  */
-export const ARCHIVE_FOLDERS = ["지파별 취합 도서", "실상 뮤지컬 영상", "계시록 사파"];
+export const ARCHIVE_FOLDERS = ["지파별 취합 도서", "실상 뮤지컬 영상", "계시록 삽화"];
 
 export const LIBRARY_FOLDERS: Record<LibrarySection, string[]> = {
   instructor: [...INSTRUCTOR_EARLY_FOLDERS, ...EVANGELIST_MAKEUP_FOLDERS],

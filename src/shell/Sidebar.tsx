@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ChevronDown, ChevronRight, LogOut, X } from "lucide-react";
 import { useAuth, useSession } from "../lib/auth";
+import { useStore } from "../lib/store";
 import { ROLE_LABELS } from "../lib/types";
+import { newGroups } from "../lib/nav-badges";
 import { studentScopeLabel } from "../lib/permissions";
 import { visibleNavGroups, groupItems, type NavGroup, type NavItem, type NavSubGroup } from "./nav";
 import { ZionLogo } from "./ZionLogo";
@@ -28,8 +30,35 @@ export function Sidebar({
   const { logout } = useAuth();
   const location = useLocation();
   const groups = visibleNavGroups(session);
+  const store = useStore();
 
   const currentFull = location.pathname + location.search;
+
+  /**
+   * 최근 24시간 안에 새 자료가 올라온 대주제 — 금색 NEW 뱃지를 붙인다 (2026-08-10 지시).
+   * ⚠️ 브라우저 시계로 잰다 — 서버가 붙으면 요약 엔드포인트의 값으로 바꾼다(`nav-badges.ts`).
+   */
+  const fresh = useMemo(
+    () =>
+      newGroups({
+        materials: store.materials,
+        entries: store.entries,
+        counselingTips: store.counselingTips,
+        counselCases: store.counselCases,
+        lessonNotes: store.lessonNotes,
+        lessonResources: store.lessonResources,
+        planEntries: store.planEntries,
+      }),
+    [
+      store.materials,
+      store.entries,
+      store.counselingTips,
+      store.counselCases,
+      store.lessonNotes,
+      store.lessonResources,
+      store.planEntries,
+    ],
+  );
 
   /** 현재 보고 있는 화면이 속한 대주제 */
   const activeGroup = useMemo(() => {
@@ -103,6 +132,7 @@ export function Sidebar({
           <NavGroupBlock
             key={group.label}
             group={group}
+            isNew={fresh.has(group.label)}
             isOpen={openGroup === group.label}
             hasActive={group.label === activeGroup}
             openSubs={openSubs}
@@ -158,6 +188,7 @@ function buildLabel(): string {
 /** 대주제 한 덩어리 — 제목을 누르면 열리고, 다른 대주제를 누르면 닫힌다 */
 function NavGroupBlock({
   group,
+  isNew,
   isOpen,
   hasActive,
   openSubs,
@@ -167,6 +198,7 @@ function NavGroupBlock({
   onToggleSub,
 }: {
   group: NavGroup;
+  isNew?: boolean;
   isOpen: boolean;
   hasActive: boolean;
   openSubs: Set<string>;
@@ -176,6 +208,20 @@ function NavGroupBlock({
   onToggleSub: (key: string) => void;
 }) {
   const GroupIcon = group.icon;
+
+  /**
+   * NEW 뱃지 — 금색. 색만으로 전하지 않도록 글자(NEW)를 함께 쓰고,
+   * 보조기술에는 무엇이 새것인지 풀어 읽어 준다.
+   */
+  const newBadge = isNew ? (
+    <span
+      className="shrink-0 rounded bg-gold-500 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-zion-950 shadow-sm"
+      title="최근 24시간 안에 새 자료가 올라왔습니다"
+    >
+      NEW
+      <span className="sr-only"> — 최근 24시간 안에 새 자료가 올라온 카테고리입니다</span>
+    </span>
+  ) : null;
 
   const iconBox = (
     <span
@@ -204,6 +250,7 @@ function NavGroupBlock({
         >
           {iconBox}
           <span className={labelClass}>{group.label}</span>
+          {newBadge}
         </NavLink>
       </div>
     );
@@ -220,8 +267,9 @@ function NavGroupBlock({
       >
         {iconBox}
         <span className={labelClass}>{group.label}</span>
+        {newBadge}
         {!isOpen && hasActive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zion-600" />}
-        {!isOpen && !hasActive && <span className="text-[11px] text-zion-300">{count}</span>}
+        {!isOpen && !hasActive && !isNew && <span className="text-[11px] text-zion-300">{count}</span>}
         <ChevronDown
           size={14}
           className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-0" : "-rotate-90")}
