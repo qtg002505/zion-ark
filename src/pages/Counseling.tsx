@@ -24,6 +24,7 @@ import {
 import { ROLE_LABELS, type CounselingTip } from "../lib/types";
 import { termsForTheme } from "../content/glossary";
 import { TEMPERAMENT_GUIDES } from "../content/temperament-guides";
+import { FavoriteButton } from "../components/FavoriteButton";
 import { scanPII, LegalNotice } from "./CounselCases";
 import { PageHeader, Card } from "./common";
 
@@ -427,6 +428,7 @@ function TipCard({ tip, onEdit }: { tip: CounselingTip; onEdit: () => void }) {
     >
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <h3 className="text-[14px] font-bold text-zion-900">{tip.title}</h3>
+        <FavoriteButton targetType="tip" targetId={tip.id} label={tip.title} size={13} />
         {tip.hiddenAt && (
           <span className="rounded-full bg-zion-100 px-2 py-0.5 text-[10px] font-bold text-ink-soft">
             관리자 숨김 — 사명자에게 보이지 않습니다

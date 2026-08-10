@@ -2,6 +2,7 @@ import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router
 import { AuthProvider, useAuth } from "./lib/auth";
 import { landingPath } from "./lib/permissions";
 import { StoreProvider } from "./lib/store";
+import { PlayerProvider } from "./shell/player";
 import { Layout } from "./shell/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
@@ -21,6 +22,7 @@ import { WeeklyPlanPage } from "./pages/WeeklyPlanPage";
 import { CounselCases } from "./pages/CounselCases";
 import { Counseling } from "./pages/Counseling";
 import { Care } from "./pages/Care";
+import { MyPage } from "./pages/MyPage";
 
 function Routed() {
   const { session } = useAuth();
@@ -58,6 +60,7 @@ function Routed() {
         <Route path="/quotes" element={<Quotes />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/enneagram" element={<Enneagram />} />
+        <Route path="/my" element={<MyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
@@ -76,7 +79,10 @@ export default function App() {
     <Router>
       <AuthProvider>
         <StoreProvider>
-          <Routed />
+          {/* 오디오는 셸 최상위에 하나 — 화면을 옮겨도 소리가 끊기지 않는다 (지시문 §4-6) */}
+          <PlayerProvider>
+            <Routed />
+          </PlayerProvider>
         </StoreProvider>
       </AuthProvider>
     </Router>

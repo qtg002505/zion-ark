@@ -399,6 +399,44 @@ export interface StudentReaction {
   createdAt: string;
 }
 
+/**
+ * 즐겨찾기 · 열람 기록 (2026-08-10 리드 지시 — 마이페이지).
+ * 원 저장소 `user_favorites` · `user_activity_logs` 계약의 미러다.
+ *
+ * ⛔ **로그에 이름·제목 문자열을 복사해 두지 않는다** (지시문 §4-2). 식별자(`targetType` +
+ * `targetId`)만 남기고, 화면에 그릴 때 **그 시점의 담당 범위로 다시 조회해** 이름을 얻는다.
+ * 이렇게 해야 담당이 바뀐 뒤 옛 담당자의 마이페이지에 수강생 이름이 남지 않는다.
+ *
+ * ⚠️ 보관 기간은 아직 정해지지 않았다(권장 90일 · `OPEN_QUESTIONS`). 정해지면
+ * 오래된 기록을 지우는 처리를 붙인다.
+ */
+export type FavoriteTarget = "material" | "tip" | "case" | "lesson" | "series";
+
+export const FAVORITE_LABELS: Record<FavoriteTarget, string> = {
+  material: "자료",
+  tip: "상담법",
+  case: "상담 사례",
+  lesson: "교안",
+  series: "신천지도서",
+};
+
+export interface Favorite {
+  /** 시범 로그인은 이름이 곧 계정 — 실연동 시 user_id */
+  userName: string;
+  targetType: FavoriteTarget;
+  targetId: string;
+  createdAt: string;
+}
+
+export interface ActivityLog {
+  userName: string;
+  /** 어느 화면인지 — 경로만 남긴다 */
+  viewKey: string;
+  targetType: FavoriteTarget | "page";
+  targetId: string;
+  viewedAt: string;
+}
+
 /** 출결 어휘 — attendance-adapter 계약 (CLAUDE.md §4) */
 export type AttendanceMark =
   | "unknown"

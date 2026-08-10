@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
+  ActivityLog,
   CounselCase,
   CounselingTip,
+  Favorite,
+  FavoriteTarget,
   LessonNote,
   LessonResource,
   StudentReaction,
@@ -46,6 +49,10 @@ const PLAN_ENTRY_KEY = "zion_ark_plan_entries";
 const TIP_KEY = "zion_ark_counseling_tips";
 const LESSON_RES_KEY = "zion_ark_lesson_resources";
 const REACTION_KEY = "zion_ark_student_reactions";
+const FAVORITE_KEY = "zion_ark_favorites";
+const ACTIVITY_KEY = "zion_ark_activity_logs";
+/** 열람 기록 보관 한도 — 기간 정책이 정해지기 전까지 건수로만 막는다 */
+const ACTIVITY_LIMIT = 200;
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
 const STATUS_OVERRIDE_KEY = "zion_ark_student_status_overrides";
 const STUDENT_FEEDBACK_KEY = "zion_ark_student_feedback";
@@ -445,6 +452,17 @@ interface StoreValue {
     updatedBy: string;
     updatedByRole: RoleCode;
   }) => void;
+  /* 마이페이지 — 즐겨찾기·열람 기록 (지시문 §4-2) */
+  favorites: Favorite[];
+  activityLogs: ActivityLog[];
+  /** 별표 토글 — (사용자, 종류, 대상) 하나당 한 줄 */
+  toggleFavorite: (userName: string, targetType: FavoriteTarget, targetId: string) => void;
+  /**
+   * 열람 기록 — **식별자만 남긴다.** 제목·이름 문자열을 넣지 않는다(지시문 §4-2):
+   * 담당이 바뀐 뒤에도 옛 담당자 마이페이지에 그 이름이 남으면 안 되기 때문이다.
+   */
+  logView: (userName: string, viewKey: string, targetType: FavoriteTarget | "page", targetId: string) => void;
+  clearActivity: (userName: string) => void;
   /** 수강생 반응 기록 — 붙여넣기 분류 결과를 담당자 확인 후 쌓는다 */
   studentReactions: StudentReaction[];
   addStudentReactions: (
@@ -570,6 +588,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [studentReactions, setStudentReactions] = useState<StudentReaction[]>(() =>
     load(REACTION_KEY, []),
   );
+  const [favorites, setFavorites] = useState<Favorite[]>(() => loadPlain<Favorite>(FAVORITE_KEY));
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() =>
+    loadPlain<ActivityLog>(ACTIVITY_KEY),
+  );
   const [counselingTips, setCounselingTips] = useState<CounselingTip[]>(() =>
     load(TIP_KEY, SEED_TIPS),
   );
@@ -646,6 +668,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setStudentReactions(next);
   }, []);
 
+  const persistFavorites = useCallback((next: Favorite[]) => {
+    localStorage.setItem(FAVORITE_KEY, JSON.stringify(next));
+    setFavorites(next);
+  }, []);
+
+  const persistActivity = useCallback((next: ActivityLog[]) => {
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(next));
+    setActivityLogs(next);
+  }, []);
+
   const persistStudentStatusOverrides = useCallback((next: StudentStatusOverride[]) => {
     localStorage.setItem(STATUS_OVERRIDE_KEY, JSON.stringify(next));
     setStudentStatusOverrides(next);
@@ -684,6 +716,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       planEntries,
       lessonResources,
       studentReactions,
+      favorites,
+      activityLogs,
       studentStatusOverrides,
       studentFeedback,
       addMaterial: (input) => {
@@ -806,6 +840,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       deleteStudentReaction: (id) => {
         persistReactions(studentReactions.filter((r) => r.id !== id));
+      },
+      toggleFavorite: (userName, targetType, targetId) => {
+        const has = favorites.some(
+          (f) => f.userName === userName && f.targetType === targetType && f.targetId === targetId,
+        );
+        persistFavorites(
+          has
+            ? favorites.filter(
+                (f) =>
+                  !(f.userName === userName && f.targetType === targetType && f.targetId === targetId),
+              )
+            : [...favorites, { userName, targetType, targetId, createdAt: nowIso() }],
+        );
+      },
+      logView: (userName, viewKey, targetType, targetId) => {
+        // 같은 화면을 연달아 열면 한 줄만 남긴다 — 기록이 같은 항목으로 도배되지 않게
+        const last = activityLogs[0];
+        if (last && last.userName === userName && last.viewKey === viewKey) return;
+        const item: ActivityLog = { userName, viewKey, targetType, targetId, viewedAt: nowIso() };
+        persistActivity([item, ...activityLogs].slice(0, ACTIVITY_LIMIT));
+      },
+      clearActivity: (userName) => {
+        persistActivity(activityLogs.filter((l) => l.userName !== userName));
       },
       addCounselingTip: (input) => {
         const item: CounselingTip = {
@@ -1024,6 +1081,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       planEntries,
       lessonResources,
       studentReactions,
+      favorites,
+      activityLogs,
       studentStatusOverrides,
       studentFeedback,
       feedbackEdits,
@@ -1032,6 +1091,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persistPlanEntries,
       persistLessonResources,
       persistReactions,
+      persistFavorites,
+      persistActivity,
       persistMaterials,
       persistEntries,
       persistNotes,

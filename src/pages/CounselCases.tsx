@@ -14,6 +14,7 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteCounselCase } from "../lib/permissions";
 import { ROLE_LABELS, type CounselCase } from "../lib/types";
+import { FavoriteButton } from "../components/FavoriteButton";
 import { PageHeader, Card } from "./common";
 
 type Filter = "all" | "success" | "failure";
@@ -276,6 +277,14 @@ function CaseCard({ item, onEdit }: { item: CounselCase; onEdit: () => void }) {
         {/* 익명화 기준 — 여기까지만 밝힌다 */}
         <span className="text-[11px] text-ink-soft">
           {item.tribe} 지파 · {item.church} · {item.cohort}
+        </span>
+        <span className="ml-auto">
+          <FavoriteButton
+            targetType="case"
+            targetId={item.id}
+            label={item.situation.slice(0, 20)}
+            size={13}
+          />
         </span>
       </div>
 

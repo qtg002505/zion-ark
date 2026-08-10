@@ -14,6 +14,7 @@ import {
   type LibrarySection,
 } from "../lib/types";
 import { MediaLinks } from "../components/MediaLinks";
+import { FavoriteButton } from "../components/FavoriteButton";
 import { PageHeader, Card } from "./common";
 
 const CATEGORIES: LibraryCategory[] = ["standard_lecture", "class_material", "excellent_plan"];
@@ -258,6 +259,7 @@ export function Library() {
                   <div className="flex items-center gap-1.5">
                     {m.isFeatured && <Star size={13} className="shrink-0 fill-gold-500 text-gold-500" />}
                     <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{m.title}</span>
+                    <FavoriteButton targetType="material" targetId={m.id} label={m.title} size={13} />
                   </div>
                   <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-ink-soft">{m.body}</p>
                   <div className="mt-1.5 text-[11px] text-ink-soft">
