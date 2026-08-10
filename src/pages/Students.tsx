@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { Maximize2, Search } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
 import { STUDENTS, DIVISIONS, STATUS_LABELS } from "../content/cohort-mock";
@@ -94,7 +94,7 @@ export function Students() {
                 <button
                   onClick={() => setPicked(s.key)}
                   aria-haspopup="dialog"
-                  className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-4 rounded-lg px-2 py-3 text-left transition hover:bg-zion-50"
+                  className="group -mx-2 flex w-[calc(100%+1rem)] items-center gap-4 rounded-lg px-2 py-3 text-left transition hover:bg-zion-50"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[13px] font-bold text-zion-700">
                     {s.name[0]}
@@ -110,7 +110,14 @@ export function Students() {
                     </div>
                   </div>
                   <StatusBadge status={s.status} />
-                  <ChevronRight size={15} className="shrink-0 text-zion-300" />
+                  {/*
+                    줄 전체가 눌리지만 **눌러도 되는 자리라는 것이 보여야** 한다 —
+                    화살표만 두었더니 눈에 띄지 않는다는 지적을 받아 버튼을 세웠다(2026-08-10).
+                    실제 클릭은 바깥 버튼이 받으므로 이건 `span`이다(버튼 안에 버튼 금지).
+                  */}
+                  <span className="flex shrink-0 items-center gap-1 rounded-lg bg-zion-800 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition group-hover:bg-zion-700">
+                    <Maximize2 size={11} /> 상세 보기
+                  </span>
                 </button>
               </li>
             ))}

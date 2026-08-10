@@ -1,5 +1,15 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Search, Users, RotateCcw, Sparkles, CalendarCheck, RefreshCw, MessageCircle, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Users,
+  RotateCcw,
+  Sparkles,
+  CalendarCheck,
+  RefreshCw,
+  MessageCircle,
+  ChevronRight,
+  Maximize2,
+} from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
@@ -264,7 +274,8 @@ export function StudentsDashboard() {
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">이름</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">등급</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">출석</th>
-                        <th className="whitespace-nowrap pb-1.5 font-medium">특이사항</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">특이사항</th>
+                        <th className="whitespace-nowrap pb-1.5 text-right font-medium">상세</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -282,8 +293,22 @@ export function StudentsDashboard() {
                             <GradeBadge grade={grade} />
                           </td>
                           <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{s.attendanceRate}%</td>
-                          <td className="max-w-[260px] truncate py-2 text-ink-soft" title={p.note}>
+                          <td className="max-w-[260px] truncate py-2 pr-2 text-ink-soft" title={p.note}>
                             {p.note}
+                          </td>
+                          {/* 표에서 곧장 상세로 — 오른쪽 요약을 거치지 않아도 되게 (2026-08-10) */}
+                          <td className="whitespace-nowrap py-2 text-right">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // 행 클릭(요약 선택)과 겹치지 않게
+                                setModalKey(s.key);
+                              }}
+                              aria-haspopup="dialog"
+                              aria-label={`${s.name} 상세 보기`}
+                              className="inline-flex items-center gap-1 rounded-lg bg-zion-800 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-zion-700"
+                            >
+                              <Maximize2 size={11} /> 상세
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -468,13 +493,17 @@ function StudentDetail({ row, onOpenDetail }: { row: Row | undefined; onOpenDeta
             </div>
           </div>
         </div>
+        {/*
+          상세 진입은 이 화면에서 가장 많이 누르는 버튼이다 — 테두리만 있는 작은 버튼이라
+          눈에 띄지 않는다는 지적을 받아 **채운 주 버튼**으로 올렸다 (2026-08-10).
+        */}
         <button
           onClick={onOpenDetail}
           aria-haspopup="dialog"
-          className="flex shrink-0 items-center gap-0.5 rounded-lg border border-zion-100 px-2 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-zion-800 px-3 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-zion-700"
           title="수강생 정보 상세 열기"
         >
-          상세 <ChevronRight size={12} />
+          <Maximize2 size={13} /> 상세 보기
         </button>
       </div>
 

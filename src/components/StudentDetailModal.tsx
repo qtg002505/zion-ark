@@ -87,19 +87,25 @@ export function StudentDetailModal({
               <span className="ml-1.5 text-[12px] font-medium text-ink-soft">{student.division}</span>
             </div>
           </div>
+          {/*
+            전체 화면 진입도 눈에 띄어야 한다는 지적을 받아 테두리를 세우고 글자를 키웠다
+            (2026-08-10). 좁은 화면에서는 글자를 접고 아이콘만 남겨 자리를 아낀다.
+          */}
           <Link
             to={`/students/${encodeURIComponent(student.key)}`}
             onClick={onClose}
-            className="hidden shrink-0 items-center gap-1 rounded-lg border border-zion-200 px-2.5 py-1.5 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50 sm:flex"
+            className="flex shrink-0 items-center gap-1 rounded-lg border-2 border-zion-300 bg-white px-2.5 py-1.5 text-[12px] font-bold text-zion-700 transition hover:border-zion-500 hover:bg-zion-50"
             title="전체 화면으로 열기"
+            aria-label="전체 화면으로 열기"
           >
-            <ExternalLink size={12} /> 전체 화면
+            <ExternalLink size={13} />
+            <span className="hidden sm:inline">전체 화면</span>
           </Link>
           <button
             ref={closeRef}
             onClick={onClose}
             aria-label="닫기"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-soft transition hover:bg-zion-100 hover:text-ink"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-transparent bg-zion-100 text-ink transition hover:border-zion-300 hover:bg-zion-200"
           >
             <X size={18} />
           </button>
