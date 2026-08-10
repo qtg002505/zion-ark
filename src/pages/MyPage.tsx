@@ -6,6 +6,7 @@ import { useStore } from "../lib/store";
 import { studentScopeLabel } from "../lib/permissions";
 import { FAVORITE_LABELS, ROLE_LABELS, type FavoriteTarget } from "../lib/types";
 import { SERIES } from "../content/series-content";
+import { WeekScheduler } from "../components/WeekScheduler";
 import { PageHeader, Card } from "./common";
 
 /**
@@ -73,7 +74,10 @@ export function MyPage() {
         desc={`${ROLE_LABELS[session.roleCode]} · ${studentScopeLabel(session)} — 별표해 둔 자료와 최근에 연 화면입니다.`}
       />
 
-      <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+      {/* 개인 스케줄러 — 담당 수강생 생일이 자동으로 뜬다 */}
+      <WeekScheduler />
+
+      <div className="mt-4 grid grid-cols-2 gap-4 max-md:grid-cols-1">
         {/* 즐겨찾기 */}
         <Card>
           <div className="mb-2 flex items-center gap-1.5 text-[14px] font-bold text-zion-900">

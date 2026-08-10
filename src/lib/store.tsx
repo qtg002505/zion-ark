@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
   ActivityLog,
+  PersonalEvent,
   CounselCase,
   CounselingTip,
   Favorite,
@@ -50,6 +51,7 @@ const TIP_KEY = "zion_ark_counseling_tips";
 const LESSON_RES_KEY = "zion_ark_lesson_resources";
 const REACTION_KEY = "zion_ark_student_reactions";
 const FAVORITE_KEY = "zion_ark_favorites";
+const PERSONAL_KEY = "zion_ark_personal_events";
 const ACTIVITY_KEY = "zion_ark_activity_logs";
 /** 열람 기록 보관 한도 — 기간 정책이 정해지기 전까지 건수로만 막는다 */
 const ACTIVITY_LIMIT = 200;
@@ -452,6 +454,10 @@ interface StoreValue {
     updatedBy: string;
     updatedByRole: RoleCode;
   }) => void;
+  /** 개인 주간 일정 — 마이페이지 스케줄러. 남이 보지 않는 개인 것이다 */
+  personalEvents: PersonalEvent[];
+  addPersonalEvent: (input: { userName: string; date: string; time: string; title: string }) => void;
+  deletePersonalEvent: (id: string) => void;
   /* 마이페이지 — 즐겨찾기·열람 기록 (지시문 §4-2) */
   favorites: Favorite[];
   activityLogs: ActivityLog[];
@@ -598,6 +604,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     load(REACTION_KEY, []),
   );
   const [favorites, setFavorites] = useState<Favorite[]>(() => loadPlain<Favorite>(FAVORITE_KEY));
+  const [personalEvents, setPersonalEvents] = useState<PersonalEvent[]>(() =>
+    load(PERSONAL_KEY, []),
+  );
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() =>
     loadPlain<ActivityLog>(ACTIVITY_KEY),
   );
@@ -682,6 +691,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setFavorites(next);
   }, []);
 
+  const persistPersonal = useCallback((next: PersonalEvent[]) => {
+    localStorage.setItem(PERSONAL_KEY, JSON.stringify(next));
+    setPersonalEvents(next);
+  }, []);
+
   const persistActivity = useCallback((next: ActivityLog[]) => {
     localStorage.setItem(ACTIVITY_KEY, JSON.stringify(next));
     setActivityLogs(next);
@@ -725,6 +739,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       planEntries,
       lessonResources,
       studentReactions,
+      personalEvents,
       favorites,
       activityLogs,
       studentStatusOverrides,
@@ -849,6 +864,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       deleteStudentReaction: (id) => {
         persistReactions(studentReactions.filter((r) => r.id !== id));
+      },
+      addPersonalEvent: (input) => {
+        persistPersonal([...personalEvents, { id: uid(), ...input, createdAt: nowIso() }]);
+      },
+      deletePersonalEvent: (id) => {
+        persistPersonal(personalEvents.filter((e) => e.id !== id));
       },
       toggleFavorite: (userName, targetType, targetId) => {
         const has = favorites.some(
@@ -1100,6 +1121,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       planEntries,
       lessonResources,
       studentReactions,
+      personalEvents,
+      persistPersonal,
       favorites,
       activityLogs,
       studentStatusOverrides,

@@ -434,6 +434,28 @@ export interface Favorite {
   createdAt: string;
 }
 
+/**
+ * 개인 주간 일정 (2026-08-10 리드 지시) — 마이페이지의 개인 스케줄러.
+ *
+ * **개인 것이다.** 담당 기수 기록(`WeeklyPlan`·`PlanEntry`)과 달리 남이 보지 않는다 —
+ * 그래서 `userName`으로만 묶고 조직 스코프를 두지 않는다.
+ *
+ * ⚠️ 여기에 **수강생 이름·개인 사정을 적지 않는다.** 개인 일정은 캘린더 파일로 내보낼 수
+ * 있어 기기 밖으로 나갈 수 있다 — 그 순간 원문 개인정보 반출이 된다(불변식 2).
+ * 화면에서 그렇게 안내한다.
+ */
+export interface PersonalEvent {
+  id: string;
+  /** 시범 로그인은 이름이 곧 계정 — 실연동 시 user_id */
+  userName: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM — 비워 두면 종일 일정 */
+  time: string;
+  title: string;
+  createdAt: string;
+}
+
 export interface ActivityLog {
   userName: string;
   /** 어느 화면인지 — 경로만 남긴다 */
