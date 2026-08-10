@@ -6,6 +6,24 @@
     <!-- 내부용 프리뷰 — 검색엔진 수집을 막는다. 정식 운영 배포로 전환할 때 지운다 -->
     <meta name="robots" content="noindex, nofollow" />
     <title>시온 아크 — 만국 소성 플랫폼</title>
+    <!--
+      밝게/어둡게를 **첫 그림 전에** 정한다. 번들이 실린 뒤에 정하면 흰 화면이 한 번
+      번쩍인다. 규칙은 `src/lib/theme.ts`와 같아야 한다 — 고칠 때 양쪽을 함께 고친다.
+      (프리뷰 단일 HTML에는 이 스크립트가 실려 오지 않아 theme.ts가 한 번 더 건다.)
+    -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem("zion_ark_theme");
+          var dark =
+            v === "dark" ||
+            (v !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+        } catch (e) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

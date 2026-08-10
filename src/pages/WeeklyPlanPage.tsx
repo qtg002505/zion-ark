@@ -17,6 +17,7 @@ import { PLAN_ENTRY_LABELS, ROLE_LABELS, type PlanEntry, type PlanEntryKind } fr
 import { COHORT, SCHEDULE } from "../content/cohort-mock";
 import { buildXlsx, downloadBlob, readXlsx } from "../lib/xlsx";
 import { AnchoredPopover } from "../components/AnchoredPopover";
+import { MonthYearPicker } from "../components/MonthYearPicker";
 import { PageHeader, Card } from "./common";
 
 /** 종전 주차별 글 — 달력으로 옮긴 뒤에도 이미 적어 둔 것은 남겨 함께 본다 */
@@ -89,6 +90,8 @@ export function WeeklyPlanPage() {
    * 옮길 때마다 팝오버가 뛰어다니면 눈이 따라가지 못한다.
    */
   const [picked, setPicked] = useState<{ date: string; anchor: HTMLElement } | null>(null);
+  /** 년·월 판을 연 라벨 — 누른 자리에서 열린다 (2026-08-11) */
+  const [monthPickAnchor, setMonthPickAnchor] = useState<HTMLElement | null>(null);
 
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
 
@@ -147,7 +150,19 @@ export function WeeklyPlanPage() {
           >
             <ChevronLeft size={15} />
           </button>
-          <span className="min-w-[110px] text-center text-[15px] font-bold text-zion-900">{monthLabel}</span>
+          {/*
+            라벨을 누르면 년·월을 바둑판에서 고른다 (2026-08-11 리드 지시).
+            화살표만으로는 몇 달 떨어진 곳까지 가는 데 열 번 넘게 눌러야 했다.
+          */}
+          <button
+            onClick={(e) => setMonthPickAnchor(e.currentTarget)}
+            aria-haspopup="dialog"
+            aria-expanded={monthPickAnchor != null}
+            title="년·월을 골라 옮깁니다"
+            className="min-w-[110px] rounded-lg px-2 py-1 text-center text-[15px] font-bold text-zion-900 transition hover:bg-zion-50"
+          >
+            {monthLabel}
+          </button>
           <button
             onClick={() => shift(1)}
             aria-label="다음 달"
@@ -278,6 +293,19 @@ export function WeeklyPlanPage() {
           onPick={(d, el) => setPicked({ date: d, anchor: el })}
         />
       </div>
+
+      {monthPickAnchor && (
+        <MonthYearPicker
+          year={cursor.year}
+          month={cursor.month}
+          anchor={monthPickAnchor}
+          onPick={(y, m) => {
+            setCursor({ year: y, month: m });
+            setPicked(null);
+          }}
+          onClose={() => setMonthPickAnchor(null)}
+        />
+      )}
 
       {picked && (
         <DayPopover

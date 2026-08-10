@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Clock, Star, Trash2 } from "lucide-react";
+import { Clock, Palette, Star, Trash2 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel } from "../lib/permissions";
 import { FAVORITE_LABELS, ROLE_LABELS, type FavoriteTarget } from "../lib/types";
 import { SERIES } from "../content/series-content";
 import { WeekScheduler } from "../components/WeekScheduler";
+import { ThemeChoice } from "../shell/ThemeToggle";
 import { PageHeader, Card } from "./common";
 
 /**
@@ -76,6 +77,14 @@ export function MyPage() {
 
       {/* 개인 스케줄러 — 담당 수강생 생일이 자동으로 뜬다 */}
       <WeekScheduler />
+
+      {/* 화면 밝기 — 헤더 단추는 밝게↔어둡게만 뒤집는다. 기기 설정 따르기는 여기서 고른다 */}
+      <Card className="mt-4">
+        <div className="mb-2 flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
+          <Palette size={15} className="text-zion-600" /> 화면 밝기
+        </div>
+        <ThemeChoice />
+      </Card>
 
       <div className="mt-4 grid grid-cols-2 gap-4 max-md:grid-cols-1">
         {/* 즐겨찾기 */}

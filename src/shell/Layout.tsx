@@ -9,6 +9,7 @@ import { ZionLogo } from "./ZionLogo";
 import { ScrollToTop } from "./ScrollToTop";
 import { DailyQuote } from "./DailyQuote";
 import { MiniPlayer } from "./MiniPlayer";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * 앱 셸 — 본문 컴포넌트는 셸 없이도 동작하게 결합도를 낮게 유지한다.
@@ -85,6 +86,7 @@ export function Layout() {
               본문 여백 계산을 건드리지 않는다 (§4-6의 CSS 사고 자리를 피한다)
             */}
             <MiniPlayer />
+            <ThemeToggle />
             <Link
               to="/my"
               aria-label="마이페이지"

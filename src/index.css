@@ -47,6 +47,160 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
+   다크 모드 (2026-08-11)
+
+   **화면 파일을 한 곳도 고치지 않는다.** 밤에 휴대전화로 자료를 여는 자리가 많아
+   넣었는데, 화면마다 `dark:` 클래스를 뿌리면 500곳을 손대야 하고 앞으로 새로 만드는
+   화면마다 같은 일을 되풀이해야 한다. 그래서 **팔레트 변수만 갈아 끼운다** —
+   2026-08-10 색 전환을 `@theme` 한 곳에서 끝낸 것과 같은 방식이다.
+
+   토큰이 두 가지 일을 겸하는 것이 유일한 걸림돌이다. `text-zion-700`(글자 117곳)은
+   밝아져야 하고 `bg-zion-700`(진한 버튼 54곳)은 어두워야 하는데 변수는 하나다.
+   그래서 **변수는 글자·테두리 쪽에 맞춰 뒤집고, 진한 면으로 쓰이는 소수 유틸리티만
+   아래에서 따로 되돌린다.** 아래 「진한 면」 블록이 그 목록이다.
+
+   ⚠️ 새 화면에서 **진한 배경을 쓰려면 아래 목록에 있는 클래스만 쓴다.**
+   목록 밖의 단계를 배경으로 쓰면 다크에서 하얗게 뜬다.
+   ⚠️ `zion-950`은 뒤집지 않는다 — NEW 뱃지 글자(`bg-gold-500 text-zion-950`)와
+   드로어 덮개(`bg-zion-950/40`)가 이 값에 기대고 있다.
+   ═══════════════════════════════════════════════════════════ */
+
+/* 화면 파일에서 `dark:`를 써야 할 때를 위해 변형을 시스템 설정이 아닌 우리 토글에 건다 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+[data-theme="dark"] {
+  /* 스크롤바·기본 폼 컨트롤까지 어둡게 — 이게 없으면 스크롤바만 하얗게 남는다 */
+  color-scheme: dark;
+
+  /* 바탕과 글자 — 순검정은 눈이 부신다. 남색을 옅게 섞어 주색과 이어 붙인다 */
+  --color-surface: oklch(0.17 0.012 262);
+  --color-ink: oklch(0.93 0.008 260);
+  --color-ink-soft: oklch(0.72 0.012 260);
+
+  /*
+   * zion 스케일 뒤집기 — 밝은 끝(50~200)은 어두운 면으로, 어두운 끝(600~900)은
+   * 글자로 읽히게 밝힌다. 중간(300~500)은 보조 글자·포커스 테두리라 중간에 둔다.
+   */
+  --color-zion-50: oklch(0.25 0.016 262);
+  --color-zion-100: oklch(0.3 0.02 262);
+  --color-zion-200: oklch(0.36 0.024 262);
+  /* 0.55 → 0.615: 사이드바의 개수·「새 탭」 표기가 카드 위에서 대비 3.6이라 AA에 못 미쳤다 */
+  --color-zion-300: oklch(0.615 0.045 262);
+  --color-zion-400: oklch(0.66 0.055 261);
+  --color-zion-500: oklch(0.74 0.08 261);
+  --color-zion-600: oklch(0.79 0.075 260);
+  --color-zion-700: oklch(0.845 0.07 260);
+  --color-zion-800: oklch(0.9 0.05 260);
+  --color-zion-900: oklch(0.95 0.03 260);
+  /* --color-zion-950은 그대로 둔다 (위 주석 참고) */
+
+  /*
+   * gold — 옅은 바탕(100·300)만 뒤집고 **500은 그대로 둔다.**
+   * NEW 뱃지 바탕과 별 아이콘이 500이라 밝은 금색이어야 눈에 띈다.
+   */
+  --color-gold-100: oklch(0.3 0.045 82);
+  --color-gold-300: oklch(0.42 0.075 82);
+  --color-gold-600: oklch(0.83 0.13 84);
+  --color-gold-700: oklch(0.88 0.11 86);
+
+  /*
+   * 상태색 — 50(바탕)·200(테두리)은 어둡게, 600~700(글자)은 밝게.
+   * 500은 막대·점 표시라 그대로 두되 빨강만 조금 밝힌다(글자로도 쓰인다).
+   */
+  --color-red-50: oklch(0.27 0.055 25);
+  --color-red-200: oklch(0.38 0.09 25);
+  --color-red-500: oklch(0.68 0.19 25);
+  --color-red-600: oklch(0.74 0.17 25);
+  --color-red-700: oklch(0.79 0.14 25);
+
+  --color-emerald-50: oklch(0.26 0.045 165);
+  --color-emerald-200: oklch(0.37 0.07 165);
+  --color-emerald-600: oklch(0.79 0.14 165);
+  --color-emerald-700: oklch(0.84 0.12 165);
+
+  --color-amber-50: oklch(0.27 0.045 75);
+  --color-amber-200: oklch(0.38 0.075 75);
+  --color-amber-600: oklch(0.82 0.14 78);
+  --color-amber-700: oklch(0.87 0.12 80);
+
+  --color-violet-50: oklch(0.27 0.05 295);
+  --color-violet-200: oklch(0.38 0.08 295);
+  --color-violet-700: oklch(0.82 0.12 295);
+
+  --color-rose-50: oklch(0.27 0.05 12);
+  --color-rose-200: oklch(0.38 0.08 12);
+  --color-rose-700: oklch(0.82 0.12 12);
+
+  --color-orange-50: oklch(0.27 0.05 55);
+  --color-orange-200: oklch(0.38 0.08 55);
+  --color-orange-700: oklch(0.84 0.13 60);
+
+  /* 카드 바탕 — 라이트의 `bg-white` 자리에 들어간다 (아래 예외 규칙에서 쓴다) */
+  --color-card: oklch(0.215 0.014 262);
+  /* 진한 브랜드 면 — 흰 글자를 얹는 자리. 뒤집힌 zion 변수를 쓸 수 없어 따로 둔다 */
+  --surface-brand-600: oklch(0.5 0.15 261);
+  /* 0.46 → 0.442: 이 면 위 `text-white/70`(기수 부제)이 4.45로 AA에 0.05 못 미쳤다 */
+  --surface-brand-700: oklch(0.442 0.145 262);
+  --surface-brand-800: oklch(0.4 0.125 263);
+  --surface-brand-900: oklch(0.26 0.08 264);
+  --surface-muted: oklch(0.35 0.03 262);
+}
+
+/*
+ * 진한 면 되돌리기 — 위에서 뒤집은 변수를 **배경·테두리로 쓰는 자리에서만** 취소한다.
+ * `@layer` 밖이라 Tailwind 유틸리티(레이어 안)보다 항상 우선한다.
+ * 여기 없는 조합을 새로 쓰면 다크에서 하얗게 뜨니, 진한 면은 이 목록 안에서 고른다.
+ */
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .hover\:bg-white:hover {
+  background-color: var(--color-card);
+}
+[data-theme="dark"] .bg-zion-600,
+[data-theme="dark"] .hover\:bg-zion-600:hover,
+[data-theme="dark"] .group:hover .group-hover\:bg-zion-600 {
+  background-color: var(--surface-brand-600);
+}
+[data-theme="dark"] .bg-zion-700,
+[data-theme="dark"] .hover\:bg-zion-700:hover {
+  background-color: var(--surface-brand-700);
+}
+[data-theme="dark"] .bg-zion-800,
+[data-theme="dark"] .hover\:bg-zion-800:hover {
+  background-color: var(--surface-brand-800);
+}
+[data-theme="dark"] .bg-zion-900 {
+  background-color: var(--surface-brand-900);
+}
+[data-theme="dark"] .border-zion-700 {
+  border-color: var(--surface-brand-700);
+}
+[data-theme="dark"] .border-zion-800 {
+  border-color: var(--surface-brand-800);
+}
+/* 「보강 완료」 뱃지 바탕 — 그 위 `text-zion-900`이 읽혀야 한다 */
+[data-theme="dark"] .bg-zion-300 {
+  background-color: var(--surface-muted);
+}
+/*
+ * 눌리지 않는 버튼. 라이트에서는 옅은 바탕에 흰 글자라 저절로 흐려지지만, 어두운 화면에서는
+ * 같은 흰 글자가 또렷해져 **누를 수 있는 버튼처럼 보인다.** 글자도 함께 죽인다.
+ */
+[data-theme="dark"] .disabled\:bg-zion-300:disabled {
+  background-color: var(--surface-muted);
+  color: oklch(0.6 0.012 262);
+}
+/* 「보강 예정」 뱃지 바탕 — 금색 계열 진한 면 */
+[data-theme="dark"] .bg-gold-300 {
+  background-color: var(--color-gold-300);
+}
+/* 카드 그림자는 어두운 바탕에서 밝은 후광이 된다 — 검정으로 되돌린다 */
+[data-theme="dark"] .shadow-zion-700\/10,
+[data-theme="dark"] .shadow-zion-700\/20,
+[data-theme="dark"] .shadow-zion-700\/25 {
+  --tw-shadow-color: oklch(0.1 0.02 262 / 0.55);
+}
+
+/* ═══════════════════════════════════════════════════════════
    반응형·크로스 브라우징 기반
    PC(Chrome/Edge) · Android(Chrome) · iOS(Safari/웹뷰)에서 같게 보이도록
    여기서 한 번에 잡는다. 화면 파일마다 되풀이하지 않는다.
