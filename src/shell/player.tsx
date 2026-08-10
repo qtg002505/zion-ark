@@ -34,17 +34,53 @@ const TRACK_KEY = "zion_ark_bgm_tracks";
 const VOLUME_KEY = "zion_ark_bgm_volume";
 
 /**
- * 음원 목록 — 지금은 비어 있다. 리드가 음원 주소를 주면 여기 시드로 넣거나
- * 화면에서 등록한다. 저작권 확인 없는 음원은 올리지 않는다.
+ * 기본 음원 — 리드가 준 파일을 `public/music/`에 두고 시드로 싣는다 (2026-08-10).
+ *
+ * ⚠️ 경로 앞에 `import.meta.env.BASE_URL`을 붙인다. GitHub Pages는 하위 경로
+ * (`/zion-ark/`)로 서비스되므로 `/music/…`으로 적으면 **배포본에서만 404**가 난다.
+ * ⚠️ 파일명에 `[` `]` `#` `~`가 있으면 Vite dev 서버가 403을 낸다 —
+ * `scripts/copy-music.mjs`가 걷어내고 복사한다.
+ *
+ * 갈래는 일단 「찬양」으로 두었다. S-POP·기도송 구분은 리드 확인 후 고친다.
  */
+const SEED_TRACKS: Track[] = [
+  { id: "seed-m1", title: "더 가까이", kind: "찬양", src: "music/더-가까이.mp3" },
+  { id: "seed-m2", title: "We Are One", kind: "찬양", src: "music/AR-We-Are-One.mp3" },
+  { id: "seed-m3", title: "내 믿음의 시작", kind: "찬양", src: "music/AR-내-믿음의-시작.mp3" },
+  { id: "seed-m4", title: "소망의 항해", kind: "찬양", src: "music/AR-소망의-항해.mp3" },
+  { id: "seed-m5", title: "함께", kind: "찬양", src: "music/AR-함께.mp3" },
+].map((t) => ({ ...t, src: import.meta.env.BASE_URL + t.src }));
+
+/**
+ * 저장된 목록을 읽고 **빠진 시드만 덧붙인다.**
+ * 한 번 열어 본 사람에게 나중에 추가된 곡이 안 보이던 문제를 막는다 —
+ * 자료실 시드에서 겪은 것과 같은 함정이다(`store.tsx`의 `load()` 주석).
+ * 사용자가 지운 곡을 되살리지 않도록 **지운 시드 id를 따로 기억**한다.
+ */
+const REMOVED_KEY = "zion_ark_bgm_removed_seeds";
+
+function removedSeeds(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
 function loadTracks(): Track[] {
+  let stored: Track[] | null = null;
   try {
     const raw = localStorage.getItem(TRACK_KEY);
-    if (raw) return JSON.parse(raw) as Track[];
+    if (raw) stored = JSON.parse(raw) as Track[];
   } catch {
-    /* 손상 시 빈 목록 */
+    /* 손상 시 시드로 복구 */
   }
-  return [];
+  if (!stored) return SEED_TRACKS;
+
+  const have = new Set(stored.map((t) => t.id));
+  const gone = removedSeeds();
+  const missing = SEED_TRACKS.filter((s) => !have.has(s.id) && !gone.has(s.id));
+  return missing.length > 0 ? [...stored, ...missing] : stored;
 }
 
 interface PlayerValue {
@@ -144,6 +180,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       addTrack: (input) => persist([...tracks, { id: Math.random().toString(36).slice(2, 10), ...input }]),
       removeTrack: (id) => {
         if (current?.id === id) stop();
+        // 시드 곡을 지웠으면 기억해 둔다 — 안 그러면 다음에 열 때 되살아난다
+        if (SEED_TRACKS.some((s) => s.id === id)) {
+          const gone = removedSeeds();
+          gone.add(id);
+          localStorage.setItem(REMOVED_KEY, JSON.stringify([...gone]));
+        }
         persist(tracks.filter((t) => t.id !== id));
       },
     }),
