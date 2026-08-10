@@ -16,6 +16,7 @@ import { canEditCohortRecord, cohortKeyOf } from "../lib/permissions";
 import { PLAN_ENTRY_LABELS, ROLE_LABELS, type PlanEntry, type PlanEntryKind } from "../lib/types";
 import { COHORT, SCHEDULE } from "../content/cohort-mock";
 import { buildXlsx, downloadBlob, readXlsx } from "../lib/xlsx";
+import { AnchoredPopover } from "../components/AnchoredPopover";
 import { PageHeader, Card } from "./common";
 
 /** 종전 주차별 글 — 달력으로 옮긴 뒤에도 이미 적어 둔 것은 남겨 함께 본다 */
@@ -82,7 +83,12 @@ export function WeeklyPlanPage() {
 
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [picked, setPicked] = useState<string | null>(null);
+  /**
+   * 고른 날짜와 **그 칸 요소** — 팝오버가 누른 자리에서 열리려면 앵커가 필요하다
+   * (2026-08-10 리드 지시). 팝오버 안에서 날짜를 옮겨도 앵커는 처음 자리에 둔다 —
+   * 옮길 때마다 팝오버가 뛰어다니면 눈이 따라가지 못한다.
+   */
+  const [picked, setPicked] = useState<{ date: string; anchor: HTMLElement } | null>(null);
 
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
 
@@ -152,9 +158,10 @@ export function WeeklyPlanPage() {
         </div>
         <button
           onClick={() => {
+            // 이번 달로만 옮긴다 — 팝오버는 칸을 눌러야 그 자리에서 열린다
             const n = new Date();
             setCursor({ year: n.getFullYear(), month: n.getMonth() });
-            setPicked(todayYmd());
+            setPicked(null);
           }}
           className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
         >
@@ -204,10 +211,10 @@ export function WeeklyPlanPage() {
               return (
                 <button
                   key={date}
-                  onClick={() => setPicked(date)}
+                  onClick={(e) => setPicked({ date, anchor: e.currentTarget })}
                   className={
                     "min-h-[86px] rounded-lg border p-1.5 text-left align-top transition hover:border-zion-400 " +
-                    (picked === date
+                    (picked?.date === date
                       ? "border-zion-500 bg-zion-50"
                       : isToday
                         ? "border-zion-300 bg-white"
@@ -268,16 +275,18 @@ export function WeeklyPlanPage() {
         <ImportantList
           entries={planEntries.filter((e) => e.cohortKey === cohortKey && e.important)}
           canEdit={canEdit}
-          onPick={(d) => setPicked(d)}
+          onPick={(d, el) => setPicked({ date: d, anchor: el })}
         />
       </div>
 
       {picked && (
-        <DayDialog
-          date={picked}
-          entries={byDate.get(picked) ?? []}
+        <DayPopover
+          date={picked.date}
+          anchor={picked.anchor}
+          entriesOf={(d) => byDate.get(d) ?? []}
           canEdit={canEdit}
           cohortKey={cohortKey}
+          onMove={(d) => setPicked({ date: d, anchor: picked.anchor })}
           onClose={() => setPicked(null)}
         />
       )}
@@ -302,7 +311,8 @@ function ImportantList({
 }: {
   entries: PlanEntry[];
   canEdit: boolean;
-  onPick: (date: string) => void;
+  /** 누른 줄을 앵커로 넘긴다 — 팝오버가 그 자리에서 열리게 */
+  onPick: (date: string, anchor: HTMLElement) => void;
 }) {
   const session = useSession();
   const { togglePlanImportant } = useStore();
@@ -349,7 +359,7 @@ function ImportantList({
                   }
                 >
                   <button
-                    onClick={() => onPick(e.date)}
+                    onClick={(ev) => onPick(e.date, ev.currentTarget)}
                     className="min-w-0 flex-1 text-left"
                     title="그 날짜 열기"
                   >
@@ -388,17 +398,22 @@ function ImportantList({
 
 /* ── 하루 상세 — 작은 팝업. 항목을 더하고 지우고 중요 표시한다 ── */
 
-function DayDialog({
+function DayPopover({
   date,
-  entries,
+  anchor,
+  entriesOf,
   canEdit,
   cohortKey,
+  onMove,
   onClose,
 }: {
   date: string;
-  entries: PlanEntry[];
+  anchor: HTMLElement;
+  /** 날짜를 옮겨도 그 날 목록을 다시 받아야 한다 */
+  entriesOf: (date: string) => PlanEntry[];
   canEdit: boolean;
   cohortKey: string;
+  onMove: (date: string) => void;
   onClose: () => void;
 }) {
   const session = useSession();
@@ -408,24 +423,22 @@ function DayDialog({
   const [sessionNo, setSessionNo] = useState("");
   const [important, setImportant] = useState(false);
   const titleRef = useRef<HTMLInputElement | null>(null);
-  const returnFocusRef = useRef<Element | null>(null);
 
+  const entries = entriesOf(date);
   const d = new Date(date + "T00:00:00");
   const label = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
 
-  // 팝업이 뜨면 바로 적을 수 있게 입력칸에 focus, Esc로 닫기, 닫으면 원래 자리로
+  /** 하루씩 옮긴다 — 팝오버를 닫았다 다시 열지 않아도 이웃 날짜를 훑는다 */
+  function shiftDay(delta: number) {
+    const n = new Date(d);
+    n.setDate(n.getDate() + delta);
+    onMove(ymd(n));
+  }
+
+  // 열리면 바로 적을 수 있게 입력칸에 커서를 둔다 (닫기·Esc는 팝오버가 맡는다)
   useEffect(() => {
-    returnFocusRef.current = document.activeElement;
     titleRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      (returnFocusRef.current as HTMLElement | null)?.focus?.();
-    };
-  }, [onClose]);
+  }, []);
 
   function add(e: React.FormEvent) {
     e.preventDefault();
@@ -447,27 +460,32 @@ function DayDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${label} 일정`}
-        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
-      >
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-[15px] font-bold text-zion-900">
-          {label}
+    <AnchoredPopover anchor={anchor} width={360} label={`${label} 일정`} onClose={onClose}>
+      <div className="p-3.5">
+      {/* 머리 — 날짜를 좌우로 옮긴다. 닫았다 다시 열 필요가 없다 */}
+      <div className="mb-3 flex items-center gap-1">
+        <button
+          onClick={() => shiftDay(-1)}
+          aria-label="앞날로"
+          className="rounded-lg border border-zion-200 p-1 text-zion-700 transition hover:bg-zion-50"
+        >
+          <ChevronLeft size={13} />
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <div className="truncate text-[14px] font-bold text-zion-900">{label}</div>
           {COHORT_MARKS[date] && (
-            <span className="ml-2 rounded bg-gold-100 px-1.5 py-0.5 text-[11px] font-bold text-gold-700">
+            <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700">
               {COHORT_MARKS[date]}
             </span>
           )}
         </div>
+        <button
+          onClick={() => shiftDay(1)}
+          aria-label="다음날로"
+          className="rounded-lg border border-zion-200 p-1 text-zion-700 transition hover:bg-zion-50"
+        >
+          <ChevronRight size={13} />
+        </button>
         <button onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
           <X size={16} />
         </button>
@@ -578,7 +596,7 @@ function DayDialog({
         </form>
       )}
       </div>
-    </div>
+    </AnchoredPopover>
   );
 }
 

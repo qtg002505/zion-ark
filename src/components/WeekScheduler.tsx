@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Cake, ChevronLeft, ChevronRight, Download, Plus, Trash2 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -6,6 +6,7 @@ import { isFieldStaff } from "../lib/permissions";
 import { STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
 import { kstToday } from "../lib/daily";
+import { AnchoredPopover } from "./AnchoredPopover";
 import { Card } from "../pages/common";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -40,7 +41,8 @@ export function WeekScheduler() {
   const session = useSession();
   const { personalEvents, addPersonalEvent, deletePersonalEvent } = useStore();
   const [offset, setOffset] = useState(0); // 0 = 이번 주
-  const [openDay, setOpenDay] = useState<string | null>(null);
+  /** 고른 날짜 + 누른 칸 — 팝오버가 그 자리에서 열리게 (2026-08-10 리드 지시) */
+  const [openDay, setOpenDay] = useState<{ date: string; anchor: HTMLElement } | null>(null);
 
   const base = useMemo(() => {
     const s = weekStart(new Date());
@@ -233,7 +235,7 @@ export function WeekScheduler() {
               </ul>
 
               <button
-                onClick={() => setOpenDay(key)}
+                onClick={(e) => setOpenDay({ date: key, anchor: e.currentTarget })}
                 className="mt-1 flex w-full items-center justify-center gap-0.5 rounded border border-dashed border-zion-200 py-1 text-[10.5px] font-semibold text-zion-600 transition hover:border-zion-400 hover:bg-zion-50"
               >
                 <Plus size={10} /> 추가
@@ -254,11 +256,15 @@ export function WeekScheduler() {
       </p>
 
       {openDay && (
-        <AddEventDialog
-          date={openDay}
+        <AddEventPopover
+          date={openDay.date}
+          anchor={openDay.anchor}
+          events={mine.filter((e) => e.date === openDay.date)}
+          onMove={(d) => setOpenDay({ date: d, anchor: openDay.anchor })}
           onClose={() => setOpenDay(null)}
+          onDelete={deletePersonalEvent}
           onAdd={(time, title) => {
-            addPersonalEvent({ userName: session.name, date: openDay, time, title });
+            addPersonalEvent({ userName: session.name, date: openDay.date, time, title });
           }}
         />
       )}
@@ -266,77 +272,129 @@ export function WeekScheduler() {
   );
 }
 
-function AddEventDialog({
+/**
+ * 일정 추가 팝오버 — 누른 칸 옆에서 열리고, 좌우 화살표로 **이웃 날짜로 옮긴다**.
+ * 팝오버 자리는 처음 연 곳에 둔다 — 날짜를 옮길 때마다 뛰어다니면 눈이 따라가지 못한다.
+ */
+function AddEventPopover({
   date,
+  anchor,
+  events,
+  onMove,
   onClose,
   onAdd,
+  onDelete,
 }: {
   date: string;
+  anchor: HTMLElement;
+  events: { id: string; time: string; title: string }[];
+  onMove: (date: string) => void;
   onClose: () => void;
   onAdd: (time: string, title: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const [time, setTime] = useState("09:00");
   const [title, setTitle] = useState("");
+  const titleRef = useRef<HTMLInputElement | null>(null);
 
   const d = new Date(date + "T00:00:00");
   const label = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
+  function shiftDay(delta: number) {
+    const n = new Date(d);
+    n.setDate(n.getDate() + delta);
+    onMove(ymd(n));
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (title.trim().length < 1) return;
     onAdd(time, title.trim());
-    setTitle(""); // 연달아 적을 수 있게 창은 열어 둔다
+    setTitle(""); // 연달아 적을 수 있게 팝오버는 열어 둔다
+    titleRef.current?.focus();
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <form
-        onSubmit={submit}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${label} 일정 추가`}
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl"
-      >
-        <h2 className="mb-1 text-[15px] font-bold text-zion-900">{label} 일정 추가</h2>
-        <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
-          나만 보는 일정입니다. 수강생 이름·개인 사정은 적지 않습니다.
-        </p>
-
-        <div className="mb-3 flex gap-2">
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            aria-label="시각"
-            className="rounded-lg border border-zion-100 px-2 py-2 text-[13px] outline-none focus:border-zion-500"
-          />
-          <input
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="예) 분반 모임 준비"
-            className="min-w-0 flex-1 rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-          />
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            닫기
-          </button>
+    <AnchoredPopover anchor={anchor} width={320} label={`${label} 일정`} onClose={onClose}>
+      <div className="p-3.5">
+        <div className="mb-2.5 flex items-center gap-1">
           <button
-            type="submit"
-            disabled={title.trim().length === 0}
-            className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:bg-zion-300"
+            onClick={() => shiftDay(-1)}
+            aria-label="앞날로"
+            className="rounded-lg border border-zion-200 p-1 text-zion-700 transition hover:bg-zion-50"
           >
-            추가
+            <ChevronLeft size={13} />
+          </button>
+          <div className="min-w-0 flex-1 truncate text-center text-[14px] font-bold text-zion-900">
+            {label}
+          </div>
+          <button
+            onClick={() => shiftDay(1)}
+            aria-label="다음날로"
+            className="rounded-lg border border-zion-200 p-1 text-zion-700 transition hover:bg-zion-50"
+          >
+            <ChevronRight size={13} />
           </button>
         </div>
-      </form>
-    </div>
+
+        {events.length > 0 && (
+          <ul className="mb-2.5 space-y-1">
+            {events
+              .slice()
+              .sort((a, b) => a.time.localeCompare(b.time))
+              .map((e) => (
+                <li key={e.id} className="flex items-start gap-1.5 rounded bg-zion-50 px-2 py-1.5">
+                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-zion-700">
+                    {e.time || "종일"}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[12px] leading-snug text-ink">{e.title}</span>
+                  <button
+                    onClick={() => onDelete(e.id)}
+                    aria-label={`${e.title} 지우기`}
+                    className="shrink-0 rounded p-0.5 text-ink-soft transition hover:text-red-600"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
+
+        <form onSubmit={submit}>
+          <div className="mb-2 flex gap-1.5">
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="시각"
+              className="rounded-lg border border-zion-100 px-2 py-1.5 text-[12px] outline-none focus:border-zion-500"
+            />
+            <input
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예) 분반 모임 준비"
+              className="min-w-0 flex-1 rounded-lg border border-zion-100 px-2.5 py-1.5 text-[12px] outline-none focus:border-zion-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] leading-tight text-ink-soft">
+              나만 보는 일정 — 수강생 이름은 적지 않습니다
+            </span>
+            <button
+              type="submit"
+              disabled={title.trim().length === 0}
+              className="ml-auto shrink-0 rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:bg-zion-300"
+            >
+              추가
+            </button>
+          </div>
+        </form>
+      </div>
+    </AnchoredPopover>
   );
 }
