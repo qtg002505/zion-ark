@@ -19,6 +19,13 @@ import {
   COHORT_RANKS,
   type WeeklyRate,
 } from "../content/cohort-mock";
+import {
+  MARK_GLYPH,
+  MARK_LABEL,
+  MARK_TONE,
+  cohortRates,
+  rateOf,
+} from "../lib/attendance-rate";
 import { PageHeader, Card, StatTile, StatusBadge } from "./common";
 
 type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
@@ -65,16 +72,11 @@ export function CohortStatus() {
       ? 0
       : Math.round(students.reduce((a, s) => a + s.attendanceRate, 0) / students.length);
 
-  // 대면 시간대 — 저녁 비중은 보강 편성 신호다 (CLAUDE.md §12-2)
-  const slot = students.reduce(
-    (acc, s) => ({
-      evening: acc.evening + s.slotCounts.evening,
-      morning: acc.morning + s.slotCounts.morning,
-      afternoon: acc.afternoon + s.slotCounts.afternoon,
-    }),
-    { evening: 0, morning: 0, afternoon: 0 },
-  );
-  const slotSum = slot.evening + slot.morning + slot.afternoon || 1;
+  /**
+   * 전추율 — 보강까지 마친 것을 출석으로 함께 센 실제 출석률 (2026-08-10 리드 어휘).
+   * 대면만 세면 보강으로 따라잡은 사람이 결석자와 같이 묶여 실제보다 나빠 보인다.
+   */
+  const rates = useMemo(() => cohortRates(students), [students]);
 
   return (
     <div>
@@ -140,85 +142,44 @@ export function CohortStatus() {
               <div className="mt-2 text-right text-[11px] text-ink-soft">구간: 출석률(%) · 막대: 수강생 수</div>
             </Card>
 
+            {/*
+              2026-08-10 리드 지시로 「대면 시간대」 그래프를 걷어내고 이 자리에 전추율을 놓았다.
+              시간대 집계(`slotCounts`)는 데이터에 그대로 남아 있다 — 보강 편성 때 다시
+              필요해질 수 있어 지우지 않았다(불변식 10). 화면에서만 뺀 것이다.
+            */}
             <Card className="col-span-2 max-md:col-span-1">
-              <div className="mb-1 text-[14px] font-bold text-zion-900">대면 시간대</div>
+              <div className="mb-1 text-[14px] font-bold text-zion-900">전추율 (보강 포함 실제 출석률)</div>
               <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-                저녁 대면이 전체의{" "}
-                <strong className="text-zion-800">{Math.round((slot.evening / slotSum) * 100)}%</strong> — 보강
-                편성 시 저녁 시간대를 우선 검토할 신호입니다.
+                최근 8주 기준 <strong className="text-zion-800">{rates.jeonchu}%</strong> — 대면만 세면{" "}
+                {rates.presentOnly}%입니다. <strong className="text-zion-800">차이 {rates.jeonchu - rates.presentOnly}%p</strong>가
+                보강으로 따라잡은 몫입니다.
               </p>
               {(
                 [
-                  ["저녁(대면)", slot.evening],
-                  ["오전(대면)", slot.morning],
-                  ["오후(대면)", slot.afternoon],
+                  ["전추율 (대면 + 보강 완료)", rates.jeonchu],
+                  ["대면 출석률", rates.presentOnly],
                 ] as const
               ).map(([label, v]) => (
-                <div key={label} className="mb-2.5" title={`${label} ${v}회`}>
+                <div key={label} className="mb-2.5">
                   <div className="mb-1 flex justify-between text-[12px]">
                     <span className="text-ink-soft">{label}</span>
-                    <span className="font-semibold text-zion-800">
-                      {v}회 · {Math.round((v / slotSum) * 100)}%
-                    </span>
+                    <span className="font-semibold text-zion-800">{v}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-zion-100">
-                    <div className="h-full rounded-full bg-zion-700" style={{ width: `${(v / slotSum) * 100}%` }} />
+                    <div className="h-full rounded-full bg-zion-700" style={{ width: `${v}%` }} />
                   </div>
                 </div>
               ))}
+              <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+                미입력은 분모에서 뺍니다 — 모르는 것을 결석으로 세지 않습니다. 아직 이행하지 않은
+                보강(▽)은 결석으로 셉니다.
+              </p>
             </Card>
           </div>
         </>
       )}
 
-      {tab === "attendance" && (
-        <Card>
-          {/* 좁은 화면에서는 표만 가로로 넘긴다 — 본문이 옆으로 밀리지 않게 */}
-          <div className="-mx-1 overflow-x-auto px-1">
-            <table className="w-full min-w-[560px] text-[13px]">
-              <thead>
-                <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
-                  <th className="pb-2 font-medium">이름</th>
-                  <th className="pb-2 font-medium">분반</th>
-                  <th className="pb-2 font-medium">출석</th>
-                  <th className="pb-2 font-medium">출석률</th>
-                  <th className="pb-2 font-medium">최근 출석</th>
-                  <th className="pb-2 font-medium">상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...students]
-                  .sort((a, b) => a.attendanceRate - b.attendanceRate)
-                  .map((s) => (
-                    <tr key={s.key} className="border-b border-zion-100 last:border-0">
-                      <td className="py-2.5 font-medium text-ink">{s.name}</td>
-                      <td className="py-2.5 text-ink-soft">{s.division}</td>
-                      <td className="py-2.5 text-ink-soft">
-                        {s.presentCount}/{s.totalSessions}회
-                      </td>
-                      <td className="py-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-zion-100">
-                            <div className="h-full rounded-full bg-zion-700" style={{ width: `${s.attendanceRate}%` }} />
-                          </div>
-                          <span className="font-semibold text-zion-800">{s.attendanceRate}%</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 text-ink-soft">{s.lastAttended ?? "—"}</td>
-                      <td className="py-2.5">
-                        <StatusBadge status={s.status} />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-[11px] text-ink-soft">
-            출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음
-            동기화를 기다립니다.
-          </p>
-        </Card>
-      )}
+      {tab === "attendance" && <AttendanceGrid students={students} />}
 
       {tab === "trend" && <WeeklyTrend rows={WEEKLY_RATES} />}
 
@@ -255,6 +216,111 @@ export function CohortStatus() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 출석 격자 (2026-08-10 리드 지시) — 사명자가 훑어보고 바로 읽히는 표기로 바꿨다.
+ *
+ * 종전에는 사람마다 출석률 막대 하나였다. 숫자는 정확하지만 **누가 언제 빠졌는지**가
+ * 안 보였다. 이제 최근 8주를 칸으로 늘어놓아 결석이 몰린 자리가 눈에 띈다.
+ *
+ * 기호는 색과 **함께** 쓴다 — 색만으로 뜻을 전하면 색을 구별하기 어려운 사람이 읽지 못한다.
+ *   O 출석(대면) · △ 보강 완료 · ▽ 보강 예정(미이행) · X 결석 · · 미입력
+ *
+ * ⚠️ 지금 축은 **주 단위**다. 목업에 요일이 없기 때문이다 — 실연동 시 출결 시트에서
+ * 회차별 날짜가 오면 이 격자의 칸 수와 라벨만 바뀌고 구조는 그대로다.
+ */
+function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
+  const weekCount = Math.max(0, ...students.map((s) => s.recentWeeks.length));
+  const rows = [...students].sort((a, b) => {
+    const d = rateOf(a).jeonchu - rateOf(b).jeonchu;
+    return d !== 0 ? d : a.attendanceRate - b.attendanceRate;
+  });
+
+  return (
+    <Card>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-[14px] font-bold text-zion-900">최근 {weekCount}주 출결</div>
+          <p className="mt-0.5 text-[12px] text-ink-soft">
+            전추율이 낮은 사람이 위에 옵니다 — 먼저 볼 사람이 먼저 보이게 했습니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          {(["present", "makeupDone", "makeupPending", "absent", "unknown"] as const).map((m) => (
+            <span key={m} className="flex items-center gap-1 text-ink-soft">
+              <span
+                className={
+                  "inline-flex h-5 w-5 items-center justify-center rounded border text-[11px] font-bold " +
+                  MARK_TONE[m]
+                }
+              >
+                {MARK_GLYPH[m]}
+              </span>
+              {MARK_LABEL[m]}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 좁은 화면에서는 표만 가로로 넘긴다 — 본문이 옆으로 밀리지 않게 */}
+      <div className="-mx-1 overflow-x-auto px-1">
+        <table className="w-full min-w-[620px] text-[13px]">
+          <thead>
+            <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
+              <th className="pb-2 font-medium">이름</th>
+              <th className="pb-2 font-medium">분반</th>
+              <th className="pb-2 text-center font-medium" colSpan={weekCount}>
+                최근 → 이전
+              </th>
+              <th className="pb-2 text-right font-medium">전추율</th>
+              <th className="pb-2 text-right font-medium">대면</th>
+              <th className="pb-2 pl-3 font-medium">상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((s) => {
+              const r = rateOf(s);
+              return (
+                <tr key={s.key} className="border-b border-zion-100 last:border-0">
+                  <td className="py-2 pr-2 font-medium text-ink">{s.name}</td>
+                  <td className="py-2 pr-2 text-[12px] text-ink-soft">{s.division}</td>
+                  {Array.from({ length: weekCount }, (_, i) => {
+                    const w = s.recentWeeks[i];
+                    const mark = w?.mark ?? "unknown";
+                    return (
+                      <td key={i} className="py-2 text-center">
+                        <span
+                          className={
+                            "inline-flex h-6 w-6 items-center justify-center rounded border text-[11px] font-bold " +
+                            MARK_TONE[mark]
+                          }
+                          title={`${i === 0 ? "이번 주" : `${i}주 전`} — ${MARK_LABEL[mark]}`}
+                        >
+                          {MARK_GLYPH[mark]}
+                        </span>
+                      </td>
+                    );
+                  })}
+                  <td className="py-2 text-right font-semibold text-zion-800">{r.jeonchu}%</td>
+                  <td className="py-2 text-right text-[12px] text-ink-soft">{r.presentOnly}%</td>
+                  <td className="py-2 pl-3">
+                    <StatusBadge status={s.status} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
+        출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음
+        동기화를 기다립니다. 「전추율」은 보강 완료(△)를 출석으로 함께 센 값이고, 「대면」은 대면
+        출석(O)만 센 값입니다.
+      </p>
+    </Card>
   );
 }
 
