@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
 import { STUDENTS, DIVISIONS, STATUS_LABELS } from "../content/cohort-mock";
 import type { Student } from "../lib/types";
+import { StudentDetailModal } from "../components/StudentDetailModal";
 import { PageHeader, Card, StatusBadge } from "./common";
 
 type StatusFilter = "all" | Student["status"];
@@ -14,6 +15,11 @@ export function Students() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  /**
+   * 상세를 **팝업으로** 연다 (2026-08-10 리드 지시). 페이지를 통째로 바꾸면 목록으로
+   * 돌아올 때 스크롤 위치와 필터를 잃어 여러 명을 훑기 번거롭다.
+   */
+  const [picked, setPicked] = useState<string | null>(null);
 
   const divisions = visibleDivisions(session, DIVISIONS);
 
@@ -83,30 +89,41 @@ export function Students() {
         ) : (
           <ul className="divide-y divide-zion-100">
             {list.map((s) => (
-              <li key={s.key} className="flex items-center gap-4 py-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[13px] font-bold text-zion-700">
-                  {s.name[0]}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-semibold text-ink">{s.name}</span>
-                    <span className="text-[12px] text-ink-soft">{s.division}</span>
+              <li key={s.key}>
+                {/* 줄 전체가 눌린다 — 이름만 누르게 하면 손가락으로 맞히기 어렵다 */}
+                <button
+                  onClick={() => setPicked(s.key)}
+                  aria-haspopup="dialog"
+                  className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-4 rounded-lg px-2 py-3 text-left transition hover:bg-zion-50"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[13px] font-bold text-zion-700">
+                    {s.name[0]}
                   </div>
-                  <div className="mt-0.5 text-[12px] text-ink-soft">
-                    출석 {s.presentCount}/{s.totalSessions}회 ({s.attendanceRate}%) · 최근 출석{" "}
-                    {s.lastAttended ?? "기록 없음"}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-semibold text-ink">{s.name}</span>
+                      <span className="text-[12px] text-ink-soft">{s.division}</span>
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-ink-soft">
+                      출석 {s.presentCount}/{s.totalSessions}회 ({s.attendanceRate}%) · 최근 출석{" "}
+                      {s.lastAttended ?? "기록 없음"}
+                    </div>
                   </div>
-                </div>
-                <StatusBadge status={s.status} />
+                  <StatusBadge status={s.status} />
+                  <ChevronRight size={15} className="shrink-0 text-zion-300" />
+                </button>
               </li>
             ))}
           </ul>
         )}
         <p className="mt-4 border-t border-zion-100 pt-3 text-[11px] text-ink-soft">
-          시범 목업 데이터(가상 인물)입니다. 실제 연동 시 이름·인적사항 등 원문 개인정보는 담당 범위 밖으로
+          이름을 누르면 상세가 창으로 열립니다 — 목록 자리를 잃지 않습니다. 시범 목업
+          데이터(가상 인물)입니다. 실제 연동 시 이름·인적사항 등 원문 개인정보는 담당 범위 밖으로
           내보낼 수 없으며, 상담·차트 기록은 담당자와 열람 권한자에게만 표시됩니다.
         </p>
       </Card>
+
+      {picked && <StudentDetailModal studentKey={picked} onClose={() => setPicked(null)} />}
     </div>
   );
 }

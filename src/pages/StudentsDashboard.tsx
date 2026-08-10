@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { Search, Users, RotateCcw, Sparkles, CalendarCheck, RefreshCw, MessageCircle, ChevronRight } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -28,6 +27,7 @@ import {
 import { weekdayOf } from "../lib/date-format";
 import { enneagramGuides } from "../content/enneagram-guides";
 import type { Student } from "../lib/types";
+import { StudentDetailModal } from "../components/StudentDetailModal";
 import { PageHeader, Card } from "./common";
 
 const GRADE_ORDER: Grade[] = ["A", "B", "C", "D"];
@@ -55,6 +55,8 @@ export function StudentsDashboard() {
   const [faithFilter, setFaithFilter] = useState<FaithType | "all">("all");
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  /** 상세는 팝업으로 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 (2026-08-10 리드 지시) */
+  const [modalKey, setModalKey] = useState<string | null>(null);
 
   const overrideByKey = useMemo(
     () => Object.fromEntries(studentStatusOverrides.map((o) => [o.studentKey, o])),
@@ -298,11 +300,13 @@ export function StudentsDashboard() {
         </Card>
 
         {/* 오른쪽: 선택 수강생 메모장 */}
-        <StudentDetail row={selected} />
+        <StudentDetail row={selected} onOpenDetail={() => setModalKey(selected?.student.key ?? null)} />
       </div>
 
       {/* 하단: 복합 분석 */}
       <AnalysisSection rows={filtered} divisionFilter={divisionFilter} />
+
+      {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
     </div>
   );
 }
@@ -415,7 +419,7 @@ type Row = {
   yuwol: "오픈" | "비오픈";
 };
 
-function StudentDetail({ row }: { row: Row | undefined }) {
+function StudentDetail({ row, onOpenDetail }: { row: Row | undefined; onOpenDetail: () => void }) {
   if (!row) {
     return (
       <Card className="flex min-h-[240px] items-center justify-center text-center">
@@ -441,7 +445,6 @@ function StudentDetail({ row }: { row: Row | undefined }) {
   const latestNote = p.feedback[0];
   const OK_TONE = "border-emerald-200 bg-emerald-50 text-emerald-700";
   const WARN_TONE = "border-amber-200 bg-amber-50 text-amber-700";
-  const detailHref = `/students/${encodeURIComponent(s.key)}`;
 
   return (
     <Card>
@@ -465,13 +468,14 @@ function StudentDetail({ row }: { row: Row | undefined }) {
             </div>
           </div>
         </div>
-        <Link
-          to={detailHref}
+        <button
+          onClick={onOpenDetail}
+          aria-haspopup="dialog"
           className="flex shrink-0 items-center gap-0.5 rounded-lg border border-zion-100 px-2 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
-          title="수강생 정보 상세로 이동"
+          title="수강생 정보 상세 열기"
         >
           상세 <ChevronRight size={12} />
-        </Link>
+        </button>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -486,7 +490,7 @@ function StudentDetail({ row }: { row: Row | undefined }) {
         <div className="mb-1 text-[12px] font-bold text-zion-900">최근 활동 요약</div>
         <div className="divide-y divide-zion-100">
           <ActivityRow
-            to={detailHref}
+            onOpen={onOpenDetail}
             icon={CalendarCheck}
             label={FEEDBACK_KIND_LABELS.attendance}
             badge={`연속 ${streak}회`}
@@ -510,7 +514,7 @@ function StudentDetail({ row }: { row: Row | undefined }) {
           </ActivityRow>
 
           <ActivityRow
-            to={detailHref}
+            onOpen={onOpenDetail}
             icon={RefreshCw}
             label={FEEDBACK_KIND_LABELS.makeup}
             badge={hasMakeupPending ? "확인 필요" : "정상"}
@@ -520,7 +524,7 @@ function StudentDetail({ row }: { row: Row | undefined }) {
           </ActivityRow>
 
           <ActivityRow
-            to={detailHref}
+            onOpen={onOpenDetail}
             icon={MessageCircle}
             label={FEEDBACK_KIND_LABELS.counsel}
             badge={counselOngoing ? "진행중" : "완료"}
@@ -537,12 +541,13 @@ function StudentDetail({ row }: { row: Row | undefined }) {
               <span className="text-[11px] text-ink-soft">{latestNote.date}</span>
             </div>
             <p className="line-clamp-2 text-[12.5px] leading-relaxed text-ink-soft">{latestNote.text}</p>
-            <Link
-              to={detailHref}
+            <button
+              onClick={onOpenDetail}
+              aria-haspopup="dialog"
               className="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-zion-700 hover:underline"
             >
               전체 메모 보기 <ChevronRight size={12} />
-            </Link>
+            </button>
           </div>
         )}
       </div>
@@ -570,7 +575,7 @@ function StudentDetail({ row }: { row: Row | undefined }) {
   );
 }
 
-/** 최근 활동 요약 한 줄 — 아이콘·라벨·요약 내용·상태 배지·상세 페이지 진입 화살표(참고 화면 구성) */
+/** 최근 활동 요약 한 줄 — 아이콘·라벨·요약 내용·상태 배지·상세 진입 화살표(참고 화면 구성) */
 function ActivityRow({
   icon: Icon,
   label,
@@ -578,7 +583,7 @@ function ActivityRow({
   badgeTone,
   children,
   sub,
-  to,
+  onOpen,
 }: {
   icon: typeof CalendarCheck;
   label: string;
@@ -587,11 +592,15 @@ function ActivityRow({
   children: ReactNode;
   /** 행 아래 보조 설명 줄 (예: 출석률·최근 출석일) */
   sub?: ReactNode;
-  /** 누르면 이동할 수강생 상세 페이지 경로 */
-  to: string;
+  /** 누르면 상세를 **팝업으로** 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 */
+  onOpen: () => void;
 }) {
   return (
-    <Link to={to} className="-mx-1 block rounded-lg px-1 py-2 transition hover:bg-zion-50">
+    <button
+      onClick={onOpen}
+      aria-haspopup="dialog"
+      className="-mx-1 block w-[calc(100%+0.5rem)] rounded-lg px-1 py-2 text-left transition hover:bg-zion-50"
+    >
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zion-100 text-zion-700">
           <Icon size={14} />
@@ -604,7 +613,7 @@ function ActivityRow({
         <ChevronRight size={14} className="shrink-0 text-ink-soft" />
       </div>
       {sub && <div className="mt-1 pl-9 text-[11px] leading-relaxed text-ink-soft">{sub}</div>}
-    </Link>
+    </button>
   );
 }
 

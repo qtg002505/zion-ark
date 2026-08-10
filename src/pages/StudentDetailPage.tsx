@@ -66,7 +66,18 @@ const COURSE_LEVELS: CourseLevel[] = ["초등", "중등", "고등"];
  * ⚠️ 생년월일·전화·주소는 2026-08-09 리드 지시로 넣었다 — 실제 마팔 연동이 아니라
  * `student-profiles.ts`의 시범 값(가상 인물)이다. 실연동 시 이 자리가 마팔 데이터로 바뀐다(C-7).
  */
-export function StudentDetailPage() {
+export function StudentDetailPage({
+  studentKey,
+  embedded = false,
+}: {
+  /**
+   * 팝업에서 쓸 때 넘기는 수강생 키. 없으면 주소(`/students/:key`)에서 읽는다 —
+   * 같은 화면을 **페이지와 팝업 두 곳에서 한 벌로** 쓰기 위한 장치다.
+   */
+  studentKey?: string;
+  /** 팝업 안에서는 페이지 제목·「목록으로」를 숨긴다 (팝업이 이미 제목과 닫기를 갖는다) */
+  embedded?: boolean;
+} = {}) {
   const session = useSession();
   const {
     studentStatusOverrides,
@@ -81,7 +92,7 @@ export function StudentDetailPage() {
     toggleChecklistItem,
   } = useStore();
   const { key } = useParams<{ key: string }>();
-  const decodedKey = key ? decodeURIComponent(key) : "";
+  const decodedKey = studentKey ?? (key ? decodeURIComponent(key) : "");
   const student = STUDENTS.find((s) => s.key === decodedKey);
 
   if (!student) {
@@ -163,19 +174,21 @@ export function StudentDetailPage() {
 
   return (
     <div>
-      <PageHeader
-        crumb="수강생 관리 도우미"
-        title={`${student.name} — 수강생 정보 상세`}
-        desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${student.division} — 조회 범위: ${studentScopeLabel(session)}`}
-        action={
-          <Link
-            to="/students-dashboard"
-            className="flex items-center gap-1 rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
-          >
-            <ArrowLeft size={13} /> 목록으로
-          </Link>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          crumb="수강생 관리 도우미"
+          title={`${student.name} — 수강생 정보 상세`}
+          desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${student.division} — 조회 범위: ${studentScopeLabel(session)}`}
+          action={
+            <Link
+              to="/students-dashboard"
+              className="flex items-center gap-1 rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+            >
+              <ArrowLeft size={13} /> 목록으로
+            </Link>
+          }
+        />
+      )}
 
       {/* 상태 표시줄 — 기본값은 자동 지정, 해당 기수 강사·전도사는 직접 바꿀 수 있다 */}
       <Card className="mb-4">
