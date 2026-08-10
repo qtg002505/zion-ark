@@ -14,11 +14,27 @@ import { usePlayer } from "./player";
  *
  * 오디오 자체는 셸 최상위(`PlayerProvider`)에 있어 화면을 옮겨도 끊기지 않는다.
  */
+/** 초 → "3:07" — 한 자리 초가 07로 나오게 채운다 */
+function mmss(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${`${s}`.padStart(2, "0")}`;
+}
+
 export function MiniPlayer() {
-  const { tracks, current, playing, volume, error, play, toggle, next, setVolume } = usePlayer();
+  const { tracks, current, playing, volume, position, duration, error, play, toggle, next, seek, setVolume } =
+    usePlayer();
   const [open, setOpen] = useState(false);
+  /**
+   * 손잡이를 끄는 동안에는 재생 위치를 화면에 그대로 반영하지 않는다.
+   * 안 그러면 끌고 있는 중에 `timeupdate`가 값을 되돌려 손잡이가 튄다.
+   */
+  const [dragging, setDragging] = useState<number | null>(null);
 
   const empty = tracks.length === 0;
+  const seekable = duration > 0;
+  const shown = dragging ?? position;
 
   return (
     <div className="relative shrink-0">
@@ -75,25 +91,60 @@ export function MiniPlayer() {
             ) : (
               <>
                 {current && (
-                  <div className="mb-2 flex items-center gap-2 rounded-lg bg-zion-50 px-2.5 py-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12px] font-semibold text-ink">{current.title}</div>
-                      <div className="text-[10.5px] text-ink-soft">{current.kind}</div>
+                  <div className="mb-2 rounded-lg bg-zion-50 px-2.5 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[12px] font-semibold text-ink">{current.title}</div>
+                        <div className="text-[10.5px] text-ink-soft">{current.kind}</div>
+                      </div>
+                      <button
+                        onClick={toggle}
+                        aria-label={playing ? "일시정지" : "재생"}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zion-700 text-white transition hover:bg-zion-600"
+                      >
+                        {playing ? <Pause size={13} /> : <Play size={13} />}
+                      </button>
+                      <button
+                        onClick={next}
+                        aria-label="다음 곡"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zion-200 text-zion-700 transition hover:bg-white"
+                      >
+                        <SkipForward size={13} />
+                      </button>
                     </div>
-                    <button
-                      onClick={toggle}
-                      aria-label={playing ? "일시정지" : "재생"}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zion-700 text-white transition hover:bg-zion-600"
-                    >
-                      {playing ? <Pause size={13} /> : <Play size={13} />}
-                    </button>
-                    <button
-                      onClick={next}
-                      aria-label="다음 곡"
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zion-200 text-zion-700 transition hover:bg-white"
-                    >
-                      <SkipForward size={13} />
-                    </button>
+
+                    {/*
+                      진행바 — 듣고 싶은 지점으로 옮긴다 (2026-08-10 리드 지시).
+                      `range` 입력을 쓴 이유: 키보드(←→)와 화면 낭독기가 그대로 동작하고,
+                      직접 만든 막대보다 터치 조작이 정확하다.
+                      길이를 모르는 동안(메타데이터 로딩 전)에는 잠근다 — 그때 옮기면 되돌아온다.
+                    */}
+                    <div className="mt-2">
+                      <input
+                        type="range"
+                        min={0}
+                        max={seekable ? duration : 1}
+                        step={0.5}
+                        value={seekable ? Math.min(shown, duration) : 0}
+                        disabled={!seekable}
+                        onChange={(e) => setDragging(Number(e.target.value))}
+                        onPointerUp={() => {
+                          if (dragging !== null) seek(dragging);
+                          setDragging(null);
+                        }}
+                        onKeyUp={() => {
+                          if (dragging !== null) seek(dragging);
+                          setDragging(null);
+                        }}
+                        aria-label="재생 위치"
+                        aria-valuetext={`${mmss(shown)} / ${mmss(duration)}`}
+                        className="w-full accent-zion-700 disabled:opacity-40"
+                      />
+                      <div className="flex justify-between text-[10px] tabular-nums text-ink-soft">
+                        <span>{mmss(shown)}</span>
+                        <span>{seekable ? mmss(duration) : "불러오는 중…"}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 

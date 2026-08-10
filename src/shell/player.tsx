@@ -49,6 +49,7 @@ const SEED_TRACKS: Track[] = [
   { id: "seed-m3", title: "내 믿음의 시작", kind: "S-POP", src: "music/AR-내-믿음의-시작.mp3" },
   { id: "seed-m4", title: "소망의 항해", kind: "S-POP", src: "music/AR-소망의-항해.mp3" },
   { id: "seed-m5", title: "함께", kind: "S-POP", src: "music/AR-함께.mp3" },
+  { id: "seed-m6", title: "고전15장 58절", kind: "S-POP", src: "music/S-POP-고전15장-58절.mp3" },
 ].map((t) => ({ ...t, src: import.meta.env.BASE_URL + t.src }));
 
 /**
@@ -97,12 +98,18 @@ interface PlayerValue {
   current: Track | null;
   playing: boolean;
   volume: number;
+  /** 지금 재생 위치(초) — 진행바가 읽는다 */
+  position: number;
+  /** 곡 전체 길이(초). 아직 모르면 0 */
+  duration: number;
   /** 재생이 막혔을 때 사람에게 보여 줄 말 */
   error: string | null;
   play: (track: Track) => void;
   toggle: () => void;
   next: () => void;
   stop: () => void;
+  /** 듣고 싶은 지점으로 옮긴다 (초) */
+  seek: (seconds: number) => void;
   setVolume: (v: number) => void;
   addTrack: (input: Omit<Track, "id">) => void;
   removeTrack: (id: string) => void;
@@ -116,6 +123,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [current, setCurrent] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [volume, setVol] = useState(() => {
     const v = Number(localStorage.getItem(VOLUME_KEY));
     return Number.isFinite(v) && v > 0 && v <= 1 ? v : 0.5;
@@ -172,6 +181,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audioRef.current?.pause();
     setPlaying(false);
     setCurrent(null);
+    setPosition(0);
+    setDuration(0);
+  }, []);
+
+  /**
+   * 듣고 싶은 지점으로 옮긴다.
+   * ⚠️ 아직 길이를 모르는 동안(메타데이터 로딩 전)에는 옮겨도 되돌아온다 —
+   * 그래서 `duration`이 잡히기 전에는 진행바를 잠근다(`MiniPlayer`).
+   */
+  const seek = useCallback((seconds: number) => {
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(el.duration)) return;
+    const clamped = Math.max(0, Math.min(el.duration, seconds));
+    el.currentTime = clamped;
+    setPosition(clamped);
   }, []);
 
   const value = useMemo<PlayerValue>(
@@ -180,11 +204,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       current,
       playing,
       volume,
+      position,
+      duration,
       error,
       play,
       toggle,
       next,
       stop,
+      seek,
       setVolume: setVol,
       addTrack: (input) => persist([...tracks, { id: Math.random().toString(36).slice(2, 10), ...input }]),
       removeTrack: (id) => {
@@ -198,7 +225,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         persist(tracks.filter((t) => t.id !== id));
       },
     }),
-    [tracks, current, playing, volume, error, play, toggle, next, stop, persist],
+    [tracks, current, playing, volume, position, duration, error, play, toggle, next, stop, seek, persist],
   );
 
   return (
@@ -215,7 +242,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setPlaying(false);
           setError("음원을 불러오지 못했습니다. 주소를 확인해 주세요.");
         }}
-        preload="none"
+        // 재생 위치·길이를 화면에 올린다. timeupdate는 초당 4회쯤 와서 진행바에 충분하다
+        onTimeUpdate={(e) => setPosition(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => {
+          const d = e.currentTarget.duration;
+          setDuration(Number.isFinite(d) ? d : 0);
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        preload="metadata"
       />
     </PlayerContext.Provider>
   );
