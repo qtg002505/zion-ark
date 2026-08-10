@@ -7,6 +7,8 @@ import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { CohortStatus } from "./pages/CohortStatus";
 import { Students } from "./pages/Students";
+import { StudentsDashboard } from "./pages/StudentsDashboard";
+import { StudentDetailPage } from "./pages/StudentDetailPage";
 import { Signals } from "./pages/Signals";
 import { Compose } from "./pages/Compose";
 import { Library } from "./pages/Library";
@@ -46,6 +48,8 @@ function Routed() {
         <Route path="/counseling" element={<Counseling />} />
         <Route path="/care" element={<Care />} />
         <Route path="/students" element={<Students />} />
+        <Route path="/students-dashboard" element={<StudentsDashboard />} />
+        <Route path="/students/:key" element={<StudentDetailPage />} />
         <Route path="/signals" element={<Signals />} />
         <Route path="/compose" element={<Compose />} />
         <Route path="/library" element={<Library />} />

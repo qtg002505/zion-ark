@@ -205,8 +205,16 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "수강생 관리 도우미",
     icon: Users,
+    /*
+      2026-08-09 파트 B가 「수강생 현황」(`/students-dashboard`)과 개인 상세
+      (`/students/:key`)를 새로 만들었다. 개인 상세는 목록에서 눌러 들어가는 화면이라
+      메뉴에 두지 않는다 — 내비는 진입점만 담는다.
+      ⚠️ 종전 「수강생 목록」(`/students`)과 역할이 겹친다. 어느 쪽을 남길지 리드 결정 전까지
+      둘 다 두되, 새 화면을 위에 놓아 이쪽이 기본으로 보이게 한다.
+    */
     items: [
-      { to: "/students", label: "수강생 목록", icon: Users },
+      { to: "/students-dashboard", label: "수강생 현황", icon: Users },
+      { to: "/students", label: "수강생 목록 (종전)", icon: ClipboardList },
       { to: "/signals", label: "관찰 필요", icon: BellRing },
       { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
     ],

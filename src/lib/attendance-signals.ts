@@ -12,12 +12,7 @@ import type { Student, WeeklyAttendance } from "./types";
  * 여기서 다루는 것은 출결 사실뿐이며, 신앙·인격·심리는 판단 대상이 아니다.
  */
 
-export type SignalCode =
-  | "consecutive_absence"
-  | "makeup_pending"
-  | "slot_changed"
-  | "unrecorded"
-  | "long_absence";
+export type SignalCode = "consecutive_absence" | "makeup_pending" | "unrecorded" | "long_absence";
 
 export interface Signal {
   code: SignalCode;
@@ -38,14 +33,6 @@ export interface StudentSignals {
 
 const isPresent = (w: WeeklyAttendance) => w.mark === "present" || w.mark === "makeupDone";
 
-/** 받침에 따라 "으로 / 로"를 고른다 — "오전로"처럼 어색하게 읽히지 않게 */
-function toParticle(word: string): string {
-  const code = word.charCodeAt(word.length - 1);
-  const isHangul = code >= 0xac00 && code <= 0xd7a3;
-  const hasFinal = isHangul && (code - 0xac00) % 28 !== 0;
-  return word + (hasFinal ? "으로" : "로");
-}
-
 /** 최근부터 연속으로 나오지 않은 주 수 */
 function consecutiveAbsent(weeks: WeeklyAttendance[]): number {
   let n = 0;
@@ -54,20 +41,6 @@ function consecutiveAbsent(weeks: WeeklyAttendance[]): number {
     else break;
   }
   return n;
-}
-
-function slotChange(weeks: WeeklyAttendance[]): { from: string; to: string } | null {
-  const attended = weeks.filter((w) => isPresent(w) && w.slot);
-  if (attended.length < 4) return null;
-  const recent = attended.slice(0, 2).map((w) => w.slot);
-  const before = attended.slice(2, 5).map((w) => w.slot);
-  if (recent.length < 2 || before.length < 2) return null;
-  // 최근 두 번이 같은 시간대이고, 그 전에는 다른 시간대가 굳어져 있었다면 바뀐 것으로 본다
-  if (recent[0] !== recent[1]) return null;
-  if (!before.every((s) => s === before[0])) return null;
-  if (recent[0] === before[0]) return null;
-  const LABEL: Record<string, string> = { evening: "저녁", morning: "오전", afternoon: "오후" };
-  return { from: LABEL[before[0]!] ?? before[0]!, to: LABEL[recent[0]!] ?? recent[0]! };
 }
 
 export function readSignals(student: Student): StudentSignals {
@@ -105,15 +78,6 @@ export function readSignals(student: Student): StudentSignals {
     });
   }
 
-  const moved = slotChange(weeks);
-  if (moved) {
-    signals.push({
-      code: "slot_changed",
-      text: `출석 시간대가 ${moved.from}에서 ${toParticle(moved.to)} 바뀌었습니다 (생활 사정 확인 필요)`,
-      weight: 25,
-    });
-  }
-
   const unrecorded = weeks.slice(0, 3).filter((w) => w.mark === "unknown").length;
   if (unrecorded > 0) {
     signals.push({
@@ -136,6 +100,16 @@ export function readAll(students: Student[]): StudentSignals[] {
     .map(readSignals)
     .filter((r) => r.signals.length > 0)
     .sort((a, b) => Number(b.isEarly) - Number(a.isEarly) || b.order - a.order);
+}
+
+/** 최근 주부터 연속으로 출석(대면·보강완료)한 주 수 */
+export function attendanceStreak(weeks: WeeklyAttendance[]): number {
+  let n = 0;
+  for (const w of weeks) {
+    if (isPresent(w)) n++;
+    else break;
+  }
+  return n;
 }
 
 /**

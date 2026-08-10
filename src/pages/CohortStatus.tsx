@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PencilLine } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -21,6 +22,7 @@ import {
 import { PageHeader, Card, StatTile, StatusBadge } from "./common";
 
 type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
+const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"];
 
 /**
  * 기수 현황 — 한 기수를 파고드는 자리.
@@ -31,7 +33,9 @@ type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
  */
 export function CohortStatus() {
   const session = useSession();
-  const [tab, setTab] = useState<Tab>("summary");
+  const [searchParams] = useSearchParams();
+  const initialTab = TAB_IDS.includes(searchParams.get("tab") as Tab) ? (searchParams.get("tab") as Tab) : "summary";
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   const divisions = visibleDivisions(session, DIVISIONS);
   const students = STUDENTS.filter((s) => divisions.includes(s.division));
