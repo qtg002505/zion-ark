@@ -208,15 +208,13 @@ const NAV_GROUPS: NavGroup[] = [
     label: "수강생 관리 도우미",
     icon: Users,
     /*
-      2026-08-09 파트 B가 「수강생 현황」(`/students-dashboard`)과 개인 상세
-      (`/students/:key`)를 새로 만들었다. 개인 상세는 목록에서 눌러 들어가는 화면이라
-      메뉴에 두지 않는다 — 내비는 진입점만 담는다.
-      ⚠️ 종전 「수강생 목록」(`/students`)과 역할이 겹친다. 어느 쪽을 남길지 리드 결정 전까지
-      둘 다 두되, 새 화면을 위에 놓아 이쪽이 기본으로 보이게 한다.
+      2026-08-10 종전 「수강생 목록」(`/students`)을 「수강생 현황」으로 **병합**했다
+      (리드 지시). 목록에 있던 수강 상태 필터·출석 회차·최근 출석일·상태 배지가 현황 표로
+      들어갔고, `/students`는 현황으로 넘긴다(북마크가 죽지 않게).
+      개인 상세(`/students/:key`)는 목록에서 눌러 들어가는 화면이라 메뉴에 두지 않는다.
     */
     items: [
       { to: "/students-dashboard", label: "수강생 현황", icon: Users },
-      { to: "/students", label: "수강생 목록 (종전)", icon: ClipboardList },
       { to: "/signals", label: "관찰 필요", icon: BellRing },
       { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
     ],

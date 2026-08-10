@@ -13,7 +13,7 @@ import {
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
-import { STUDENTS, DIVISIONS, COHORT } from "../content/cohort-mock";
+import { STUDENTS, DIVISIONS, COHORT, STATUS_LABELS } from "../content/cohort-mock";
 import {
   STUDENT_PROFILES,
   DIVISION_EVANGELISTS,
@@ -38,7 +38,7 @@ import { weekdayOf } from "../lib/date-format";
 import { enneagramGuides } from "../content/enneagram-guides";
 import type { Student } from "../lib/types";
 import { StudentDetailModal } from "../components/StudentDetailModal";
-import { PageHeader, Card } from "./common";
+import { PageHeader, Card, StatusBadge } from "./common";
 
 const GRADE_ORDER: Grade[] = ["A", "B", "C", "D"];
 const FAITH_TYPES: FaithType[] = ["비오픈", "오픈", "신앙전환"];
@@ -63,6 +63,13 @@ export function StudentsDashboard() {
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<Grade | "all">("all");
   const [faithFilter, setFaithFilter] = useState<FaithType | "all">("all");
+  /**
+   * 수강 상태 — 종전 「수강생 목록」에서 옮겨 왔다 (2026-08-10 병합).
+   * ⚠️ 등급과 **다른 축**이다. 등급은 출석률 구간이고, 상태는 출결 원본이 주는
+   * 수강 중·중단 위기·중단 구분이다. 둘 다 있어야 "출석률은 낮지만 아직 수강 중"
+   * 같은 경우를 가려낼 수 있다.
+   */
+  const [statusFilter, setStatusFilter] = useState<Student["status"] | "all">("all");
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   /** 상세는 팝업으로 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 (2026-08-10 리드 지시) */
@@ -94,9 +101,10 @@ export function StudentsDashboard() {
       rows
         .filter((r) => divisionFilter === "all" || r.student.division === divisionFilter)
         .filter((r) => gradeFilter === "all" || r.grade === gradeFilter)
+        .filter((r) => statusFilter === "all" || r.student.status === statusFilter)
         .filter((r) => faithFilter === "all" || r.profile.faithType === faithFilter)
         .filter((r) => !query.trim() || r.student.name.includes(query.trim())),
-    [rows, divisionFilter, gradeFilter, faithFilter, query],
+    [rows, divisionFilter, gradeFilter, statusFilter, faithFilter, query],
   );
 
   const gradeCounts = useMemo(() => {
@@ -118,10 +126,16 @@ export function StudentsDashboard() {
 
   const selected = filtered.find((r) => r.student.key === selectedKey) ?? rows.find((r) => r.student.key === selectedKey);
 
-  const hasFilter = divisionFilter !== "all" || gradeFilter !== "all" || faithFilter !== "all" || query.trim() !== "";
+  const hasFilter =
+    divisionFilter !== "all" ||
+    gradeFilter !== "all" ||
+    statusFilter !== "all" ||
+    faithFilter !== "all" ||
+    query.trim() !== "";
   function resetFilters() {
     setDivisionFilter("all");
     setGradeFilter("all");
+    setStatusFilter("all");
     setFaithFilter("all");
     setQuery("");
   }
@@ -147,6 +161,19 @@ export function StudentsDashboard() {
             options={[
               { value: "all", label: "전체 등급" },
               ...GRADE_ORDER.map((g) => ({ value: g, label: `${GRADE_LABELS[g]}(${g})` })),
+            ]}
+          />
+          {/* 수강 상태 — 종전 「수강생 목록」에서 옮겨 왔다 (등급과 다른 축) */}
+          <FilterSelect
+            label="수강 상태"
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as Student["status"] | "all")}
+            options={[
+              { value: "all", label: "전체 상태" },
+              ...(["active", "atRisk", "paused"] as const).map((s) => ({
+                value: s,
+                label: STATUS_LABELS[s],
+              })),
             ]}
           />
           <FilterSelect
@@ -268,12 +295,15 @@ export function StudentsDashboard() {
                 <p className="py-8 text-center text-[13px] text-ink-soft">조건에 맞는 수강생이 없습니다.</p>
               ) : (
                 <div className="-mx-1 overflow-x-auto px-1">
-                  <table className="w-full min-w-[340px] text-[12px]">
+                  {/* 열이 늘어 좁은 화면에서는 표만 가로로 넘긴다 — 본문은 밀리지 않는다 */}
+                  <table className="w-full min-w-[720px] text-[12px]">
                     <thead>
                       <tr className="border-b border-zion-100 text-left text-[11px] text-ink-soft">
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">이름</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">등급</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">상태</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">출석</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">최근 출석</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">특이사항</th>
                         <th className="whitespace-nowrap pb-1.5 text-right font-medium">상세</th>
                       </tr>
@@ -288,11 +318,29 @@ export function StudentsDashboard() {
                             (selectedKey === s.key ? "bg-zion-50" : "")
                           }
                         >
-                          <td className="whitespace-nowrap py-2 pr-2 font-semibold text-ink">{s.name}</td>
+                          <td className="whitespace-nowrap py-2 pr-2">
+                            <span className="flex items-center gap-1.5">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[11px] font-bold text-zion-700">
+                                {s.name[0]}
+                              </span>
+                              <span className="font-semibold text-ink">{s.name}</span>
+                              <span className="text-[11px] text-ink-soft">{s.division}</span>
+                            </span>
+                          </td>
                           <td className="whitespace-nowrap py-2 pr-2">
                             <GradeBadge grade={grade} />
                           </td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{s.attendanceRate}%</td>
+                          {/* 수강 상태 — 등급과 다른 축이라 함께 보여야 판단이 갈린다 */}
+                          <td className="whitespace-nowrap py-2 pr-2">
+                            <StatusBadge status={s.status} />
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
+                            {s.presentCount}/{s.totalSessions}회{" "}
+                            <span className="font-semibold text-zion-800">({s.attendanceRate}%)</span>
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
+                            {s.lastAttended ?? "기록 없음"}
+                          </td>
                           <td className="max-w-[260px] truncate py-2 pr-2 text-ink-soft" title={p.note}>
                             {p.note}
                           </td>

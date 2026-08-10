@@ -7,7 +7,6 @@ import { Layout } from "./shell/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { CohortStatus } from "./pages/CohortStatus";
-import { Students } from "./pages/Students";
 import { StudentsDashboard } from "./pages/StudentsDashboard";
 import { StudentDetailPage } from "./pages/StudentDetailPage";
 import { Signals } from "./pages/Signals";
@@ -49,7 +48,12 @@ function Routed() {
         <Route path="/cases" element={<CounselCases />} />
         <Route path="/counseling" element={<Counseling />} />
         <Route path="/care" element={<Care />} />
-        <Route path="/students" element={<Students />} />
+        {/*
+          종전 「수강생 목록」은 2026-08-10에 「수강생 현황」으로 **병합**됐다 (리드 지시).
+          경로는 지우지 않고 넘긴다 — 북마크·옛 링크가 죽지 않게 한다
+          (지시문 §9의 "기존 경로는 리다이렉트" 원칙과 같다).
+        */}
+        <Route path="/students" element={<Navigate to="/students-dashboard" replace />} />
         <Route path="/students-dashboard" element={<StudentsDashboard />} />
         <Route path="/students/:key" element={<StudentDetailPage />} />
         <Route path="/signals" element={<Signals />} />
