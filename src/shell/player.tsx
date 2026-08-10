@@ -41,14 +41,14 @@ const VOLUME_KEY = "zion_ark_bgm_volume";
  * ⚠️ 파일명에 `[` `]` `#` `~`가 있으면 Vite dev 서버가 403을 낸다 —
  * `scripts/copy-music.mjs`가 걷어내고 복사한다.
  *
- * 갈래는 일단 「찬양」으로 두었다. S-POP·기도송 구분은 리드 확인 후 고친다.
+ * 갈래는 **전부 S-POP**이다 (2026-08-10 리드 확인).
  */
 const SEED_TRACKS: Track[] = [
-  { id: "seed-m1", title: "더 가까이", kind: "찬양", src: "music/더-가까이.mp3" },
-  { id: "seed-m2", title: "We Are One", kind: "찬양", src: "music/AR-We-Are-One.mp3" },
-  { id: "seed-m3", title: "내 믿음의 시작", kind: "찬양", src: "music/AR-내-믿음의-시작.mp3" },
-  { id: "seed-m4", title: "소망의 항해", kind: "찬양", src: "music/AR-소망의-항해.mp3" },
-  { id: "seed-m5", title: "함께", kind: "찬양", src: "music/AR-함께.mp3" },
+  { id: "seed-m1", title: "더 가까이", kind: "S-POP", src: "music/더-가까이.mp3" },
+  { id: "seed-m2", title: "We Are One", kind: "S-POP", src: "music/AR-We-Are-One.mp3" },
+  { id: "seed-m3", title: "내 믿음의 시작", kind: "S-POP", src: "music/AR-내-믿음의-시작.mp3" },
+  { id: "seed-m4", title: "소망의 항해", kind: "S-POP", src: "music/AR-소망의-항해.mp3" },
+  { id: "seed-m5", title: "함께", kind: "S-POP", src: "music/AR-함께.mp3" },
 ].map((t) => ({ ...t, src: import.meta.env.BASE_URL + t.src }));
 
 /**
@@ -77,10 +77,19 @@ function loadTracks(): Track[] {
   }
   if (!stored) return SEED_TRACKS;
 
-  const have = new Set(stored.map((t) => t.id));
+  /*
+    시드 곡은 **저장된 값보다 시드를 우선**한다. 갈래를 「찬양」에서 「S-POP」으로 고쳤을 때
+    (2026-08-10) 이미 한 번 열어 본 사람은 옛 갈래로 남아 있었다 — id가 같으면 덧붙이지
+    않기 때문이다. 제목·경로가 바뀔 때도 같은 문제가 생기므로 시드 곡은 매번 맞춘다.
+    사용자가 직접 등록한 곡(시드 id가 아닌 것)은 그대로 둔다.
+  */
+  const seedById = new Map(SEED_TRACKS.map((s) => [s.id, s]));
+  const merged = stored.map((t) => seedById.get(t.id) ?? t);
+
+  const have = new Set(merged.map((t) => t.id));
   const gone = removedSeeds();
   const missing = SEED_TRACKS.filter((s) => !have.has(s.id) && !gone.has(s.id));
-  return missing.length > 0 ? [...stored, ...missing] : stored;
+  return missing.length > 0 ? [...merged, ...missing] : merged;
 }
 
 interface PlayerValue {
