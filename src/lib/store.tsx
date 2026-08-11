@@ -436,7 +436,18 @@ interface StoreValue {
     patch: Partial<
       Pick<
         StudentStatusOverride,
-        "fellowship" | "grade" | "faithType" | "faithStatus" | "note" | "availableTime" | "interests"
+        | "fellowship"
+        | "grade"
+        | "faithType"
+        | "faithStatus"
+        | "note"
+        | "availableTime"
+        | "interests"
+        | "maritalStatus"
+        | "livesWithChildren"
+        | "hasPartner"
+        | "materialPeriod"
+        | "livesWithParents"
       >
     >,
     updatedBy: string,
@@ -766,6 +777,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           noteHistory,
           availableTime: patch.availableTime ?? existing?.availableTime,
           interests: patch.interests ?? existing?.interests,
+          maritalStatus: patch.maritalStatus ?? existing?.maritalStatus,
+          livesWithChildren: patch.livesWithChildren ?? existing?.livesWithChildren,
+          hasPartner: patch.hasPartner ?? existing?.hasPartner,
+          materialPeriod: patch.materialPeriod ?? existing?.materialPeriod,
+          livesWithParents: patch.livesWithParents ?? existing?.livesWithParents,
           updatedBy,
           updatedByRole,
           updatedAt: nowIso(),

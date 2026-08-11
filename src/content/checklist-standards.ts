@@ -10,7 +10,9 @@ import type { CourseLevel } from "./student-profiles";
  *
  * 구조: 레벨(초/중/고) → 그룹(8/6/5개) → 그룹마다 여러 점검 질문(O/X). 그룹들을 섹션으로
  * 묶어 섹션별 합계 점수로 A/B/C를 매긴다(원문의 "총점" · "ABC 단계" 표).
- * 중등만 주차(1~6주차) 칸이 있어 — 어느 주차에 체크했는지를 함께 남긴다.
+ * `weekly`는 주차별(1~N주차) 칸을 켜는 스위치다 — 2026-08-13 리드 요청으로 중등에서 껐다.
+ * 화면(`StudentDetailPage.tsx`)은 `standard.weekly`만 보고 주차 선택 UI를 켜고 끄므로,
+ * 다시 켜려면 여기 값만 되돌리면 된다.
  */
 
 export interface ChecklistGroup {
@@ -32,7 +34,7 @@ export interface LevelChecklist {
   sections: ChecklistSection[];
   /** 레벨 목표 문구 — 초등만 원문에 있다("목표: S 표면적 오픈") */
   goal?: string;
-  /** 중등만 주차별(1~6주차) 칸이 있다 */
+  /** 켜면 주차별(1~weekCount주차) 칸이 생긴다 — 지금은 어느 레벨도 안 쓴다 */
   weekly?: boolean;
   weekCount?: number;
 }
@@ -146,8 +148,6 @@ const ELEMENTARY: LevelChecklist = {
 };
 
 const MIDDLE: LevelChecklist = {
-  weekly: true,
-  weekCount: 6,
   sections: [{ groupNos: [1, 2, 3, 4, 5, 6], gradeA: 25, gradeB: 15 }],
   groups: [
     {

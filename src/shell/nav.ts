@@ -200,7 +200,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "수강생 관리 도우미",
     icon: Users,
     items: [
-      { to: "/students", label: "수강생 목록", icon: Users },
+      { to: "/students", label: "수강생 현황", icon: Users },
       { to: "/signals", label: "관찰 필요", icon: BellRing },
       { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
     ],
