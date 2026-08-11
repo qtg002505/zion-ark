@@ -131,6 +131,12 @@ export function CounselCases() {
           <strong className="font-bold">소속은 지파 · 교회 · 센터(기수)까지만 적습니다.</strong> 이름 ·
           연락처 · 분반 · 나이처럼 사람을 짚을 수 있는 것은 적지 않습니다. 여기 올린 글은 전국의
           사명자가 봅니다.
+          <br />
+          {/* 왜 남의 글에는 단추가 없는지 미리 밝힌다 (2026-08-11 파트 B 검수 반영) */}
+          <span className="text-ink-soft">
+            고치거나 지우는 것은 <strong className="font-semibold text-zion-700">내가 올린 글</strong>
+            에서만 됩니다 — 「내 글」 표시가 붙은 사례입니다.
+          </span>
         </p>
       </div>
 
@@ -256,6 +262,16 @@ function CaseCard({ item, onEdit }: { item: CounselCase; onEdit: () => void }) {
         <span className="text-[11px] text-ink-soft">
           {item.tribe} 지파 · {item.church} · {item.cohort}
         </span>
+        {/*
+          「내 글」 표시 (2026-08-11 파트 B 검수 반영). 수정·삭제 단추는 **자기 글에만**
+          뜨는데, 남의 글만 보고 「고칠 방법이 없다」고 읽은 의견이 올라왔다.
+          기능이 있어도 왜 없는지 모르면 없는 것과 같다 — 어느 것이 내 글인지 먼저 보인다.
+        */}
+        {mine && (
+          <span className="rounded-full bg-gold-100 px-2 py-0.5 text-[10.5px] font-bold text-gold-700">
+            내 글
+          </span>
+        )}
         <span className="ml-auto">
           <FavoriteButton
             targetType="case"
@@ -378,9 +394,14 @@ function CaseForm({
         <h2 className="mb-1 text-[16px] font-bold text-zion-900">
           {editing ? "상담 사례 수정" : "상담 사례 남기기"}
         </h2>
+        {/*
+          「소속」이 수강생 것인지 쓰는 사람 것인지 헷갈린다는 검수 의견을 받았다
+          (2026-08-11 파트 B). **쓰는 사람 소속**이 붙는다는 것을 문장에서 밝힌다.
+        */}
         <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-          소속은 지파 · 교회 · 센터까지만 자동으로 붙습니다. 본문에는 이름 · 연락처 · 분반 · 나이를
-          적지 않습니다.
+          <strong className="font-semibold text-zion-700">쓰는 사람(나)의 소속</strong>이 지파 ·
+          교회 · 센터까지만 자동으로 붙습니다 — 수강생 소속을 적는 칸이 아닙니다. 본문에는 이름 ·
+          연락처 · 분반 · 나이를 적지 않습니다.
         </p>
 
         <div className="mb-3 flex gap-1 rounded-xl bg-zion-100 p-1">

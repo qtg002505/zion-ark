@@ -347,7 +347,8 @@ export function StudentDetailPage({
             </Link>
           </div>
           <dl className="space-y-1.5 text-[12px]">
-            <Row label="출석률" value={`${student.attendanceRate}% (${student.presentCount}/${student.totalSessions}회)`} />
+            {/* 라벨이 「출석률」이라 값은 비율이 먼저 온다 — 여기서는 회차가 근거다 */}
+            <Row label="출석률" value={`${student.attendanceRate}% (${student.presentCount}/${student.totalSessions}회 출석)`} />
             <Row
               label="최근 출석"
               value={student.lastAttended ? `${student.lastAttended} (${weekdayOf(student.lastAttended)})` : "기록 없음"}

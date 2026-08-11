@@ -574,7 +574,13 @@ function StudentDetail({ row, onOpenDetail }: { row: Row | undefined; onOpenDeta
             badgeTone={OK_TONE}
             sub={
               <>
-                출석률 {s.attendanceRate}% ({s.presentCount}/{s.totalSessions}회) · 최근 출석{" "}
+                {/*
+                  종전 「출석률 84% (21/25회)」 — 같은 사실을 두 번 말한다는 검수 의견을 받았다
+                  (2026-08-11 파트 B). 회차를 앞세우고 비율은 괄호로 내렸다.
+                  ⚠️ 비율을 아주 빼지는 않았다 — 등급(A~E)을 가르는 값이라 21/25를
+                  머릿속으로 환산하게 두면 이 줄만 보고는 등급을 가늠할 수 없다.
+                */}
+                출석 {s.presentCount}/{s.totalSessions}회 ({s.attendanceRate}%) · 최근 출석{" "}
                 {s.lastAttended ? `${s.lastAttended} (${weekdayOf(s.lastAttended)})` : "기록 없음"}
               </>
             }
