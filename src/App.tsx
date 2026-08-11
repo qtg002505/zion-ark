@@ -7,7 +7,6 @@ import { Layout } from "./shell/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { CohortStatus } from "./pages/CohortStatus";
-import { StatusBoard } from "./pages/StatusBoard";
 import { StudentsDashboard } from "./pages/StudentsDashboard";
 import { StudentDetailPage } from "./pages/StudentDetailPage";
 import { Signals } from "./pages/Signals";
@@ -45,7 +44,6 @@ function Routed() {
         />
         <Route path="/overview" element={<Overview />} />
         <Route path="/cohort" element={<CohortStatus />} />
-        <Route path="/status-board" element={<StatusBoard />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
         <Route path="/cases" element={<CounselCases />} />
         <Route path="/counseling" element={<Counseling />} />

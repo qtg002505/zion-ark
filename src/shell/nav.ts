@@ -7,7 +7,6 @@ import {
   INSTRUCTOR_OTHER_FOLDERS,
 } from "../lib/types";
 import {
-  Activity,
   LayoutDashboard,
   Users,
   GraduationCap,
@@ -117,8 +116,6 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Gauge,
     items: [
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
-      // 현장 상태 분석 시트(단계·필수보강·주간 점검·오픈/입교·탈락)를 옮긴 보드 (2026-08-11)
-      { to: "/status-board", label: "수강생 상태 분석", icon: Activity },
       { to: "/plan", label: "기수 주간계획", icon: CalendarDays },
     ],
   },
