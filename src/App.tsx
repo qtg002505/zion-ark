@@ -21,6 +21,7 @@ import { WeeklyPlanPage } from "./pages/WeeklyPlanPage";
 import { CounselCases } from "./pages/CounselCases";
 import { Counseling } from "./pages/Counseling";
 import { Care } from "./pages/Care";
+import { Centers } from "./pages/Centers";
 import { MyPage } from "./pages/MyPage";
 
 function Routed() {
@@ -48,6 +49,7 @@ function Routed() {
         <Route path="/cases" element={<CounselCases />} />
         <Route path="/counseling" element={<Counseling />} />
         <Route path="/care" element={<Care />} />
+        <Route path="/centers" element={<Centers />} />
         {/*
           종전 「수강생 목록」은 2026-08-10에 「수강생 현황」으로 **병합**됐다 (리드 지시).
           경로는 지우지 않고 넘긴다 — 북마크·옛 링크가 죽지 않게 한다

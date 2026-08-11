@@ -37,6 +37,7 @@ import {
   ClipboardList,
   RefreshCw,
   HeartPulse,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 
@@ -317,6 +318,12 @@ const NAV_GROUPS: NavGroup[] = [
    * 기본 방침이다 (지시문 §2-7).
    */
   { label: "사명자 심방 도우미", icon: HeartPulse, to: "/care" },
+
+  /**
+   * 8. 12지파 선교센터 — 어디에 있고 지금 어느 기수가 도는지 (2026-08-11 리드 지시).
+   * **기존 카테고리 순서(2026-08-09 기준)는 건드리지 않고 뒤에 붙였다.**
+   */
+  { label: "12지파 선교센터", icon: MapPin, to: "/centers" },
 ];
 
 /** 대주제가 품은 모든 항목 (직속 + 하위 묶음) */
