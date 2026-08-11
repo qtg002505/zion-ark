@@ -30,8 +30,14 @@ export interface KakaoMap {
   setCenter(latlng: KakaoLatLng): void;
   setLevel(level: number, options?: { animate?: boolean }): void;
   getLevel(): number;
+  /** 넘긴 범위가 다 보이도록 중심과 확대 수준을 한 번에 맞춘다 */
+  setBounds(bounds: KakaoBounds): void;
   panTo(latlng: KakaoLatLng): void;
   relayout(): void;
+}
+export interface KakaoBounds {
+  extend(latlng: KakaoLatLng): void;
+  isEmpty(): boolean;
 }
 interface KakaoCustomOverlay {
   setMap(map: KakaoMap | null): void;
@@ -39,7 +45,7 @@ interface KakaoCustomOverlay {
 export interface KakaoMaps {
   Map: new (container: HTMLElement, options: { center: KakaoLatLng; level: number }) => KakaoMap;
   LatLng: new (lat: number, lng: number) => KakaoLatLng;
-  LatLngBounds: new () => { extend(latlng: KakaoLatLng): void; isEmpty(): boolean };
+  LatLngBounds: new () => KakaoBounds;
   CustomOverlay: new (options: {
     position: KakaoLatLng;
     content: HTMLElement | string;

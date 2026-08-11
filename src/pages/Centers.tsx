@@ -28,8 +28,8 @@ export function Centers() {
   const session = useSession();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapObj = useRef<KakaoMap | null>(null);
-  /** 핀 DOM을 들고 있다가 확대 수준이 바뀌면 내용을 갈아 끼운다 */
-  const pinsRef = useRef<{ center: MissionCenter; el: HTMLElement }[]>([]);
+  /** 핀 DOM과 실제로 찍힌 좌표 — 확대 수준이 바뀌면 내용을 갈아 끼우고, 목록에서 고르면 그리로 옮긴다 */
+  const pinsRef = useRef<{ center: MissionCenter; el: HTMLElement; pos: KakaoLatLng }[]>([]);
   const [failure, setFailure] = useState<MapFailure | null>(null);
   const [pickedId, setPickedId] = useState<string>(MISSION_CENTERS[0]?.id ?? "");
   /** 지도 확대 수준 — 가까이 가면 핀에 층·기수까지 보여 준다 */
@@ -72,6 +72,20 @@ export function Centers() {
 
       const bounds = new maps.LatLngBounds();
       const geocoder = maps.services ? new maps.services.Geocoder() : null;
+      /**
+       * 주소 검색이 비동기라 **다 찍힌 뒤에** 화면을 맞춰야 한다.
+       * 센터가 몇 곳이든 전부 보이게 범위를 잡는다 — 대전 두 곳처럼 가까이 붙어 있으면
+       * 알아서 당겨 주고(안 그러면 핀 두 개가 겹쳐 이름이 잘린다), 전국으로 늘어나면
+       * 알아서 물러난다. 고정 확대 수준으로는 둘 다 만족시킬 수 없다.
+       */
+      let placed = 0;
+      const fitAll = () => {
+        if (cancelled || placed < MISSION_CENTERS.length || bounds.isEmpty()) return;
+        map.setBounds(bounds);
+        // 한 곳뿐이면 지나치게 당겨져 주변이 안 보인다 — 적당한 선에서 멈춘다
+        if (map.getLevel() < 3) map.setLevel(3);
+        setLevel(map.getLevel());
+      };
 
       for (const center of MISSION_CENTERS) {
         const place = (pos: KakaoLatLng) => {
@@ -84,8 +98,10 @@ export function Centers() {
             clickable: true,
             zIndex: 3,
           }).setMap(map);
-          pinsRef.current.push({ center, el });
+          pinsRef.current.push({ center, el, pos });
           bounds.extend(pos);
+          placed++;
+          fitAll();
         };
 
         if (geocoder) {
@@ -115,15 +131,12 @@ export function Centers() {
     }
   }, [level, pickedId]);
 
-  // 목록에서 센터를 고르면 지도도 그쪽으로 옮긴다
+  // 목록에서 센터를 고르면 지도도 그쪽으로 옮긴다 — 주소로 찾은 실제 자리로 간다
   function pick(id: string) {
     setPickedId(id);
     const map = mapObj.current;
     const hit = pinsRef.current.find((p) => p.center.id === id);
-    if (map && hit) {
-      const kakao = window.kakao?.maps;
-      if (kakao) map.panTo(new kakao.LatLng(hit.center.fallbackLat, hit.center.fallbackLng));
-    }
+    if (map && hit) map.panTo(hit.pos);
   }
 
   return (
