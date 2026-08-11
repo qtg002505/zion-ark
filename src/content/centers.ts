@@ -100,11 +100,12 @@ export const MISSION_CENTERS: MissionCenter[] = [
     id: "daejeon-wolpyeong-54",
     name: "대전 월평 제2센터",
     tribe: "맛디아",
-    address: "대전광역시 서구 월평동 54",
+    // 2026-08-11 정정 — 「월평동 54」가 아니라 **월평로 54**다 (제1센터와 같은 도로)
+    address: "대전광역시 서구 월평로 54",
     floor: "5층",
     region: "대전",
-    fallbackLat: 36.3562,
-    fallbackLng: 127.3691,
+    fallbackLat: 36.358,
+    fallbackLng: 127.3635,
     cohorts: [
       {
         name: "119기",
