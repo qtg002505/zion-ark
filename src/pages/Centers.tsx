@@ -344,15 +344,16 @@ function CohortProgress({ cohort, isMine }: { cohort: CenterCohort; isMine: bool
         </div>
       </div>
 
+      {/*
+        ⚠️ **출석률은 여기 두지 않는다** (2026-08-11 리드 지시). 이 화면은 「어디에 있고
+        지금 어디까지 나갔나」를 보는 자리다 — 센터별 출석률을 지도에 늘어놓으면 위치를
+        찾으러 온 사람에게 성적표처럼 읽힌다. 출석률은 기수 현황에서 본다.
+      */}
       <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11.5px]">
         <div className="flex items-center gap-1">
           <Users size={11} className="shrink-0 text-zion-600" />
           <dt className="text-ink-soft">수강생</dt>
           <dd className="font-semibold text-ink">{cohort.students}명</dd>
-        </div>
-        <div className="flex items-center gap-1">
-          <dt className="text-ink-soft">누적 출석률</dt>
-          <dd className="font-semibold text-ink">{cohort.attendanceRate}%</dd>
         </div>
         <div className="col-span-2 flex items-center gap-1">
           <CalendarDays size={11} className="shrink-0 text-zion-600" />

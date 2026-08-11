@@ -37,9 +37,8 @@ export interface CenterCohort {
   /** 진도 — 전체 회차 중 몇 회차까지 나갔나 */
   session: number;
   totalSessions: number;
-  /** 수강생 수 · 누적 출석률(%) — 목업 */
+  /** 수강생 수 — 목업 */
   students: number;
-  attendanceRate: number;
   /** 강의 시간대 표기 (현장 어휘 그대로) */
   slot: string;
 }
@@ -51,6 +50,7 @@ export interface MissionCenter {
   /**
    * 지파. **아직 배정을 못 받은 센터는 `null`**로 둔다 —
    * 임의로 채우면 조직도와 어긋나고, 화면에서 「지파 확인 필요」로 드러내는 편이 낫다.
+   * (대전 두 곳은 2026-08-11에 리드가 「맛디아 지파」로 알려 줬다.)
    */
   tribe: TribeName | null;
   /** 도로명 또는 지번 주소 — 좌표를 찾는 정본이다 */
@@ -77,7 +77,7 @@ export const MISSION_CENTERS: MissionCenter[] = [
   {
     id: "daejeon-wolpyeong-ro-65",
     name: "대전 월평 제1센터",
-    tribe: null,
+    tribe: "맛디아",
     address: "대전광역시 서구 월평로 65",
     floor: "3층",
     region: "대전",
@@ -92,7 +92,6 @@ export const MISSION_CENTERS: MissionCenter[] = [
         session: 71,
         totalSessions: 92,
         students: 21,
-        attendanceRate: 84,
         slot: "저녁",
       },
     ],
@@ -100,7 +99,7 @@ export const MISSION_CENTERS: MissionCenter[] = [
   {
     id: "daejeon-wolpyeong-54",
     name: "대전 월평 제2센터",
-    tribe: null,
+    tribe: "맛디아",
     address: "대전광역시 서구 월평동 54",
     floor: "5층",
     region: "대전",
@@ -114,7 +113,6 @@ export const MISSION_CENTERS: MissionCenter[] = [
         session: 58,
         totalSessions: 92,
         students: 17,
-        attendanceRate: 79,
         slot: "오전",
       },
     ],
