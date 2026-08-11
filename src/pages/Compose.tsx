@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { Check, Copy, Layers, Sparkles } from "lucide-react";
 import { useStore } from "../lib/store";
 import { COMPOSE_SOURCES, composeMaterials, composeToText, type ComposeResult } from "../lib/compose";
@@ -62,6 +62,7 @@ export function Compose() {
                   {h.source}
                 </span>
                 <Link
+                  viewTransition
                   to={h.href}
                   aria-label={`${h.source} — 원문 열기`}
                   className="shrink-0 rounded border border-zion-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zion-700 transition hover:border-zion-400"

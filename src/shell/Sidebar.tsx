@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { NavLink } from "../components/TransitionLink";
 import { ChevronDown, ChevronRight, LogOut, X } from "lucide-react";
 import { useAuth, useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -242,6 +243,7 @@ function NavGroupBlock({
     return (
       <div className="mt-1 first:mt-0">
         <NavLink
+          viewTransition
           to={group.to}
           className={
             "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition " +
@@ -389,6 +391,7 @@ function ItemList({
         return (
           <li key={item.to + item.label}>
             <NavLink
+              viewTransition
               to={item.to}
               className={
                 "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition duration-300 " +

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import {
   BookOpen,
   CheckCircle2,
@@ -307,6 +307,7 @@ function TipSection({ theme }: { theme: Theme }) {
 
       {theme.related && (
         <Link
+          viewTransition
           to={theme.related.to}
           className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-zion-700 hover:underline"
         >
@@ -390,7 +391,7 @@ function TemperamentGuides() {
     <div className="mb-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-[13px] font-bold text-zion-900">성향 가이드 종합</div>
-        <Link to="/enneagram" className="text-[12px] font-semibold text-zion-700 hover:underline">
+        <Link viewTransition to="/enneagram" className="text-[12px] font-semibold text-zion-700 hover:underline">
           에니어그램 (내부 원문) →
         </Link>
       </div>
@@ -666,6 +667,7 @@ function CasesLink() {
         싣습니다.
       </p>
       <Link
+        viewTransition
         to="/cases"
         className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700"
       >

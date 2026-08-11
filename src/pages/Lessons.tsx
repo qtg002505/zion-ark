@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
@@ -148,6 +149,7 @@ export function Lessons() {
         개강 초반에는 <span className="font-semibold text-zion-700">밭갈이</span> 자료를 교안과 함께
         씁니다 ({INSTRUCTOR_BATGARI_FOLDERS.join(" · ")}) —{" "}
         <Link
+          viewTransition
           to="/library?section=instructor"
           className="font-semibold text-zion-700 underline-offset-2 hover:underline"
         >

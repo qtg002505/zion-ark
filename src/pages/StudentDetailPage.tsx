@@ -1,5 +1,6 @@
 import { useState, type ReactNode, type FormEvent } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import {
   ArrowLeft,
   ClipboardPaste,
@@ -100,6 +101,7 @@ export function StudentDetailPage({
       <div>
         <PageHeader crumb="수강생 관리 도우미" title="수강생을 찾을 수 없습니다" />
         <Link
+          viewTransition
           to="/students-dashboard"
           className="flex w-fit items-center gap-1 rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
         >
@@ -181,6 +183,7 @@ export function StudentDetailPage({
           desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${student.division} — 조회 범위: ${studentScopeLabel(session)}`}
           action={
             <Link
+              viewTransition
               to="/students-dashboard"
               className="flex items-center gap-1 rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
             >
@@ -336,6 +339,7 @@ export function StudentDetailPage({
           <div className="mb-2.5 flex items-center justify-between">
             <SectionTitle>출석 개요</SectionTitle>
             <Link
+              viewTransition
               to="/cohort?tab=attendance"
               className="text-[11px] font-semibold text-zion-700 hover:underline"
             >

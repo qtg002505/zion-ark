@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { HeartPulse, Lock, Sparkles } from "lucide-react";
 import { PromptBox } from "../components/PromptBox";
 import { PageHeader, Card } from "./common";
@@ -69,6 +69,7 @@ export function Care() {
             그대로 열어 볼 수 있게 연결해 두었습니다.
           </p>
           <Link
+            viewTransition
             to="/enneagram"
             className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-zion-700 hover:underline"
           >

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ExternalLink, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "./TransitionLink";
 import { STUDENTS } from "../content/cohort-mock";
 import { StudentDetailPage } from "../pages/StudentDetailPage";
 
@@ -92,6 +92,7 @@ export function StudentDetailModal({
             (2026-08-10). 좁은 화면에서는 글자를 접고 아이콘만 남겨 자리를 아낀다.
           */}
           <Link
+            viewTransition
             to={`/students/${encodeURIComponent(student.key)}`}
             onClick={onClose}
             className="flex shrink-0 items-center gap-1 rounded-lg border-2 border-zion-300 bg-white px-2.5 py-1.5 text-[12px] font-bold text-zion-700 transition hover:border-zion-500 hover:bg-zion-50"

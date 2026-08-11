@@ -128,7 +128,14 @@ npm.cmd run build
     (변수는 글자 쪽에 맞춰 뒤집혀 있다 — `text-zion-700`이 밝아야 하기 때문이다)
   - `zion-950`과 `gold-500`은 뒤집지 않는다. NEW 뱃지(`bg-gold-500 text-zion-950`)와
     드로어 덮개(`bg-zion-950/40`)가 이 값에 기대고 있다
+- **화면 링크는 `src/components/TransitionLink`에서 가져온다** (2026-08-11).
+  `react-router-dom`의 `Link`·`NavLink`를 직접 쓰면 **화면 전환 효과가 조용히 빠진다** —
+  라우터의 `viewTransition` prop은 데이터 라우터에서만 도는데 이 앱은 `<BrowserRouter>`다
 - **긴 자료는 소주제 단위로 접는다** (`src/components/Accordion.tsx`). 통글로 쏟아내지 않는다
+  - 소주제가 **수십 개인 화면에서만** `deferOffscreen`을 켠다 (지금은 어록 하나).
+    적은 화면에 켜면 얻는 것 없이 스크롤 길이만 어긋난다.
+    ⚠️ **소주제 안에 모달이 있으면 켜지 않는다** — `contain: paint` 때문에 화면 가운데
+    떠야 할 창이 그 항목 안에 갇힌다
 - **내비는 3단**(대주제 → 하위 묶음 → 항목, `src/shell/nav.ts`).
   대주제는 한 번에 하나만 열리고, 하위 묶음은 여럿 열려 있어도 된다.
   하위가 없는 대주제는 `to`만 주면 바로 이동한다.

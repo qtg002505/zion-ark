@@ -18,11 +18,24 @@ export function Accordion({
   resetKey,
   defaultOpenFirst = true,
   compact = false,
+  deferOffscreen = false,
 }: {
   items: AccordionItem[];
   resetKey?: string;
   defaultOpenFirst?: boolean;
   compact?: boolean;
+  /**
+   * 화면 밖 소주제를 그리지 않는다 (2026-08-11).
+   *
+   * **소주제가 수십 개인 화면에서만 켠다.** 어록(99개)에는 켰고, 교안(7개)·에니어그램(5개)에는
+   * 켜 봤다가 껐다 — 본문이 3,000px 안쪽이라 얻는 것 없이 스크롤 길이만 어긋났다.
+   *
+   * ⚠️ **기본이 꺼짐인 또 다른 이유.** 이걸 켜면 항목마다 `contain: paint`가 걸려
+   * **소주제 안에 있는 `position: fixed` 모달이 그 항목 안에 갇힌다.** 화면 가운데
+   * 떠야 할 등록 창이 목록 한 칸 안에서 열린다. 소주제 안에 모달이 없는 것을 확인한
+   * 화면에서만 켠다 — 상담 도우미(`Counseling`)는 소주제가 곧 등록 폼을 품고 있어 껐다.
+   */
+  deferOffscreen?: boolean;
 }) {
   const initial = useMemo(
     () => new Set(defaultOpenFirst && items.length > 0 ? [items[0].id] : []),
@@ -76,6 +89,8 @@ export function Accordion({
               key={item.id}
               className={
                 "overflow-hidden rounded-xl border transition " +
+                // 접힘·펼침에 따라 자리 높이가 다르다 — 한 값으로 두면 문서 길이가 어긋난다
+                (deferOffscreen ? (isOpen ? "defer-offscreen-open " : "defer-offscreen ") : "") +
                 (isOpen ? "border-zion-300 bg-white" : "border-zion-100 bg-zion-50/40")
               }
             >

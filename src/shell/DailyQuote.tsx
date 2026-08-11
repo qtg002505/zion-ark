@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { ChevronDown, ChevronUp, Quote } from "lucide-react";
 import { QUOTE_ITEMS } from "../content/quotes-data";
 import { kstToday, pickOfDay } from "../lib/daily";
@@ -101,7 +101,7 @@ export function DailyQuote() {
                 )}
               </button>
             )}
-            <Link to="/quotes" className="text-[10.5px] font-semibold text-white/70 hover:underline">
+            <Link viewTransition to="/quotes" className="text-[10.5px] font-semibold text-white/70 hover:underline">
               어록 전체
             </Link>
           </div>

@@ -120,7 +120,8 @@ export function Quotes() {
             주제 {QUOTE_TOPIC_LIST.length}개 · 어록 {QUOTE_ITEMS.length.toLocaleString()}건
           </span>
         </div>
-        <Accordion items={topicItems} defaultOpenFirst={false} compact />
+        {/* 어록은 본문이 23,000px로 이 사이트에서 가장 길다 — 화면 밖은 그리지 않는다 */}
+        <Accordion items={topicItems} defaultOpenFirst={false} compact deferOffscreen />
       </Card>
 
       {formOpen && writable && (

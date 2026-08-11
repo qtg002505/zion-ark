@@ -194,7 +194,43 @@ npm.cmd run build
 - **PR 머지 권한**: 파트 파일만 고친 PR은 팀원이 직접 머지한다. `CODEOWNERS`에 걸린
   공유 파일을 건드리면 자동으로 리드 승인 대기가 된다 (`docs/TEAMWORK.md`)
 
+### 6. 브라우저 최신 기능을 붙일 때 (2026-08-11에 겪은 것)
+
+**「붙였는데 조용히 안 도는」 자리를 먼저 의심한다.** 눈으로 확인이 어려운 기능일수록
+"코드에 있으니 되겠지"로 넘어가기 쉽다. **동작 자체를 세어서 확인한다.**
+
+- ⚠️ **`<Link viewTransition>`은 데이터 라우터에서만 돈다.** 이 앱은 `<BrowserRouter>` +
+  `<Routes>`라 **prop이 무시된다** — 22곳에 붙여 놓고 `document.startViewTransition`을
+  가로채 세어 보니 **0회**였다. 그래서 `src/components/TransitionLink.tsx`로 클릭을 감쌌다.
+  화면 링크는 이제 **거기서 가져온다**(`react-router-dom` 직접 import 금지)
+
+  ```js
+  // 정말 도는지 세어 본다
+  let n = 0; const o = document.startViewTransition.bind(document);
+  document.startViewTransition = (cb) => { n++; return o(cb); };
+  ```
+
+- ⚠️ **`content-visibility: auto`는 `contain: paint`를 함께 건다** — 그 안의
+  `position: fixed` 모달이 **화면이 아니라 그 요소 기준으로 놓인다.** 모달을 품은
+  목록에는 켜지 않는다
+- ⚠️ **`contain-intrinsic-size`가 실제와 어긋나면 문서 길이가 통째로 틀어진다.**
+  140px로 잡았다가 어록 화면이 7,159px → **15,525px로 부풀었다.** 반드시 견줘 본다:
+  클래스를 뗐다 붙이며 `document.documentElement.scrollHeight`를 비교하면 바로 보인다
+- **효과가 없는 곳에는 켜지 않는다.** 소주제 5~7개짜리 화면에도 켜 봤지만 얻는 것 없이
+  어긋남만 생겨 도로 껐다. **켜기 전에 `scrollHeight`부터 재서 대상을 고른다**
+
 ## 브라우저로 검증하는 요령 (토큰을 아끼는 길이기도 하다)
+
+⚠️ **미리보기 패널이 화면에 안 보이면 그 탭은 그림을 그리지 않는다.** 그래서
+`requestAnimationFrame`이 **영영 안 불리고**, `setTimeout`도 1초 단위로 늘어진다.
+`await`가 든 반복문이 30초 제한에 걸려 "페이지가 멈췄다"고 오해하기 쉽다 —
+2026-08-11에 세 번 헛짚었다. 대처는 셋이다:
+
+- 시간 측정·레이아웃 확인은 **`resize_window`를 한 번 호출해** 뷰포트를 살린 뒤에 한다
+  (`innerHeight`가 0으로 나오면 그 측정값은 전부 못 믿는다)
+- rAF를 쓰지 말고 **동기 반복**으로 잰다 (React가 렌더를 묶어 주므로 순수 계산 비용이 나온다)
+- 스크린샷은 패널이 숨겨져 있으면 실패한다 — `javascript_tool`로 필요한 값만 뽑는다
+
 
 스크린샷은 **브라우저 패널이 열려 있지 않으면 실패한다.** 대신 `javascript_tool`로 **필요한
 값만 뽑아 확인**한다 — 화면을 통째로 읽는 것보다 정확하고 훨씬 싸다.

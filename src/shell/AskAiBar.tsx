@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { Sparkles, X } from "lucide-react";
 import { useStore } from "../lib/store";
 import { searchSite, type SearchHit } from "../lib/search";
@@ -70,14 +70,17 @@ export function AskAiBar() {
             </button>
           </div>
           {hits.length === 0 ? (
-            <p className="py-3 text-center text-[13px] text-ink-soft">
-              일치하는 자료가 없습니다. 두 글자 이상, 자료에 있는 표현으로 검색해 보세요.
+            <p className="py-3 text-center text-[13px] leading-relaxed text-ink-soft">
+              일치하는 자료가 없습니다.
+              <br />
+              문장으로 물어도 되니, 찾는 것을 가리키는 낱말을 함께 넣어 보세요.
             </p>
           ) : (
-            <ul className="divide-y divide-zion-100">
+            /* 관련도 높은 것부터 나온다. 좁은 화면에서 화면을 넘기지 않게 안에서 스크롤한다 */
+            <ul className="max-h-[60dvh] divide-y divide-zion-100 overflow-y-auto">
               {hits.map((h, i) => (
                 <li key={i}>
-                  <Link to={h.href} onClick={close} className="block px-1 py-2 hover:bg-zion-50">
+                  <Link viewTransition to={h.href} onClick={close} className="block px-1 py-2 hover:bg-zion-50">
                     <div className="flex items-center gap-2">
                       <span className="rounded bg-zion-100 px-1.5 py-0.5 text-[10px] font-semibold text-zion-700">
                         {h.sourceType}

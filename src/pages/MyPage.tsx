@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { Clock, Palette, Star, Trash2 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -115,7 +115,7 @@ export function MyPage() {
                       </span>
                       <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
                         {r.to ? (
-                          <Link to={r.to} className="hover:underline">
+                          <Link viewTransition to={r.to} className="hover:underline">
                             {r.label}
                           </Link>
                         ) : (
@@ -165,7 +165,7 @@ export function MyPage() {
                   <li key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zion-50">
                     <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
                       {r.to ? (
-                        <Link to={r.to} className="hover:underline">
+                        <Link viewTransition to={r.to} className="hover:underline">
                           {r.label}
                         </Link>
                       ) : (

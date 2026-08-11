@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { Menu, UserRound } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -88,6 +89,7 @@ export function Layout() {
             <MiniPlayer />
             <ThemeToggle />
             <Link
+              viewTransition
               to="/my"
               aria-label="마이페이지"
               title="마이페이지"

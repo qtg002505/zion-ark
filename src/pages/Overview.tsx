@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "../components/TransitionLink";
 import { CalendarDays, Megaphone } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -85,6 +85,7 @@ export function Overview() {
         <div className="mb-5 space-y-2">
           {pinned.map((n) => (
             <Link
+              viewTransition
               key={n.id}
               to="/notices"
               className="flex items-center gap-3 rounded-card border border-zion-200 bg-zion-50 px-4 py-3 transition hover:border-zion-400"
@@ -222,7 +223,7 @@ export function Overview() {
         <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
           「누적」은 진도 전체 기준이고 등급을 매기는 값입니다. 「보강 포함」·「대면만」은 최근 8주
           기준입니다. 등급을 바꾸려면{" "}
-          <Link to="/students-dashboard" className="text-zion-700 underline">
+          <Link viewTransition to="/students-dashboard" className="text-zion-700 underline">
             수강생 현황
           </Link>
           에서 그 사람을 열어 고칩니다.
@@ -242,12 +243,14 @@ export function Overview() {
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Link
+              viewTransition
               to="/cohort"
               className="rounded-lg border border-zion-200 bg-white px-4 py-2 text-center text-[13px] font-semibold text-zion-700 transition hover:bg-zion-50"
             >
               기수 현황
             </Link>
             <Link
+              viewTransition
               to="/signals"
               className="rounded-lg bg-zion-800 px-4 py-2 text-center text-[13px] font-semibold text-white transition hover:bg-zion-700"
             >
@@ -258,7 +261,7 @@ export function Overview() {
       </Card>
 
       <p className="mt-4 text-[11px] leading-relaxed text-ink-soft">
-        출석률 분포와 대면 시간대 등 상세 분석은 <Link to="/cohort" className="text-zion-700 underline">기수 현황</Link>에
+        출석률 분포와 대면 시간대 등 상세 분석은 <Link viewTransition to="/cohort" className="text-zion-700 underline">기수 현황</Link>에
         있습니다.
         {!isFieldStaff(session) &&
           " 담당 기수가 없는 관리직 계정은 이 요약 화면으로 들어옵니다."}
