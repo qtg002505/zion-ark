@@ -41,6 +41,15 @@ jobs:
       - run: npm run build -- --base=./
         env:
           VITE_ROUTER: hash
+          # 카카오맵 키 — **`.env`는 git에 없으므로 여기서 따로 넣어야 한다.**
+          # 이걸 빠뜨리면 로컬에서는 지도가 잘 뜨는데 **팀 공유 링크에서만**
+          # 「지도 키가 아직 등록되지 않았습니다」가 뜬다 (2026-08-11에 겪었다).
+          #
+          # secret이 아니라 variable에 둔다 — 이 키는 어차피 빌드 결과물에 박혀
+          # 브라우저에서 보이는 값이고, 카카오는 키가 아니라 **도메인**으로 잠근다.
+          # 등록: 저장소 Settings → Secrets and variables → Actions → Variables 탭 →
+          #       New repository variable → 이름 VITE_KAKAO_MAP_KEY
+          VITE_KAKAO_MAP_KEY: ${{ vars.VITE_KAKAO_MAP_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
