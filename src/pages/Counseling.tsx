@@ -25,7 +25,8 @@ import { ROLE_LABELS, type CounselingTip } from "../lib/types";
 import { termsForTheme } from "../content/glossary";
 import { TEMPERAMENT_GUIDES } from "../content/temperament-guides";
 import { FavoriteButton } from "../components/FavoriteButton";
-import { scanPII, LegalNotice } from "./CounselCases";
+import { scanPII } from "../lib/privacy";
+import { LegalNotice } from "./CounselCases";
 import { PageHeader, Card } from "./common";
 
 /**

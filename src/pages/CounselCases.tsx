@@ -13,6 +13,7 @@ import {
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteCounselCase } from "../lib/permissions";
+import { scanPII } from "../lib/privacy";
 import { ROLE_LABELS, type CounselCase } from "../lib/types";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { PageHeader, Card } from "./common";
@@ -25,29 +26,6 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "success", label: "돌아온 경우" },
   { key: "failure", label: "놓친 경우" },
 ];
-
-/**
- * 개인을 짚을 수 있는 표현을 걸러 낸다 (2026-08-06 확정 익명화 기준).
- *
- * 자료실은 전국 공통이라 조직 스코프가 없다. 그래서 **지파·교회·센터(기수)까지만** 밝히고
- * 그 아래는 적지 않는다. 여기서 막는 것은 화면 단의 1차 방어이며, 서버 연동 시 같은 검사를
- * 서버에서도 한다 (불변식 2 — 원문 개인정보 반출 금지).
- *
- * ⚠️ 정규식은 완벽한 차단 장치가 아니라 **실수를 잡아 주는 장치**다.
- * 그래서 막는 동시에 "왜 막는지"를 화면에 적어 사람이 스스로 지우게 한다.
- */
-const PII_RULES: { re: RegExp; hint: string }[] = [
-  { re: /01[016-9][-\s.]?\d{3,4}[-\s.]?\d{4}/, hint: "휴대전화 번호" },
-  { re: /\d{6}[-\s]?\d{7}/, hint: "주민등록번호 형태의 숫자" },
-  { re: /[\w.+-]+@[\w-]+\.[\w.]+/, hint: "이메일 주소" },
-  { re: /\d+\s*분반|[가-힣A-Za-z]+\s*분반/, hint: "분반 (센터 아래 단위는 적지 않습니다)" },
-  { re: /\d{2,3}\s*(세|살)/, hint: "나이" },
-  { re: /[가-힣]{2,3}\s*(자매|형제)님?/, hint: "이름으로 읽히는 호칭" },
-];
-
-export function scanPII(text: string): string[] {
-  return PII_RULES.filter((r) => r.re.test(text)).map((r) => r.hint);
-}
 
 /**
  * 법적 주의 — 스토킹처벌법 (2026-08-10 리드 지시).
