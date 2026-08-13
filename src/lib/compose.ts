@@ -72,8 +72,12 @@ function scoreOf(text: string, keywords: string[]): number {
   return score;
 }
 
-/** 너무 긴 대목은 강의안에 그대로 붙이기 어려워 앞부분만 싣고 표시를 남긴다 */
-function clip(text: string, max = 1200): string {
+/**
+ * 너무 긴 대목은 강의안에 그대로 붙이기 어려워 앞부분만 싣고 표시를 남긴다.
+ * `export`인 이유: 녹취록 정리(`transcript-digest.ts`)가 같은 자르기를 쓴다 —
+ * 복사해 가면 「…(이하 원문에서 계속)」 문구가 두 벌로 갈린다.
+ */
+export function clip(text: string, max = 1200): string {
   const t = text.trim();
   return t.length <= max ? t : t.slice(0, max) + "\n\n…(이하 원문에서 계속)";
 }

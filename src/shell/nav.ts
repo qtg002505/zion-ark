@@ -30,6 +30,7 @@ import {
   TreeDeciduous,
   BellRing,
   Layers,
+  FileText,
   CalendarDays,
   MessagesSquare,
   FolderClosed,
@@ -184,7 +185,15 @@ const NAV_GROUPS: NavGroup[] = [
         items: folderItems("/teaching", INSTRUCTOR_OTHER_FOLDERS),
       },
     ],
-    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
+    /*
+      직속 항목은 보조 도구라 하위 묶음 뒤에 놓인다.
+      「자료 모으기」는 **강의 전**(주제어로 사이트 자료를 모은다), 「녹취 정리」는 **강의 후**
+      (밖에서 받아쓴 글을 사이트가 자른다)라 짝을 이룬다 (2026-08-13).
+    */
+    items: [
+      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
+      { to: "/digest", label: "강의 녹취 정리", icon: FileText },
+    ],
   },
 
   /**

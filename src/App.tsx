@@ -11,6 +11,7 @@ import { StudentsDashboard } from "./pages/StudentsDashboard";
 import { StudentDetailPage } from "./pages/StudentDetailPage";
 import { Signals } from "./pages/Signals";
 import { Compose } from "./pages/Compose";
+import { LectureDigest } from "./pages/LectureDigest";
 import { Library } from "./pages/Library";
 import { TeachingLibrary } from "./pages/TeachingLibrary";
 import { TendencyAnalysis } from "./pages/TendencyAnalysis";
@@ -62,6 +63,8 @@ function Routed() {
         <Route path="/students/:key" element={<StudentDetailPage />} />
         <Route path="/signals" element={<Signals />} />
         <Route path="/compose" element={<Compose />} />
+        {/* 강의 후에 받아쓴 글을 정리하는 화면 — /compose(강의 전)와 짝이다 (2026-08-13) */}
+        <Route path="/digest" element={<LectureDigest />} />
         <Route path="/library" element={<Library />} />
         {/* 강의 도우미 안의 자료실 — 밭갈이 각 파트·예배설교 (2026-08-13) */}
         <Route path="/teaching" element={<TeachingLibrary />} />
