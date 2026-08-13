@@ -246,6 +246,25 @@ npm.cmd run build
 - 지도 핀이 여럿이면 **고정 확대 수준을 쓰지 말고 `setBounds`로 전부 담는다** —
   가까운 두 곳은 핀이 겹쳐 이름이 잘리고, 멀어지면 화면 밖으로 나간다
 
+### 8. 화면 위에 띄우는 것 (모달·팝오버) — 2026-08-13
+
+⚠️ **`fixed inset-0` + `z-50`으로는 부족하다.** 조상이 쌓임 맥락을 만들면 그 안에서만 논다.
+이 앱의 `main`은 `view-transition-name` 때문에 맥락을 만들므로, **`main` 안에서 뜨는 모달은
+헤더(`z-20`)에 눌린다.** 실제로 수강생 상세 팝업 머리가 잘렸다(2026-08-13).
+**숫자를 올려도 안 고쳐진다** — `src/components/Portal`로 감싸 맥락 밖으로 꺼낸다.
+
+같은 뿌리에서 나오는 증상 셋을 한꺼번에 막아 준다:
+`view-transition-name` · `content-visibility`의 `contain: paint` · 조상의 `transform`.
+
+⚠️ **모달은 라우트 훑기로 검증되지 않는다.** 열어 봐야 한다. 확인법:
+
+```js
+// 헤더와 겹치는 자리에서 실제로 무엇이 맨 위인가
+const h = document.querySelector('header').getBoundingClientRect();
+const el = document.elementFromPoint(640, h.top + h.height / 2);
+overlay.contains(el)   // 모달이 위여야 true
+```
+
 ## 브라우저로 검증하는 요령 (토큰을 아끼는 길이기도 하다)
 
 ⚠️ **미리보기 패널이 화면에 안 보이면 그 탭은 그림을 그리지 않는다.** 그래서

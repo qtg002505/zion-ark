@@ -143,6 +143,10 @@ npm.cmd run build
   안에** 둔다 (레이어 밖에 두면 `hover:text-*` 같은 변형까지 이겨 버린다)
   - `zion-950`과 `gold-500`은 뒤집지 않는다. NEW 뱃지(`bg-gold-500 text-zion-950`)와
     드로어 덮개(`bg-zion-950/40`)가 이 값에 기대고 있다
+- **화면 위에 띄우는 것은 `src/components/Portal`로 감싼다** (2026-08-13) —
+  모달 · 팝오버 · 시트 전부. `fixed inset-0`에 `z-50`을 줘도 **`main` 안에 있으면 헤더에 눌린다**
+  (`main`이 `view-transition-name` 때문에 쌓임 맥락을 만든다). 숫자를 올려도 안 고쳐진다 —
+  맥락 밖으로 꺼내야 한다. `content-visibility`·`transform`이 `fixed`를 가두는 문제도 함께 풀린다
 - **화면 링크는 `src/components/TransitionLink`에서 가져온다** (2026-08-11).
   `react-router-dom`의 `Link`·`NavLink`를 직접 쓰면 **화면 전환 효과가 조용히 빠진다** —
   라우터의 `viewTransition` prop은 데이터 라우터에서만 도는데 이 앱은 `<BrowserRouter>`다

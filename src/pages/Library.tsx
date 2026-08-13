@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Portal } from "../components/Portal";
 import { useSearchParams } from "react-router-dom";
 import { BookOpenText, ExternalLink, FolderOpen, Plus, Search, Star, X } from "lucide-react";
 import { useSession } from "../lib/auth";
@@ -344,120 +345,122 @@ function MaterialForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="자료 등록">
-      <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[16px] font-bold text-zion-900">자료 등록</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="mb-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <div>
-            <label className="mb-1 block text-[12px] font-semibold text-ink">구획</label>
-            <select
-              value={sec}
-              onChange={(e) => {
-                const next = e.target.value as LibrarySection;
-                setSec(next);
-                setFolder(LIBRARY_FOLDERS[next][0]);
-              }}
-              className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-            >
-              {SECTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {LIBRARY_SECTION_LABELS[s]}
-                </option>
-              ))}
-            </select>
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="자료 등록">
+        <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[16px] font-bold text-zion-900">자료 등록</h2>
+            <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
+              <X size={16} />
+            </button>
           </div>
-          <div>
-            <label className="mb-1 block text-[12px] font-semibold text-ink">폴더</label>
-            <select
-              value={folder}
-              onChange={(e) => setFolder(e.target.value)}
-              className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-            >
-              {folders.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+
+          <div className="mb-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">구획</label>
+              <select
+                value={sec}
+                onChange={(e) => {
+                  const next = e.target.value as LibrarySection;
+                  setSec(next);
+                  setFolder(LIBRARY_FOLDERS[next][0]);
+                }}
+                className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              >
+                {SECTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {LIBRARY_SECTION_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">폴더</label>
+              <select
+                value={folder}
+                onChange={(e) => setFolder(e.target.value)}
+                className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              >
+                {folders.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">분류</label>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as LibraryCategory)}
-          className="mb-3 w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {LIBRARY_CATEGORY_LABELS[c]}
-            </option>
-          ))}
-        </select>
+          <label className="mb-1 block text-[12px] font-semibold text-ink">분류</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as LibraryCategory)}
+            className="mb-3 w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {LIBRARY_CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">본문 (텍스트)</label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={6}
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">본문 (텍스트)</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={6}
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">외부 링크 (선택)</label>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://…"
-          className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">외부 링크 (선택)</label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://…"
+            className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
 
-        {/* 교안·영상 원스톱 매칭 (2026-08-10) — 파일 원본 업로드는 R2 대기, 지금은 링크만 */}
-        <div className="mb-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <div>
-            <label className="mb-1 block text-[12px] font-semibold text-ink">수업용 PPT 링크 (선택)</label>
-            <input
-              value={ppt}
-              onChange={(e) => setPpt(e.target.value)}
-              placeholder="https://… (외부 저장소)"
-              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-            />
+          {/* 교안·영상 원스톱 매칭 (2026-08-10) — 파일 원본 업로드는 R2 대기, 지금은 링크만 */}
+          <div className="mb-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">수업용 PPT 링크 (선택)</label>
+              <input
+                value={ppt}
+                onChange={(e) => setPpt(e.target.value)}
+                placeholder="https://… (외부 저장소)"
+                className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">강의 영상 링크 (선택)</label>
+              <input
+                value={video}
+                onChange={(e) => setVideo(e.target.value)}
+                placeholder="https://vimeo.com/… 또는 위플 주소"
+                className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-[12px] font-semibold text-ink">강의 영상 링크 (선택)</label>
-            <input
-              value={video}
-              onChange={(e) => setVideo(e.target.value)}
-              placeholder="https://vimeo.com/… 또는 위플 주소"
-              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-            />
+
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
+              등록
+            </button>
           </div>
-        </div>
-
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
-            등록
-          </button>
-        </div>
-        <p className="mt-3 text-[11px] text-ink-soft">파일 첨부는 2차(R2 스토리지)에서 지원됩니다.</p>
-      </form>
-    </div>
+          <p className="mt-3 text-[11px] text-ink-soft">파일 첨부는 2차(R2 스토리지)에서 지원됩니다.</p>
+        </form>
+      </div>
+    </Portal>
   );
 }

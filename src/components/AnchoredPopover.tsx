@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Portal } from "./Portal";
 
 /**
  * 누른 자리에서 열리는 팝오버 (2026-08-10 리드 지시).
@@ -94,8 +95,13 @@ export function AnchoredPopover({
 
   const sheet = pos?.sheet ?? false;
 
+  /**
+   * ⚠️ **`Portal` 없이는 자리가 어긋난다.** 이 팝오버는 화면 본문 안에서 열리는데,
+   * `main`이 쌓임 맥락을 만들어(`view-transition-name`) 안에 두면 헤더에 눌린다.
+   * `content-visibility`를 켠 목록 안에서 열릴 때는 그 칸 안에 갇히기도 한다.
+   */
   return (
-    <>
+    <Portal>
       {/* 바깥을 누르면 닫는다. 팝오버는 모달이 아니므로 배경을 어둡게 덮지 않는다 */}
       <div
         className={"fixed inset-0 z-40 " + (sheet ? "bg-zion-950/40" : "")}
@@ -122,6 +128,6 @@ export function AnchoredPopover({
       >
         {children}
       </div>
-    </>
+    </Portal>
   );
 }

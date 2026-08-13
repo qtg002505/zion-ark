@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Portal } from "../components/Portal";
 import { Check, Copy, Plus, Quote as QuoteIcon, Sparkles, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -318,68 +319,70 @@ function QuoteForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="어록 등록">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[16px] font-bold text-zion-900">어록 등록</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
-            <X size={16} />
-          </button>
-        </div>
-
-        <label className="mb-1 block text-[12px] font-semibold text-ink">어록</label>
-        <textarea
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          rows={3}
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
-
-        <label className="mb-1 block text-[12px] font-semibold text-ink">해설·맥락 (선택)</label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={3}
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
-
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-[12px] font-semibold text-ink">카테고리</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as QuoteCategory)}
-              className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-            >
-              {QUOTE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="어록 등록">
+        <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[16px] font-bold text-zion-900">어록 등록</h2>
+            <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
+              <X size={16} />
+            </button>
           </div>
-          <div>
-            <label className="mb-1 block text-[12px] font-semibold text-ink">출처 (선택)</label>
-            <input
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              placeholder="예: 2025 지도자 교육"
-              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-            />
+
+          <label className="mb-1 block text-[12px] font-semibold text-ink">어록</label>
+          <textarea
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            rows={3}
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
+
+          <label className="mb-1 block text-[12px] font-semibold text-ink">해설·맥락 (선택)</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={3}
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
+
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">카테고리</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as QuoteCategory)}
+                className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              >
+                {QUOTE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">출처 (선택)</label>
+              <input
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                placeholder="예: 2025 지도자 교육"
+                className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              />
+            </div>
           </div>
-        </div>
 
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
-            등록
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
+              등록
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portal>
   );
 }

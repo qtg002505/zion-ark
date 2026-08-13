@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Portal } from "../components/Portal";
 import { Pin, Plus, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -146,50 +147,52 @@ function NoticeForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="공지 작성">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[16px] font-bold text-zion-900">
-            {kind === "notice_hq" ? "총회 공지 작성" : "지파 공지 작성"}
-          </h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
-            <X size={16} />
-          </button>
-        </div>
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="공지 작성">
+        <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[16px] font-bold text-zion-900">
+              {kind === "notice_hq" ? "총회 공지 작성" : "지파 공지 작성"}
+            </h2>
+            <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
+              <X size={16} />
+            </button>
+          </div>
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">본문</label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={6}
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">본문</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={6}
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+          />
 
-        {kind === "notice_hq" && (
-          <label className="mb-4 flex items-center gap-2 text-[13px] text-ink">
-            <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-            전체 현황 상단에 고정
-          </label>
-        )}
+          {kind === "notice_hq" && (
+            <label className="mb-4 flex items-center gap-2 text-[13px] text-ink">
+              <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
+              전체 현황 상단에 고정
+            </label>
+          )}
 
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
-            게시
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
+              게시
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portal>
   );
 }

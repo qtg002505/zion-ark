@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Portal } from "../components/Portal";
 import { useSearchParams } from "react-router-dom";
 import { PencilLine } from "lucide-react";
 import { useSession } from "../lib/auth";
@@ -498,44 +499,46 @@ function WeekNoteForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="주차 사유 기록">
-      <form onSubmit={submit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 className="mb-1 text-[16px] font-bold text-zion-900">{week} — 무슨 일이 있었나</h2>
-        <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-          다음 기수가 같은 주에 참고합니다. 수강생 이름이나 개인 사정은 적지 않고, 기수 전체에서
-          일어난 일만 적어 주세요.
-        </p>
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="주차 사유 기록">
+        <form onSubmit={submit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 className="mb-1 text-[16px] font-bold text-zion-900">{week} — 무슨 일이 있었나</h2>
+          <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+            다음 기수가 같은 주에 참고합니다. 수강생 이름이나 개인 사정은 적지 않고, 기수 전체에서
+            일어난 일만 적어 주세요.
+          </p>
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">사유</label>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={3}
-          placeholder="예) 지역 행사 일정과 겹쳐 저녁 대면 참석이 크게 줄었습니다."
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">사유</label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            placeholder="예) 지역 행사 일정과 겹쳐 저녁 대면 참석이 크게 줄었습니다."
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+          />
 
-        <label className="mb-1 block text-[12px] font-semibold text-ink">극복 (선택)</label>
-        <textarea
-          value={overcome}
-          onChange={(e) => setOvercome(e.target.value)}
-          rows={3}
-          placeholder="예) 다음 주에 오전 보강을 추가로 열어 결석분을 메웠습니다."
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
-        />
+          <label className="mb-1 block text-[12px] font-semibold text-ink">극복 (선택)</label>
+          <textarea
+            value={overcome}
+            onChange={(e) => setOvercome(e.target.value)}
+            rows={3}
+            placeholder="예) 다음 주에 오전 보강을 추가로 열어 결석분을 메웠습니다."
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+          />
 
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
-            저장
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
+              저장
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portal>
   );
 }
 

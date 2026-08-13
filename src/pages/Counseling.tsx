@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Portal } from "../components/Portal";
 import { Link } from "../components/TransitionLink";
 import {
   BookOpen,
@@ -597,64 +598,66 @@ function TipForm({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={editing ? "상담법 수정" : "상담법 남기기"}
-    >
-      <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 className="mb-1 text-[16px] font-bold text-zion-900">
-          {editing ? "상담법 수정" : "상담법 남기기"} — {themeName}
-        </h2>
-        <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-          전국의 사명자가 봅니다. 개인 경험 공유이며 공식 교리 해설이 아닙니다 — 본문에는
-          이름 · 연락처 · 분반 · 나이를 적지 않습니다.
-        </p>
-
-        <div className="mb-3">
-          <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="예) 첫 주에 빠진 분은 둘째 주가 되기 전에 연락합니다"
-            className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-          />
-        </div>
-        <div className="mb-3">
-          <label className="mb-1 block text-[12px] font-semibold text-ink">본문</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={6}
-            placeholder="어떤 상황에서, 어떻게 대화했고, 어떻게 됐는지 적어 주세요."
-            className="w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
-          />
-        </div>
-
-        {hits.length > 0 && (
-          <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-gold-100/60 p-2.5 text-[12px] leading-relaxed text-ink">
-            <ShieldAlert size={14} className="mt-0.5 shrink-0 text-gold-700" />
-            <span>지워 주세요 — {hits.join(", ")}. 사람을 짚을 수 있는 내용은 올릴 수 없습니다.</span>
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={editing ? "상담법 수정" : "상담법 남기기"}
+      >
+        <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 className="mb-1 text-[16px] font-bold text-zion-900">
+            {editing ? "상담법 수정" : "상담법 남기기"} — {themeName}
+          </h2>
+          <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+            전국의 사명자가 봅니다. 개인 경험 공유이며 공식 교리 해설이 아닙니다 — 본문에는
+            이름 · 연락처 · 분반 · 나이를 적지 않습니다.
           </p>
-        )}
 
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+          <div className="mb-3">
+            <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예) 첫 주에 빠진 분은 둘째 주가 되기 전에 연락합니다"
+              className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+            />
+          </div>
+          <div className="mb-3">
+            <label className="mb-1 block text-[12px] font-semibold text-ink">본문</label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={6}
+              placeholder="어떤 상황에서, 어떻게 대화했고, 어떻게 됐는지 적어 주세요."
+              className="w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+            />
+          </div>
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button
-            type="submit"
-            disabled={hits.length > 0}
-            className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
-          >
-            {editing ? "고치기" : "올리기"}
-          </button>
-        </div>
-      </form>
-    </div>
+          {hits.length > 0 && (
+            <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-gold-100/60 p-2.5 text-[12px] leading-relaxed text-ink">
+              <ShieldAlert size={14} className="mt-0.5 shrink-0 text-gold-700" />
+              <span>지워 주세요 — {hits.join(", ")}. 사람을 짚을 수 있는 내용은 올릴 수 없습니다.</span>
+            </p>
+          )}
+
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={hits.length > 0}
+              className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+            >
+              {editing ? "고치기" : "올리기"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portal>
   );
 }
 

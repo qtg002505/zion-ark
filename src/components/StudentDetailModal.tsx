@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ExternalLink, X } from "lucide-react";
 import { Link } from "./TransitionLink";
+import { Portal } from "./Portal";
 import { STUDENTS } from "../content/cohort-mock";
 import { StudentDetailPage } from "../pages/StudentDetailPage";
 
@@ -59,25 +60,31 @@ export function StudentDetailModal({
 
   if (!student) return null;
 
+  /**
+   * ⚠️ **`Portal`을 벗기지 않는다.** 이 팝업은 목록 화면 안에서 열리는데, 그 위쪽 `main`이
+   * `view-transition-name` 때문에 쌓임 맥락을 만든다. 맥락 안에 있으면 `z-50`을 줘도
+   * 헤더(`z-20`)에 눌려 **팝업 머리가 잘린다**(2026-08-13에 실제로 그랬다).
+   */
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zion-950/50 p-3 sm:p-6"
-      onPointerDown={(e) => {
-        downInsideRef.current = panelRef.current?.contains(e.target as Node) ?? false;
-      }}
-      onPointerUp={(e) => {
-        const outside = !panelRef.current?.contains(e.target as Node);
-        if (outside && !downInsideRef.current) onClose();
-        downInsideRef.current = false;
-      }}
-    >
+    <Portal>
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${student.name} 수강생 정보 상세`}
-        className="my-2 w-full max-w-4xl rounded-2xl bg-surface shadow-2xl"
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zion-950/50 p-3 sm:p-6"
+        onPointerDown={(e) => {
+          downInsideRef.current = panelRef.current?.contains(e.target as Node) ?? false;
+        }}
+        onPointerUp={(e) => {
+          const outside = !panelRef.current?.contains(e.target as Node);
+          if (outside && !downInsideRef.current) onClose();
+          downInsideRef.current = false;
+        }}
       >
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${student.name} 수강생 정보 상세`}
+          className="my-2 w-full max-w-4xl rounded-2xl bg-surface shadow-2xl"
+        >
         {/* 팝업 머리 — 스크롤해도 닫기 버튼이 남아 있어야 한다 */}
         <div className="sticky top-0 z-10 flex items-center gap-2 rounded-t-2xl border-b border-zion-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
           <div className="min-w-0 flex-1">
@@ -115,7 +122,8 @@ export function StudentDetailModal({
         <div className="px-4 py-4 sm:px-5">
           <StudentDetailPage studentKey={studentKey} embedded />
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 }

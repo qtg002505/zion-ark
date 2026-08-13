@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Portal } from "../components/Portal";
 import {
   CheckCircle2,
   Pencil,
@@ -384,90 +385,92 @@ function CaseForm({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={editing ? "상담 사례 수정" : "상담 사례 남기기"}
-    >
-      <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 className="mb-1 text-[16px] font-bold text-zion-900">
-          {editing ? "상담 사례 수정" : "상담 사례 남기기"}
-        </h2>
-        {/*
-          「소속」이 수강생 것인지 쓰는 사람 것인지 헷갈린다는 검수 의견을 받았다
-          (2026-08-11 파트 B). **쓰는 사람 소속**이 붙는다는 것을 문장에서 밝힌다.
-        */}
-        <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-          <strong className="font-semibold text-zion-700">쓰는 사람(나)의 소속</strong>이 지파 ·
-          교회 · 센터까지만 자동으로 붙습니다 — 수강생 소속을 적는 칸이 아닙니다. 본문에는 이름 ·
-          연락처 · 분반 · 나이를 적지 않습니다.
-        </p>
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={editing ? "상담 사례 수정" : "상담 사례 남기기"}
+      >
+        <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 className="mb-1 text-[16px] font-bold text-zion-900">
+            {editing ? "상담 사례 수정" : "상담 사례 남기기"}
+          </h2>
+          {/*
+            「소속」이 수강생 것인지 쓰는 사람 것인지 헷갈린다는 검수 의견을 받았다
+            (2026-08-11 파트 B). **쓰는 사람 소속**이 붙는다는 것을 문장에서 밝힌다.
+          */}
+          <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+            <strong className="font-semibold text-zion-700">쓰는 사람(나)의 소속</strong>이 지파 ·
+            교회 · 센터까지만 자동으로 붙습니다 — 수강생 소속을 적는 칸이 아닙니다. 본문에는 이름 ·
+            연락처 · 분반 · 나이를 적지 않습니다.
+          </p>
 
-        <div className="mb-3 flex gap-1 rounded-xl bg-zion-100 p-1">
+          <div className="mb-3 flex gap-1 rounded-xl bg-zion-100 p-1">
+            {(
+              [
+                ["success", "돌아온 경우"],
+                ["failure", "놓친 경우"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setOutcome(v)}
+                className={
+                  "flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
+                  (outcome === v ? "bg-white text-zion-900 shadow-sm" : "text-zion-600")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {(
             [
-              ["success", "돌아온 경우"],
-              ["failure", "놓친 경우"],
+              ["어떤 상황이었나", situation, setSituation, "예) 근무 시간이 바뀌어 저녁 대면에 계속 빠지게 된 분이 있었습니다."],
+              ["어떻게 했나", approach, setApproach, "예) 그만두는 이야기를 바로 만류하지 않고 올 수 있는 시간대부터 물었습니다."],
+              ["어떻게 됐나", result, setResult, "예) 오전 보강으로 옮긴 뒤 계속 나오고 있습니다."],
             ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setOutcome(v)}
-              className={
-                "flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
-                (outcome === v ? "bg-white text-zion-900 shadow-sm" : "text-zion-600")
-              }
-            >
-              {label}
-            </button>
+          ).map(([label, value, set, ph]) => (
+            <div key={label} className="mb-3">
+              <label className="mb-1 block text-[12px] font-semibold text-ink">{label}</label>
+              <textarea
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                rows={3}
+                placeholder={ph}
+                className="w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+              />
+            </div>
           ))}
-        </div>
 
-        {(
-          [
-            ["어떤 상황이었나", situation, setSituation, "예) 근무 시간이 바뀌어 저녁 대면에 계속 빠지게 된 분이 있었습니다."],
-            ["어떻게 했나", approach, setApproach, "예) 그만두는 이야기를 바로 만류하지 않고 올 수 있는 시간대부터 물었습니다."],
-            ["어떻게 됐나", result, setResult, "예) 오전 보강으로 옮긴 뒤 계속 나오고 있습니다."],
-          ] as const
-        ).map(([label, value, set, ph]) => (
-          <div key={label} className="mb-3">
-            <label className="mb-1 block text-[12px] font-semibold text-ink">{label}</label>
-            <textarea
-              value={value}
-              onChange={(e) => set(e.target.value)}
-              rows={3}
-              placeholder={ph}
-              className="w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
-            />
+          {hits.length > 0 && (
+            <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-gold-100/60 p-2.5 text-[12px] leading-relaxed text-ink">
+              <ShieldAlert size={14} className="mt-0.5 shrink-0 text-gold-700" />
+              <span>
+                지워 주세요 — {hits.join(", ")}. 사람을 짚을 수 있는 내용은 올릴 수 없습니다.
+              </span>
+            </p>
+          )}
+
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={hits.length > 0}
+              className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+            >
+              {editing ? "고치기" : "올리기"}
+            </button>
           </div>
-        ))}
-
-        {hits.length > 0 && (
-          <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-gold-100/60 p-2.5 text-[12px] leading-relaxed text-ink">
-            <ShieldAlert size={14} className="mt-0.5 shrink-0 text-gold-700" />
-            <span>
-              지워 주세요 — {hits.join(", ")}. 사람을 짚을 수 있는 내용은 올릴 수 없습니다.
-            </span>
-          </p>
-        )}
-
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button
-            type="submit"
-            disabled={hits.length > 0}
-            className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
-          >
-            {editing ? "고치기" : "올리기"}
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </Portal>
   );
 }

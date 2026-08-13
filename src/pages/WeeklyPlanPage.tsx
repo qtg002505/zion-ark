@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Portal } from "../components/Portal";
 import {
   ChevronLeft,
   ChevronRight,
@@ -874,41 +875,43 @@ function PlanForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="주차별 메모 작성">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-[16px] font-bold text-zion-900">주차별 메모 — {week}</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
-            <X size={16} />
-          </button>
-        </div>
-        <p className="mb-4 text-[12px] text-ink-soft">
-          고치면 이전 내용이 이력으로 남습니다. 날짜별 계획은 위 달력에 적습니다.
-        </p>
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4" role="dialog" aria-modal="true" aria-label="주차별 메모 작성">
+        <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-[16px] font-bold text-zion-900">주차별 메모 — {week}</h2>
+            <button type="button" onClick={onClose} aria-label="닫기" className="rounded p-1 text-ink-soft hover:bg-zion-50">
+              <X size={16} />
+            </button>
+          </div>
+          <p className="mb-4 text-[12px] text-ink-soft">
+            고치면 이전 내용이 이력으로 남습니다. 날짜별 계획은 위 달력에 적습니다.
+          </p>
 
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={10}
-          placeholder={"예)\n· 이번 주 분반별 확인 사항\n· 다음 주 준비물"}
-          className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
-        />
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={10}
+            placeholder={"예)\n· 이번 주 분반별 확인 사항\n· 다음 주 준비물"}
+            className="mb-3 w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+          />
 
-        <p className="mb-3 text-[11px] text-ink-soft">
-          수강생의 이름이나 개인적인 사정은 적지 않습니다. 진행 계획만 남겨 주세요.
-        </p>
+          <p className="mb-3 text-[11px] text-ink-soft">
+            수강생의 이름이나 개인적인 사정은 적지 않습니다. 진행 계획만 남겨 주세요.
+          </p>
 
-        {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
+          {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
-            취소
-          </button>
-          <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
-            저장
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] text-ink-soft hover:bg-zion-50">
+              취소
+            </button>
+            <button type="submit" className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zion-700">
+              저장
+            </button>
+          </div>
+        </form>
+      </div>
+    </Portal>
   );
 }
