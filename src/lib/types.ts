@@ -160,6 +160,13 @@ export interface LibraryMaterial {
   /** 우수 지정 — headquarters_admin만 토글 (확정 결정 4) */
   isFeatured: boolean;
   /**
+   * 추천한 사람들 (2026-08-13 리드 지시 — 게시판 표의 추천순).
+   * **1인 1표 토글** — `CounselCase.helpfulBy`와 같은 계약이다. 숫자 카운터로 두면
+   * 무한 클릭이 된다(사례 화면이 2026-08-10에 그 이유로 바꿨다). 전방 추가 필드 —
+   * 옛 저장분은 `migrateMaterials`가 빈 배열로 채운다.
+   */
+  helpfulBy?: string[];
+  /**
    * 어느 구획인지 (2026-08-06 추가 · **2026-08-13 폐지**).
    * 저장된 값을 지우지 않으려고 남겨 둔 자리다 — **읽는 곳이 없다.** `LibrarySection` 주석 참고.
    */
@@ -289,6 +296,22 @@ export interface PlanEntry {
    * ⚠️ 전방 추가 필드다 — 이 값이 없는 옛 항목은 중요하지 않은 것으로 본다.
    */
   important?: boolean;
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+}
+
+/**
+ * 기수 일정 수정 (2026-08-13 리드 지시 — 개강일·종강 예정일을 화면에서 고친다).
+ * 목업 `SCHEDULE`은 기본값이고, 이 수정이 있으면 그 값을 쓴다
+ * (`cohort-calendar.ts`의 `effectiveSchedule`이 병합한다).
+ * ⚠️ **새신자교육 종강 예정일은 저장하지 않는다** — 항상 「종강 예정일 + 2주」로 파생한다.
+ * 실연동 시 `cohorts` 테이블의 일정 컬럼 갱신에 대응한다.
+ */
+export interface ScheduleOverride {
+  cohortKey: string;
+  startsOn?: string;
+  endsOn?: string;
   updatedBy: string;
   updatedByRole: RoleCode;
   updatedAt: string;

@@ -1,6 +1,5 @@
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { landingPath } from "./lib/permissions";
 import { StoreProvider } from "./lib/store";
 import { PlayerProvider } from "./shell/player";
 import { Layout } from "./shell/Layout";
@@ -9,8 +8,9 @@ import { Overview } from "./pages/Overview";
 import { CohortStatus } from "./pages/CohortStatus";
 import { StudentsDashboard } from "./pages/StudentsDashboard";
 import { StudentDetailPage } from "./pages/StudentDetailPage";
-import { Signals } from "./pages/Signals";
+import { Main } from "./pages/Main";
 import { Compose } from "./pages/Compose";
+import { LectureDigest } from "./pages/LectureDigest";
 import { Library } from "./pages/Library";
 import { TeachingLibrary } from "./pages/TeachingLibrary";
 import { TendencyAnalysis } from "./pages/TendencyAnalysis";
@@ -22,7 +22,6 @@ import { Enneagram } from "./pages/Enneagram";
 import { WeeklyPlanPage } from "./pages/WeeklyPlanPage";
 import { CounselCases } from "./pages/CounselCases";
 import { Counseling } from "./pages/Counseling";
-import { Care } from "./pages/Care";
 import { Centers } from "./pages/Centers";
 import { MyPage } from "./pages/MyPage";
 
@@ -31,26 +30,25 @@ function Routed() {
 
   if (!session) return <Login />;
 
-  /**
-   * 착지 화면 — 관리직은 담당 기수가 없어 "내 기수" 화면이 구조적으로 비므로
-   * 전체현황(요약)으로, 실무직(강사·전도사)은 담당 기수 상세로 보낸다.
-   * (ORG_CHART §6. 편의 기능일 뿐 권한이 아니다 — 각 화면은 범위를 다시 검증한다.)
-   */
-  const landing = landingPath(session);
-
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route
-          path="/"
-          element={landing === "/" ? <Overview /> : <Navigate to={landing} replace />}
-        />
+        {/*
+          `/`는 **메인 페이지**다 (2026-08-13 리드 지시 — 홈페이지 노릇을 하는 화면을 따로).
+          종전에는 역할별 착지 분기(관리직 → 전체현황 · 실무직 → 기수현황)에 쓰였는데,
+          그 안내는 메인 화면 안의 「내 기수부터 보기」 카드가 대신한다.
+        */}
+        <Route path="/" element={<Main />} />
         <Route path="/overview" element={<Overview />} />
         <Route path="/cohort" element={<CohortStatus />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
         <Route path="/cases" element={<CounselCases />} />
         <Route path="/counseling" element={<Counseling />} />
-        <Route path="/care" element={<Care />} />
+        {/*
+          「사명자 심방 도우미」는 2026-08-13 리드 지시로 없앴다 — 경로는 지우지 않고
+          메인으로 넘긴다(북마크가 죽지 않게). 화면은 git 이력에 있다.
+        */}
+        <Route path="/care" element={<Navigate to="/" replace />} />
         <Route path="/centers" element={<Centers />} />
         {/*
           종전 「수강생 목록」은 2026-08-10에 「수강생 현황」으로 **병합**됐다 (리드 지시).
@@ -60,8 +58,11 @@ function Routed() {
         <Route path="/students" element={<Navigate to="/students-dashboard" replace />} />
         <Route path="/students-dashboard" element={<StudentsDashboard />} />
         <Route path="/students/:key" element={<StudentDetailPage />} />
-        <Route path="/signals" element={<Signals />} />
+        {/* 「관찰 필요」도 2026-08-13에 없앴다 — 수강생 현황으로 넘긴다 */}
+        <Route path="/signals" element={<Navigate to="/students-dashboard" replace />} />
         <Route path="/compose" element={<Compose />} />
+        {/* 강의 후에 받아쓴 글을 정리하는 화면 — /compose(강의 전)와 짝이다 (2026-08-13) */}
+        <Route path="/digest" element={<LectureDigest />} />
         <Route path="/library" element={<Library />} />
         {/* 강의 도우미 안의 자료실 — 밭갈이 각 파트·예배설교 (2026-08-13) */}
         <Route path="/teaching" element={<TeachingLibrary />} />

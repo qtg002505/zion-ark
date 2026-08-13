@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Portal } from "../components/Portal";
 import { useSearchParams } from "react-router-dom";
-import { PencilLine } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, PencilLine, Users } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { ROLE_LABELS } from "../lib/types";
@@ -15,11 +15,16 @@ import {
   STUDENTS,
   DIVISIONS,
   COHORT,
+  COHORT_FUNNEL,
+  COHORT_STAFF,
+  DONE_WEEKS,
   TOTAL_SESSIONS,
   WEEKLY_RATES,
   COHORT_RANKS,
+  studentWeekHistory,
   type WeeklyRate,
 } from "../content/cohort-mock";
+import { LineChart } from "../components/LineChart";
 import {
   MARK_GLYPH,
   MARK_LABEL,
@@ -33,6 +38,7 @@ import { PageHeader, Card, StatTile, StatusBadge, EnrollmentStatusBadge } from "
 
 type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
 const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"];
+
 
 /**
  * 기수 현황 — 한 기수를 파고드는 자리.
@@ -194,12 +200,61 @@ export function CohortStatus() {
               </p>
             </Card>
           </div>
+
+          {/*
+            기수 요약 퍼널 (2026-08-13 리드 지시) — 신카부터 예상 종강까지의 흐름.
+            접어 둘 수 있다(리드 요청 「접어놓기 기능」) — <details>라 상태 저장 없이 접힌다.
+          */}
+          <Card className="mt-5">
+            <details open>
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-[14px] font-bold text-zion-900 [&::-webkit-details-marker]:hidden">
+                <ChevronDown size={15} className="shrink-0 text-zion-600 transition-transform [details:not([open])>summary>&]:-rotate-90" />
+                기수 요약 지표
+                <span className="text-[11px] font-normal text-ink-soft">
+                  신카 → 등록 → 과정별 시작 → 예상 종강 (시범 값 · 가상)
+                </span>
+              </summary>
+              <div className="mt-3 grid grid-cols-5 gap-2 max-lg:grid-cols-3 max-md:grid-cols-2">
+                {COHORT_FUNNEL.map((f) => (
+                  <div key={f.label} className="rounded-lg bg-zion-50 px-3 py-2.5">
+                    <div className="text-[11px] leading-tight text-ink-soft">{f.label}</div>
+                    <div className="mt-0.5 text-[16px] font-bold text-zion-900">{f.value}</div>
+                    {f.sub && <div className="mt-0.5 text-[10px] text-ink-soft">{f.sub}</div>}
+                  </div>
+                ))}
+              </div>
+            </details>
+          </Card>
+
+          {/* 사명자 현황 (2026-08-13 리드 지시) — 역할은 표시 문자열일 뿐, 계정·권한과 무관하다 */}
+          <Card className="mt-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Users size={15} className="text-zion-600" />
+              <h2 className="text-[14px] font-bold text-zion-900">사명자 현황</h2>
+              <span className="text-[11px] text-ink-soft">가상 인물 (시범 목업)</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 max-md:grid-cols-2">
+              {COHORT_STAFF.map((p, i) => (
+                <div key={i} className="rounded-lg border border-zion-100 px-3 py-2.5">
+                  <div className="text-[11px] text-ink-soft">{p.role}</div>
+                  <div className="mt-0.5 text-[14px] font-bold text-ink">{p.name}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </>
       )}
 
       {tab === "attendance" && <AttendanceGrid students={students} />}
 
-      {tab === "trend" && <WeeklyTrend rows={WEEKLY_RATES} />}
+      {tab === "trend" && (
+        <>
+          <EightMonthTrend />
+          <div className="mt-4">
+            <WeeklyTrend rows={WEEKLY_RATES} />
+          </div>
+        </>
+      )}
 
       {tab === "compare" && <CohortCompare />}
 
@@ -248,38 +303,67 @@ export function CohortStatus() {
  *
  * ⚠️ 지금 축은 **주 단위**다. 목업에 요일이 없기 때문이다 — 실연동 시 출결 시트에서
  * 회차별 날짜가 오면 이 격자의 칸 수와 라벨만 바뀌고 구조는 그대로다.
+ *
+ * 2026-08-13 — 개강부터의 완료 주차 전체(23주)를 **8주씩 좌우로 넘긴다** (리드 지시).
+ * 기본은 최근 8주라 종전 화면과 똑같이 시작한다. 0~7주 전은 손으로 적은 기록이고,
+ * 그보다 옛 주는 `studentWeekHistory`가 결정적 규칙으로 채운 값이다.
  */
+const GRID_PAGE = 8;
+
 function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
-  const weekCount = Math.max(0, ...students.map((s) => s.recentWeeks.length));
+  /** page 0 = 최근 8주 (종전 화면과 동일). 커질수록 과거로 간다 */
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(DONE_WEEKS / GRID_PAGE));
+
   const rows = [...students].sort((a, b) => {
     const d = rateOf(a).withMakeup - rateOf(b).withMakeup;
     return d !== 0 ? d : a.attendanceRate - b.attendanceRate;
   });
 
+  /** 이 페이지가 보여 주는 weeksAgo 구간 (왼쪽이 최근) */
+  const agoStart = page * GRID_PAGE;
+  const agoList = Array.from(
+    { length: Math.min(GRID_PAGE, DONE_WEEKS - agoStart) },
+    (_, i) => agoStart + i,
+  );
+  /** weeksAgo → 주차 번호 (최근 완료 주 = DONE_WEEKS번째 주) */
+  const weekNoOfAgo = (ago: number) => DONE_WEEKS - ago;
+  const history = useMemo(
+    () => new Map(rows.map((s) => [s.key, studentWeekHistory(s, DONE_WEEKS)])),
+    [rows],
+  );
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[14px] font-bold text-zion-900">최근 {weekCount}주 출결</div>
+          <div className="text-[14px] font-bold text-zion-900">주차별 출결</div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
             보강 포함 출석률이 낮은 사람이 위에 옵니다 — 먼저 볼 사람이 먼저 보이게 했습니다.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 text-[11px]">
-          {(["present", "makeupDone", "makeupPending", "absent", "unknown"] as const).map((m) => (
-            <span key={m} className="flex items-center gap-1 text-ink-soft">
-              <span
-                className={
-                  "inline-flex h-5 w-5 items-center justify-center rounded border text-[11px] font-bold " +
-                  MARK_TONE[m]
-                }
-              >
-                {MARK_GLYPH[m]}
-              </span>
-              {MARK_LABEL[m]}
+        <WeekPager
+          rangeLabel={`${weekNoOfAgo(agoList[agoList.length - 1])}~${weekNoOfAgo(agoList[0])}주차`}
+          onOlder={() => setPage((p) => p + 1)}
+          onNewer={() => setPage((p) => p - 1)}
+          olderDisabled={page >= pageCount - 1}
+          newerDisabled={page === 0}
+        />
+      </div>
+      <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
+        {(["present", "makeupDone", "makeupPending", "absent", "unknown"] as const).map((m) => (
+          <span key={m} className="flex items-center gap-1 text-ink-soft">
+            <span
+              className={
+                "inline-flex h-5 w-5 items-center justify-center rounded border text-[11px] font-bold " +
+                MARK_TONE[m]
+              }
+            >
+              {MARK_GLYPH[m]}
             </span>
-          ))}
-        </div>
+            {MARK_LABEL[m]}
+          </span>
+        ))}
       </div>
 
       {/* 좁은 화면에서는 표만 가로로 넘긴다 — 본문이 옆으로 밀리지 않게 */}
@@ -289,9 +373,11 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
             <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
               <th className="pb-2 font-medium">이름</th>
               <th className="pb-2 font-medium">분반</th>
-              <th className="pb-2 text-center font-medium" colSpan={weekCount}>
-                최근 → 이전
-              </th>
+              {agoList.map((ago) => (
+                <th key={ago} className="pb-2 text-center font-medium">
+                  {weekNoOfAgo(ago)}주
+                </th>
+              ))}
               <th className="pb-2 text-right font-medium">보강 포함</th>
               <th className="pb-2 text-right font-medium">대면만</th>
               <th className="pb-2 pl-3 font-medium">상태</th>
@@ -300,21 +386,21 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
           <tbody>
             {rows.map((s) => {
               const r = rateOf(s);
+              const hist = history.get(s.key) ?? [];
               return (
                 <tr key={s.key} className="border-b border-zion-100 last:border-0">
                   <td className="py-2 pr-2 font-medium text-ink">{s.name}</td>
                   <td className="py-2 pr-2 text-[12px] text-ink-soft">{s.division}</td>
-                  {Array.from({ length: weekCount }, (_, i) => {
-                    const w = s.recentWeeks[i];
-                    const mark = w?.mark ?? "unknown";
+                  {agoList.map((ago) => {
+                    const mark = hist[ago]?.mark ?? "unknown";
                     return (
-                      <td key={i} className="py-2 text-center">
+                      <td key={ago} className="py-2 text-center">
                         <span
                           className={
                             "inline-flex h-6 w-6 items-center justify-center rounded border text-[11px] font-bold " +
                             MARK_TONE[mark]
                           }
-                          title={`${i === 0 ? "이번 주" : `${i}주 전`} — ${MARK_LABEL[mark]}`}
+                          title={`${weekNoOfAgo(ago)}주차 (${ago === 0 ? "최근 완료 주" : `${ago}주 전`}) — ${MARK_LABEL[mark]}`}
                         >
                           {MARK_GLYPH[mark]}
                         </span>
@@ -335,22 +421,115 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
         출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음
-        동기화를 기다립니다. 「보강 포함」은 보강 완료(△)를 출석으로 함께 센 값이고, 「대면만」은
-        대면 출석(O)만 센 값입니다.
+        동기화를 기다립니다. 「보강 포함」·「대면만」 비율은 페이지와 무관하게 <strong>최근 8주
+        기준</strong>입니다. 왼쪽이 최근 주입니다.
       </p>
     </Card>
   );
 }
 
 /**
+ * 8개월 출석 흐름 — 꺾은선 (2026-08-13 리드 지시).
+ * 선 셋: 우리 기수 · 우리 지파 평균 · 12지파 평균. 색과 무늬를 함께 써서 가른다.
+ * 실적이 없는 미래 주는 **선이 끊긴다** — 0으로 그리면 폭락처럼 보이기 때문이다.
+ */
+function EightMonthTrend() {
+  const monthLabels = useMemo(() => {
+    const out: { at: number; label: string }[] = [];
+    let last = "";
+    WEEKLY_RATES.forEach((r, i) => {
+      const month = `${Number(r.weekOf.slice(5, 7))}월`;
+      if (month !== last) {
+        out.push({ at: i, label: month });
+        last = month;
+      }
+    });
+    return out;
+  }, []);
+
+  return (
+    <Card>
+      <div className="mb-1 text-[14px] font-bold text-zion-900">8개월 출석 흐름</div>
+      <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
+        개강부터 종강 예정까지 {WEEKLY_RATES.length}주 전체입니다. 선이 끊긴 곳부터는 아직 오지
+        않은 주입니다. 주차를 하나씩 파려면 아래 막대에서 누르세요.
+      </p>
+      <LineChart
+        ariaLabel="주차별 출석률 — 우리 기수·지파 평균·12지파 평균 비교"
+        series={[
+          { label: "우리 기수", strokeClass: "stroke-zion-700", points: WEEKLY_RATES.map((r) => r.rate) },
+          {
+            label: "우리 지파 평균",
+            strokeClass: "stroke-gold-500",
+            dash: "6 4",
+            points: WEEKLY_RATES.map((r) => r.tribeAvg),
+          },
+          {
+            label: "12지파 평균",
+            strokeClass: "stroke-zion-400",
+            dash: "2 3",
+            points: WEEKLY_RATES.map((r) => r.allAvg),
+          },
+        ]}
+        xLabels={monthLabels}
+      />
+    </Card>
+  );
+}
+
+/** 주차를 좌우로 넘기는 페이저 — 주간 흐름 막대와 출석 격자가 같이 쓴다 (2026-08-13) */
+function WeekPager({
+  rangeLabel,
+  onOlder,
+  onNewer,
+  olderDisabled,
+  newerDisabled,
+}: {
+  rangeLabel: string;
+  onOlder: () => void;
+  onNewer: () => void;
+  olderDisabled: boolean;
+  newerDisabled: boolean;
+}) {
+  const btn = (disabled: boolean) =>
+    "flex h-7 w-7 items-center justify-center rounded-lg border transition " +
+    (disabled
+      ? "cursor-not-allowed border-zion-100 text-zion-300"
+      : "border-zion-200 text-zion-700 hover:bg-zion-50");
+  return (
+    <div className="flex items-center gap-2">
+      <button onClick={onOlder} disabled={olderDisabled} aria-label="이전 주차 보기" className={btn(olderDisabled)}>
+        <ChevronLeft size={14} />
+      </button>
+      <span className="min-w-[7rem] text-center text-[12px] font-semibold text-zion-800">{rangeLabel}</span>
+      <button onClick={onNewer} disabled={newerDisabled} aria-label="다음 주차 보기" className={btn(newerDisabled)}>
+        <ChevronRight size={14} />
+      </button>
+    </div>
+  );
+}
+
+const TREND_PAGE = 8;
+
+/**
  * 주간 흐름 — 우리 기수의 주별 출석률과 지파 평균을 함께 본다.
  * 크게 떨어진 주는 **왜 그랬는지와 어떻게 넘겼는지**를 함께 보여 준다.
  * 그 설명은 자동 산출이 아니라 담당자가 적는 기록이다 —
  * **해당 기수의 강사·전도사만** 적고 고칠 수 있다 (2026-08-06 확정).
+ *
+ * 2026-08-13 — 35주 전체를 받아 **8주씩 좌우로 넘긴다** (리드 지시).
+ * 실적이 없는 미래 주는 점선 빈 막대(「예정」)로 두고 누를 수 없다.
  */
 function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
   const session = useSession();
   const { weekNotes, saveWeekNote } = useStore();
+  const pageCount = Math.max(1, Math.ceil(rows.length / TREND_PAGE));
+  /** 오늘이 든 페이지에서 시작 — 실적이 있는 마지막 주가 있는 쪽 */
+  const initialPage = (() => {
+    const lastDone = rows.reduce((acc, r, i) => (r.rate !== null ? i : acc), 0);
+    return Math.min(pageCount - 1, Math.floor(lastDone / TREND_PAGE));
+  })();
+  const [page, setPage] = useState(initialPage);
   const [picked, setPicked] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const max = 100;
@@ -364,50 +543,82 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
     const n = noteOf(r.week);
     return { ...r, reason: n ? n.reason : r.reason, overcome: n ? n.overcome : r.overcome, note: n };
   });
+  const pageRows = merged.slice(page * TREND_PAGE, page * TREND_PAGE + TREND_PAGE);
   const current = picked !== null ? merged[picked] : null;
+
+  function go(nextPage: number) {
+    setPage(nextPage);
+    setPicked(null); // 보고 있던 주가 화면 밖으로 나가므로 선택을 푼다
+  }
 
   return (
     <Card>
-      <div className="mb-1 text-[14px] font-bold text-zion-900">주간 출석률 흐름</div>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[14px] font-bold text-zion-900">주간 출석률 흐름</div>
+        <WeekPager
+          rangeLabel={`${page * TREND_PAGE + 1}~${Math.min(rows.length, (page + 1) * TREND_PAGE)}주차`}
+          onOlder={() => go(page - 1)}
+          onNewer={() => go(page + 1)}
+          olderDisabled={page === 0}
+          newerDisabled={page === pageCount - 1}
+        />
+      </div>
       <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
         막대는 우리 기수, 가로선은 같은 지파 최근 3개 기수 평균입니다. 사유가 적힌 주는 밑줄로
-        표시되며, 누르면 그 주에 무슨 일이 있었는지 볼 수 있습니다.
+        표시되며, 누르면 그 주에 무슨 일이 있었는지 볼 수 있습니다. 좌우 단추로 주차를 넘깁니다.
       </p>
 
       <div className="-mx-1 overflow-x-auto px-1">
         <div className="flex min-w-[520px] items-end gap-2" role="img" aria-label="주간 출석률과 지파 평균 비교">
-          {merged.map((r, i) => (
-            <button
-              key={r.week}
-              onClick={() => setPicked(picked === i ? null : i)}
-              className="group flex min-w-0 flex-1 flex-col items-center gap-1"
-              title={`${r.week} — 우리 ${r.rate}% · 지파 평균 ${r.tribeAvg}%`}
-            >
-              <span className="text-[11px] font-semibold text-zion-800">{r.rate}</span>
-              <div className="relative flex h-[150px] w-full items-end">
-                <div
-                  className={
-                    "w-full rounded-t transition " +
-                    (picked === i ? "bg-zion-800" : "bg-zion-600 group-hover:bg-zion-500")
-                  }
-                  style={{ height: `${(r.rate / max) * 150}px` }}
-                />
-                {/* 지파 평균 기준선 */}
-                <div
-                  className="absolute left-0 right-0 border-t-2 border-dashed border-gold-500"
-                  style={{ bottom: `${(r.tribeAvg / max) * 150}px` }}
-                  title={`지파 평균 ${r.tribeAvg}%`}
-                />
-              </div>
-              <span
-                className={
-                  "text-[9px] leading-tight text-ink-soft " + (r.reason ? "underline decoration-dotted" : "")
-                }
+          {pageRows.map((r, i) => {
+            const globalIndex = page * TREND_PAGE + i;
+            if (r.rate === null) {
+              // 아직 오지 않은 주 — 자리만 지킨다
+              return (
+                <div key={r.week} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${r.week} — 예정`}>
+                  <span className="text-[10px] text-ink-soft">예정</span>
+                  <div className="flex h-[150px] w-full items-end">
+                    <div className="h-full w-full rounded-t border border-dashed border-zion-200" />
+                  </div>
+                  <span className="text-[9px] leading-tight text-ink-soft">{r.week}</span>
+                </div>
+              );
+            }
+            return (
+              <button
+                key={r.week}
+                onClick={() => setPicked(picked === globalIndex ? null : globalIndex)}
+                className="group flex min-w-0 flex-1 flex-col items-center gap-1"
+                title={`${r.week} — 우리 ${r.rate}% · 지파 평균 ${r.tribeAvg}%`}
               >
-                {r.week}
-              </span>
-            </button>
-          ))}
+                <span className="text-[11px] font-semibold text-zion-800">{r.rate}</span>
+                <div className="relative flex h-[150px] w-full items-end">
+                  <div
+                    className={
+                      "w-full rounded-t transition " +
+                      (picked === globalIndex ? "bg-zion-800" : "bg-zion-600 group-hover:bg-zion-500")
+                    }
+                    style={{ height: `${(r.rate / max) * 150}px` }}
+                  />
+                  {/* 지파 평균 기준선 */}
+                  {r.tribeAvg !== null && (
+                    <div
+                      className="absolute left-0 right-0 border-t-2 border-dashed border-gold-500"
+                      style={{ bottom: `${(r.tribeAvg / max) * 150}px` }}
+                      title={`지파 평균 ${r.tribeAvg}%`}
+                    />
+                  )}
+                </div>
+                <span
+                  className={
+                    "text-[9px] leading-tight text-ink-soft " + (r.reason ? "underline decoration-dotted" : "")
+                  }
+                >
+                  {r.week}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -417,6 +628,9 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block h-0 w-4 border-t-2 border-dashed border-gold-500" /> 지파 최근 3개 기수 평균
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-3.5 w-3 rounded-sm border border-dashed border-zion-200" /> 예정(실적 없음)
         </span>
       </div>
 

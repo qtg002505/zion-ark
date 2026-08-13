@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from "../components/TransitionLink";
-import { ChevronDown, ChevronRight, LogOut, X } from "lucide-react";
+import { ChevronDown, ChevronRight, LogOut, Pin, PinOff, X } from "lucide-react";
 import { useAuth, useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { ROLE_LABELS } from "../lib/types";
@@ -22,10 +22,15 @@ function isActive(item: { to: string; external?: boolean }, pathname: string, fu
 export function Sidebar({
   drawerOpen = false,
   onClose,
+  pinned = true,
+  onSetPinned,
 }: {
   /** 좁은 화면에서 드로어가 열려 있는지 */
   drawerOpen?: boolean;
   onClose?: () => void;
+  /** lg 이상에서 고정돼 있는지 — 해제하면 아이콘 레일로 접힌다 (상태는 Layout 소유) */
+  pinned?: boolean;
+  onSetPinned?: (v: boolean) => void;
 } = {}) {
   const session = useSession();
   const { logout } = useAuth();
@@ -34,6 +39,25 @@ export function Sidebar({
   const store = useStore();
 
   const currentFull = location.pathname + location.search;
+
+  /**
+   * 접기(레일)는 **lg 이상 전용**이다 — 좁은 화면의 드로어 동작에는 관여하지 않는다.
+   * 마우스를 대면(또는 Tab으로 포커스가 들어오면) 펼쳐지고, 떼면 도로 접힌다.
+   */
+  const [hovering, setHovering] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const expanded = pinned || hovering;
+  /* 드로어가 열려 있으면(좁은 화면) 항상 전체 메뉴다 — 레일은 데스크톱 접힘 상태에서만 */
+  const rail = isDesktop && !expanded && !drawerOpen;
 
   /**
    * 최근 24시간 안에 새 자료가 올라온 대주제 — 금색 NEW 뱃지를 붙인다 (2026-08-10 지시).
@@ -107,68 +131,196 @@ export function Sidebar({
     <aside
       className={
         "fixed inset-y-0 left-0 z-40 flex w-[272px] max-w-[85vw] flex-col border-r border-zion-100 bg-white " +
-        "transition-transform duration-300 lg:translate-x-0 " +
-        (drawerOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full")
+        "transition-[transform,width] duration-300 lg:translate-x-0 " +
+        (drawerOpen ? "translate-x-0 shadow-2xl " : "-translate-x-full ") +
+        (expanded ? "lg:w-[272px] " : "lg:w-[68px] ") +
+        /* 고정을 풀고 호버로 펼친 상태 — 본문 여백은 안 움직이므로 위에 떠 있음을 그림자로 알린다 */
+        (!pinned && expanded ? "lg:shadow-2xl" : "")
       }
       /* 가로 모드 노치를 피한다 (본문은 body에서 처리하지만 이 패널은 fixed라 따로 준다) */
       style={{ paddingLeft: "env(safe-area-inset-left)" }}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      /* 키보드 사용자도 같은 경험 — Tab으로 들어오면 펼쳐진다 */
+      onFocusCapture={() => setHovering(true)}
+      onBlurCapture={(e) => {
+        /*
+          ⚠️ relatedTarget이 없는 blur는 무시한다. 펼쳐지는 순간 레일 쪽 DOM이 사라지면서
+          그 안에 있던 포커스가 body로 떨어지는데(관련 대상 null), 이걸 「나갔다」로 읽으면
+          펼침 → 접힘 → 펼침이 진동한다 — 실측으로 확인한 결함이다.
+          진짜로 Tab이 밖으로 나가면 relatedTarget이 다음 요소로 온다.
+        */
+        const next = e.relatedTarget as Node | null;
+        if (next && !e.currentTarget.contains(next)) setHovering(false);
+      }}
     >
-      <div className="flex items-center gap-3 px-5 py-5">
-        <ZionLogo />
-        <div className="min-w-0 flex-1">
-          <div className="text-[15px] font-bold tracking-wide text-ink">시온 아크</div>
-          <div className="text-[11px] text-ink-soft">만국 소성 플랫폼</div>
-        </div>
-        <button
-          onClick={onClose}
-          aria-label="메뉴 닫기"
-          className="shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-zion-50 lg:hidden"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="주 메뉴">
-        {groups.map((group) => (
-          <NavGroupBlock
-            key={group.label}
-            group={group}
-            isNew={fresh.has(group.label)}
-            isOpen={openGroup === group.label}
-            hasActive={group.label === activeGroup}
-            openSubs={openSubs}
-            pathname={location.pathname}
-            currentFull={currentFull}
-            onToggle={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
-            onToggleSub={toggleSub}
-          />
-        ))}
-      </nav>
-
-      <div className="border-t border-zion-100 px-4 py-3.5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold text-ink">
-              {session.name} <span className="font-normal text-ink-soft">· {ROLE_LABELS[session.roleCode]}</span>
-            </div>
-            <div className="truncate text-[11px] text-ink-soft">담당 범위: {studentScopeLabel(session)}</div>
+      {rail ? (
+        /* ── 접힌 레일 — 아이콘만. 마우스를 대면 전체 메뉴가 이 위로 펼쳐진다 ── */
+        <>
+          <div className="flex justify-center py-5">
+            <NavLink viewTransition to="/overview" aria-label="홈으로" title="홈으로">
+              <ZionLogo size={30} />
+            </NavLink>
           </div>
-          <button
-            onClick={logout}
-            title="로그아웃"
-            aria-label="로그아웃"
-            className="shrink-0 rounded-lg p-2 text-ink-soft transition hover:bg-zion-50 hover:text-zion-700"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-        {/*
-          빌드 스탬프 — 팀 공유 프리뷰에서 "내가 보는 게 최신인가"를 확인하는 유일한 단서다.
-          옛 화면이 보인다는 말이 나오면 이 시각부터 맞춰 본다.
-        */}
-        <div className="mt-2 text-[10px] text-ink-soft">빌드 {buildLabel()}</div>
-      </div>
+          <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4" aria-label="주 메뉴">
+            {groups.map((group) => (
+              <RailIcon
+                key={group.label}
+                group={group}
+                active={group.label === activeGroup}
+                isNew={fresh.has(group.label)}
+                onExpand={() => {
+                  /*
+                    마우스 없이 쓰는 사람의 결정적 경로 — 아이콘을 누르면 고정이 켜지고
+                    그 대주제가 열린 채 펼쳐진다 (호버 펼침의 대체 수단).
+                  */
+                  onSetPinned?.(true);
+                  setOpenGroup(group.label);
+                }}
+              />
+            ))}
+          </nav>
+          <div className="flex justify-center border-t border-zion-100 py-3.5">
+            <button
+              onClick={logout}
+              title="로그아웃"
+              aria-label="로그아웃"
+              className="rounded-lg p-2 text-ink-soft transition hover:bg-zion-50 hover:text-zion-700"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </>
+      ) : (
+        /* ── 전체 메뉴 — 고정 상태·호버 펼침·좁은 화면 드로어가 모두 이 모습이다 ── */
+        <>
+          <div className="flex items-center gap-3 px-5 py-5">
+            {/* 마크·이름을 누르면 홈으로 (2026-08-13 리드 지시) */}
+            <NavLink
+              viewTransition
+              to="/overview"
+              onClick={onClose}
+              aria-label="홈으로"
+              className="flex min-w-0 flex-1 items-center gap-3"
+            >
+              <ZionLogo />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold tracking-wide text-ink">시온 아크</span>
+                <span className="block text-[11px] text-ink-soft">만국 소성 플랫폼</span>
+              </span>
+            </NavLink>
+            {/* 고정 토글 — 풀면 접히되, 마우스가 아직 위에 있어 펼침이 유지되다가 떼면 접힌다 */}
+            <button
+              onClick={() => onSetPinned?.(!pinned)}
+              aria-pressed={pinned}
+              title={pinned ? "사이드바 고정 해제 — 접힌 상태로 둡니다" : "사이드바 고정"}
+              aria-label={pinned ? "사이드바 고정 해제" : "사이드바 고정"}
+              className="shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-zion-50 max-lg:hidden"
+            >
+              {pinned ? <Pin size={15} /> : <PinOff size={15} />}
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="메뉴 닫기"
+              className="shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-zion-50 lg:hidden"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="주 메뉴">
+            {groups.map((group) => (
+              <NavGroupBlock
+                key={group.label}
+                group={group}
+                isNew={fresh.has(group.label)}
+                isOpen={openGroup === group.label}
+                hasActive={group.label === activeGroup}
+                openSubs={openSubs}
+                pathname={location.pathname}
+                currentFull={currentFull}
+                onToggle={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
+                onToggleSub={toggleSub}
+              />
+            ))}
+          </nav>
+
+          <div className="border-t border-zion-100 px-4 py-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate text-[13px] font-semibold text-ink">
+                  {session.name} <span className="font-normal text-ink-soft">· {ROLE_LABELS[session.roleCode]}</span>
+                </div>
+                <div className="truncate text-[11px] text-ink-soft">담당 범위: {studentScopeLabel(session)}</div>
+              </div>
+              <button
+                onClick={logout}
+                title="로그아웃"
+                aria-label="로그아웃"
+                className="shrink-0 rounded-lg p-2 text-ink-soft transition hover:bg-zion-50 hover:text-zion-700"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+            {/*
+              빌드 스탬프 — 팀 공유 프리뷰에서 "내가 보는 게 최신인가"를 확인하는 유일한 단서다.
+              옛 화면이 보인다는 말이 나오면 이 시각부터 맞춰 본다.
+            */}
+            <div className="mt-2 text-[10px] text-ink-soft">빌드 {buildLabel()}</div>
+          </div>
+        </>
+      )}
     </aside>
+  );
+}
+
+/** 접힌 레일의 대주제 아이콘 — 단독 대주제는 바로 이동, 나머지는 고정+펼침 */
+function RailIcon({
+  group,
+  active,
+  isNew,
+  onExpand,
+}: {
+  group: NavGroup;
+  active: boolean;
+  isNew: boolean;
+  onExpand: () => void;
+}) {
+  const Icon = group.icon;
+  const box = (
+    <span
+      className={
+        "relative flex h-9 w-9 items-center justify-center rounded-lg transition " +
+        (active ? "bg-zion-700 text-white shadow-sm shadow-zion-700/25" : "bg-zion-50 text-zion-600 hover:bg-zion-100")
+      }
+    >
+      <Icon size={16} />
+      {isNew && (
+        <span
+          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gold-500"
+          title="최근 24시간 안에 새 자료가 올라왔습니다"
+        />
+      )}
+    </span>
+  );
+
+  if (group.to) {
+    return (
+      <NavLink
+        viewTransition
+        to={group.to}
+        title={group.label}
+        aria-label={group.label}
+        className="flex justify-center py-0.5"
+      >
+        {box}
+      </NavLink>
+    );
+  }
+  return (
+    <button onClick={onExpand} title={group.label} aria-label={group.label} className="flex w-full justify-center py-0.5">
+      {box}
+    </button>
   );
 }
 

@@ -1,4 +1,5 @@
 import { QUOTE_ITEMS, QUOTE_TOPIC_LIST, type QuoteItem } from "../content/quotes-data";
+import { looseCount, looseIncludes } from "./text-match";
 
 /**
  * 주제로 어록 뽑기 — "전도 관련 어록 뽑아줘" 같은 요청에서 주제어를 골라내
@@ -84,8 +85,8 @@ export function extractKeywords(input: string): string[] {
     .filter((w) => w.length >= 2)
     .filter((w) => !STOP_WORDS.includes(w));
 
-  // 중복 제거 후 최대 4개
-  return [...new Set(words)].slice(0, 4);
+  // 중복 제거 — 2026-08-13에 4개 컷을 8개로 넓혔다(긴 문장으로 물으면 뒷낱말이 잘렸다)
+  return [...new Set(words)].slice(0, 8);
 }
 
 /** 같은 어록이 여러 주제에 중복 수록돼 있어 앞부분으로 중복을 판정한다 */
@@ -93,9 +94,23 @@ function dedupeKey(text: string): string {
   return text.replace(/\s/g, "").slice(0, 40);
 }
 
-export function pickQuotes(input: string, limit = 20): { keywords: string[]; results: PickResult[] } {
+/**
+ * 어록 뽑기.
+ *
+ * **2026-08-13 리드 지시 — 「요청 단어를 넣으면 다 나오도록(파트에서만 나오는 게 아닌)」.**
+ * 종전에는 상위 **20건**만 돌려줘서, 낱말이 본문에 든 어록이 수백 건이어도 주제(파트)가
+ * 맞는 것 위주로 스무 개만 보였다. 기본 상한을 크게 올리고 **총 몇 건이 걸렸는지**(`total`)를
+ * 함께 돌려준다 — 화면이 「상위 N건」인지 「전부」인지 말할 수 있어야 한다.
+ *
+ * 낱말 맞추기는 **띄어쓰기를 무시한다** (`looseCount`) — 「천국 비밀」과 「천국비밀」이
+ * 같은 것으로 걸린다.
+ */
+export function pickQuotes(
+  input: string,
+  limit = 300,
+): { keywords: string[]; results: PickResult[]; total: number } {
   const keywords = extractKeywords(input);
-  if (keywords.length === 0) return { keywords, results: [] };
+  if (keywords.length === 0) return { keywords, results: [], total: 0 };
 
   const expanded = new Map<string, string[]>();
   for (const k of keywords) expanded.set(k, RELATED[k] ?? []);
@@ -112,13 +127,13 @@ export function pickQuotes(input: string, limit = 20): { keywords: string[]; res
       if (item.category === k) {
         score += 12;
         hit = true;
-      } else if (item.category.includes(k)) {
+      } else if (looseIncludes(item.category, k)) {
         score += 8;
         hit = true;
       }
 
-      // 본문 출현 횟수
-      const count = item.text.split(k).length - 1;
+      // 본문 출현 횟수 — 띄어쓰기를 무시하고 센다
+      const count = looseCount(item.text, k);
       if (count > 0) {
         score += Math.min(count, 3) * 3;
         hit = true;
@@ -126,7 +141,7 @@ export function pickQuotes(input: string, limit = 20): { keywords: string[]; res
 
       // 연관어는 약하게
       for (const r of related) {
-        if (item.text.includes(r) || item.category.includes(r)) {
+        if (looseIncludes(item.text, r) || looseIncludes(item.category, r)) {
           score += 1;
           hit = true;
           break;
@@ -147,17 +162,20 @@ export function pickQuotes(input: string, limit = 20): { keywords: string[]; res
 
   scored.sort((a, b) => b.score - a.score || a.item.text.length - b.item.text.length);
 
+  /*
+    중복(같은 어록이 여러 주제에 실린 것)을 걷어낸 **전체 건수**를 먼저 센다 —
+    화면이 「몇 건 중 몇 건을 보고 있는지」 말할 수 있어야 한다.
+  */
   const seen = new Set<string>();
-  const results: PickResult[] = [];
+  const deduped: PickResult[] = [];
   for (const r of scored) {
     const key = dedupeKey(r.item.text);
     if (seen.has(key)) continue;
     seen.add(key);
-    results.push(r);
-    if (results.length >= limit) break;
+    deduped.push(r);
   }
 
-  return { keywords, results };
+  return { keywords, results: deduped.slice(0, limit), total: deduped.length };
 }
 
 /** 입력창 아래에 띄울 추천 주제 — 어록이 많은 주제부터 */

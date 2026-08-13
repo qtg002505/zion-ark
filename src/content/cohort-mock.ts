@@ -1,4 +1,5 @@
 import type { AttendanceMark, Student, WeeklyAttendance } from "../lib/types";
+import { countClassDays, mondayOfWeek, weekLabelOf, weekNoOf } from "../lib/cohort-calendar";
 
 /**
  * 시범 기수 목업 데이터 — 실제 개인정보 아님 (전원 가상 인물).
@@ -12,15 +13,37 @@ export const COHORT = { tribe: "요한", church: "과천교회", cohort: "113기
 
 /**
  * 기수 일정 — 점검자가 진행 상황을 가늠하는 기준 (2026-08-06 회의 확정).
- * 실연동 시 `cohorts` 테이블의 개강일·종강예정일·새신자교육일 컬럼에서 온다.
+ * 실연동 시 `cohorts` 테이블의 개강일·종강예정일 컬럼에서 온다.
+ *
+ * **2026-08-13 리드 확정 — 개강~종강 8개월, 월·화·목 수업.**
+ * 개강 2026-03-02(월) 기준 8개월째의 마지막 수업일이 2026-10-29(목)이다.
+ * 화면에서 편집한 값은 `ScheduleOverride`(store)에 얹히고, 읽는 쪽은
+ * `effectiveSchedule()`을 거친다 — 이 상수는 기본값이다.
  */
 export const SCHEDULE = {
   startsOn: "2026-03-02",
-  endsOn: "2026-09-14",
+  endsOn: "2026-10-29",
+  /**
+   * ⚠️ 2026-08-13부터 **읽는 곳이 없다.** 새신자교육 종강 예정일은 「종강 예정일 + 2주」로
+   * 항상 파생한다(`newcomerEndOf`). 필드를 지우지 않는 것은 실연동 시 컬럼 대응을
+   * 남겨 두기 위해서다 — `division`·`section`과 같은 취급(불변식 10).
+   */
   newcomerOn: "2026-08-17",
 };
 export const DIVISIONS = ["1분반", "2분반", "3분반", "4분반"];
-export const TOTAL_SESSIONS = 92;
+
+/**
+ * 총 수업 회차 — 월·화·목 수업일을 세어 낸다 (2026-08-13, 종전 상수 92를 대체).
+ * 8개월 · 35주 × 3회 = **105회**. 공휴일을 빼지 않는 이유는 `scheduleSummary` 주석에 있다.
+ */
+export const TOTAL_SESSIONS = countClassDays(SCHEDULE.startsOn, SCHEDULE.endsOn);
+
+/**
+ * 목업 실적이 멈춰 있는 주차 — 시연 기준일(2026-08-13, 24주차 진행 중)까지의
+ * **완료 주차**다. 주차별 실적·출석 격자가 이 주까지만 값을 갖는다.
+ * ⚠️ 실제 오늘 날짜가 지나가도 목업 실적은 안 늘어난다 — 시연 한계로 명시해 둔다.
+ */
+export const DONE_WEEKS = 23;
 
 /**
  * 최근 8주 출결을 짧은 부호로 적는다 — 읽기 쉽고, 신호 규칙을 눈으로 확인하기 좋다.
@@ -106,42 +129,129 @@ export const STUDENTS: Student[] = [
 ];
 
 /**
- * 주차별 출석률 — 이전 주 대비 흐름과 지파 평균 비교에 쓴다 (2026-08-06 회의 확정).
+ * 주차별 출석률 — 이전 주 대비 흐름과 지파·전국 평균 비교에 쓴다 (2026-08-06 회의 확정 ·
+ * 2026-08-13 **8개월 전체 35주로 확장**, 12지파 평균 `allAvg` 추가).
  * `reason`은 사람이 적는 필드다. 자동 산출이 아니라 담당자가 그 주에 무슨 일이
  * 있었는지 남기고, 그래프에 손을 올리면 그대로 보인다.
  * ⚠️ 입력 화면과 권한은 아직 정해지지 않았다 (회의 메모 미해결 9번).
  */
 export interface WeeklyRate {
+  /** 1부터 세는 주차 */
+  weekNo: number;
+  /** 그 주 시작일 (개강 요일 기준) */
+  weekOf: string;
+  /**
+   * 주차 라벨 겸 **`WeekNote` 조인 키** — 형식 불변 (「6월 2주」).
+   * ⚠️ 그 주 **목요일** 기준으로 만든다 — 규칙을 바꾸면 저장된 사유·극복 기록이 끊어진다.
+   */
   week: string;
-  rate: number;
+  /** 미래 주는 null — 그래프가 선을 끊는 자리다 (0으로 그리면 폭락처럼 보인다) */
+  rate: number | null;
   /** 지파 내 최근 3개 기수 평균 — 우리 기수가 어디쯤인지 가늠하는 기준선 */
-  tribeAvg: number;
+  tribeAvg: number | null;
+  /** 12지파 전체 평균 (2026-08-13 추가) — 집계·통계만 반출한다는 불변식 2 안의 값이다 */
+  allAvg: number | null;
   reason?: string;
   overcome?: string;
 }
 
-export const WEEKLY_RATES: WeeklyRate[] = [
-  { week: "5월 4주", rate: 88, tribeAvg: 82 },
-  { week: "6월 1주", rate: 86, tribeAvg: 81 },
-  {
-    week: "6월 2주",
+/**
+ * 손으로 적은 주차 실적 (1~23주차 = 개강 3/2 ~ 8월 1주).
+ * **13~20주차는 종전 목업 8건을 라벨·수치·사유 그대로 옮긴 것**이다 — localStorage에
+ * 저장된 주차 기록(`zion_ark_week_notes`)이 이 라벨로 조인되므로 값을 바꾸지 않는다.
+ * 1~12주차는 개강 초반 하락 곡선(하위 그룹의 `lastAttended` 분포와 정합), 21~23주차는
+ * 회복 흐름으로 채웠다.
+ */
+const ACTUALS: Record<number, Omit<WeeklyRate, "weekNo" | "weekOf" | "week">> = {
+  1: { rate: 95, tribeAvg: 89, allAvg: 87 },
+  2: { rate: 94, tribeAvg: 88, allAvg: 86 },
+  3: { rate: 93, tribeAvg: 88, allAvg: 86 },
+  4: { rate: 91, tribeAvg: 87, allAvg: 85 },
+  5: { rate: 90, tribeAvg: 86, allAvg: 84 },
+  6: { rate: 89, tribeAvg: 86, allAvg: 84 },
+  7: { rate: 88, tribeAvg: 85, allAvg: 83 },
+  8: { rate: 87, tribeAvg: 85, allAvg: 83 },
+  9: { rate: 86, tribeAvg: 84, allAvg: 82 },
+  10: { rate: 85, tribeAvg: 84, allAvg: 82 },
+  11: { rate: 84, tribeAvg: 83, allAvg: 81 },
+  12: { rate: 86, tribeAvg: 83, allAvg: 81 },
+  13: { rate: 88, tribeAvg: 82, allAvg: 80 },
+  14: { rate: 86, tribeAvg: 81, allAvg: 79 },
+  15: {
     rate: 74,
     tribeAvg: 80,
+    allAvg: 78,
     reason: "장마로 저녁 대면 참석이 크게 줄었습니다.",
     overcome: "다음 주 오전 보강을 열어 8명이 참석했습니다.",
   },
-  { week: "6월 3주", rate: 83, tribeAvg: 80 },
-  { week: "6월 4주", rate: 81, tribeAvg: 79 },
-  {
-    week: "7월 1주",
+  16: { rate: 83, tribeAvg: 80, allAvg: 78 },
+  17: { rate: 81, tribeAvg: 79, allAvg: 77 },
+  18: {
     rate: 69,
     tribeAvg: 78,
+    allAvg: 76,
     reason: "휴가철이 겹쳐 결석이 늘었습니다.",
     overcome: "미리 보강 일정을 잡아 이탈로 이어지지 않게 했습니다.",
   },
-  { week: "7월 2주", rate: 77, tribeAvg: 78 },
-  { week: "7월 3주", rate: 80, tribeAvg: 79 },
-];
+  19: { rate: 77, tribeAvg: 78, allAvg: 76 },
+  20: { rate: 80, tribeAvg: 79, allAvg: 77 },
+  21: { rate: 79, tribeAvg: 79, allAvg: 77 },
+  22: { rate: 78, tribeAvg: 79, allAvg: 77 },
+  23: { rate: 80, tribeAvg: 80, allAvg: 78 },
+};
+
+/** 1~35주차 전체를 만든다 — 실적이 없는 미래 주는 null로 둔다 */
+function buildWeeklyRates(): WeeklyRate[] {
+  const { startsOn, endsOn } = SCHEDULE;
+  const totalWeeks = weekNoOf(startsOn, endsOn);
+  const out: WeeklyRate[] = [];
+  for (let n = 1; n <= totalWeeks; n++) {
+    const weekOf = mondayOfWeek(startsOn, n);
+    const actual = ACTUALS[n];
+    out.push({
+      weekNo: n,
+      weekOf,
+      week: weekLabelOf(weekOf),
+      rate: actual?.rate ?? null,
+      tribeAvg: actual?.tribeAvg ?? null,
+      allAvg: actual?.allAvg ?? null,
+      reason: actual?.reason,
+      overcome: actual?.overcome,
+    });
+  }
+  return out;
+}
+
+export const WEEKLY_RATES: WeeklyRate[] = buildWeeklyRates();
+
+/**
+ * 출석 격자 페이징용 — 한 수강생의 주 단위 출결을 `weekCount`주까지 만든다.
+ *
+ * 0~7주 전은 손으로 적은 `recentWeeks` 그대로이고, 그보다 옛 주는 결정적 규칙으로
+ * 채운다: 그 주 시작일이 `lastAttended` 이전이면 출석(가장 많이 쓰는 시간대), 아니면 결석.
+ * 하위 그룹의 「N월부터 안 나옴」 패턴이 그대로 재현된다.
+ *
+ * ⚠️ **`recentWeeks` 배열 자체를 늘리면 안 된다** — `rateOf()`의 「최근 8주」 의미가 깨져
+ * 보강 포함 출석률이 전부 변한다. 그래서 별도 함수로 뒀다.
+ */
+export function studentWeekHistory(st: Student, weekCount: number): WeeklyAttendance[] {
+  const out: WeeklyAttendance[] = st.recentWeeks.slice(0, weekCount).map((w) => ({ ...w }));
+  const sc = st.slotCounts;
+  const dominant: WeeklyAttendance["slot"] =
+    sc.evening >= sc.morning && sc.evening >= sc.afternoon
+      ? "evening"
+      : sc.morning >= sc.afternoon
+        ? "morning"
+        : "afternoon";
+
+  for (let w = out.length; w < weekCount; w++) {
+    // weeksAgo w의 주 시작일 — 최근 완료 주(weeksAgo 0)가 DONE_WEEKS번째 주다
+    const weekStart = mondayOfWeek(SCHEDULE.startsOn, DONE_WEEKS - w);
+    const attended = st.lastAttended !== null && weekStart <= st.lastAttended;
+    out.push({ weeksAgo: w, mark: attended ? "present" : "absent", slot: attended ? dominant : null });
+  }
+  return out;
+}
 
 /**
  * 지파 내·전국 기수 비교 — 우수 기수 필터 (2026-08-06 회의 확정).
@@ -173,3 +283,44 @@ export const STATUS_LABELS: Record<Student["status"], string> = {
   atRisk: "중단 위기",
   paused: "중단",
 };
+
+/**
+ * 기수 요약 퍼널 지표 (2026-08-13 리드 지시) — 신카부터 예상 종강까지의 흐름.
+ *
+ * ⚠️ **라벨은 리드가 적어 준 표기 그대로다** — 「신카」·「인섬교」는 용어집에 정의가 없는
+ * 미확정 용어라 **키·enum으로 굳히지 않는다**(GLOSSARY 원칙). 「인섬교」가 용어집의
+ * 「인교섬」(인도자·교사·섬김이)과 같은 것인지도 미확인이다 — 임의로 고쳐 적지 않는다.
+ * 수치는 17명 목업과 정합하게 지어낸 시범 값이다(가상 — 불변식 6).
+ */
+export interface FunnelMetric {
+  label: string;
+  value: string;
+  sub?: string;
+}
+
+export const COHORT_FUNNEL: FunnelMetric[] = [
+  { label: "신카수", value: "31명" },
+  { label: "인섬교 면접수", value: "27명" },
+  { label: "수강생 면접수", value: "23명" },
+  { label: "개강 1주차 출석", value: "20명", sub: "출석률 87%" },
+  { label: "개강 4주차 출석", value: "18명", sub: "출석률 78%" },
+  { label: "등록", value: "17명", sub: "등록률 74% (신카 대비)" },
+  { label: "초등 시작 출석수", value: "17명" },
+  { label: "중등 시작 출석수", value: "15명" },
+  { label: "고등 시작 출석수", value: "―", sub: "아직 진입 전" },
+  { label: "예상 종강률", value: "47%", sub: "유지 8명 / 17명 기준" },
+];
+
+/**
+ * 기수 사명자 현황 (2026-08-13 리드 지시) — 강사 1 · 주전도사 1 · 전도사 2.
+ *
+ * ⚠️ `role`은 **화면 표시 문자열일 뿐**이다. 「주전도사」 역할 코드는 미확정이라
+ * (OPEN_QUESTIONS §C-2) `RoleCode`를 늘리지 않는다 — 계정·권한과 무관한 명단 표시다.
+ * 이름은 전원 가상 인물이다 (불변식 6).
+ */
+export const COHORT_STAFF: { name: string; role: string }[] = [
+  { name: "김이끎", role: "강사" },
+  { name: "이맡음", role: "주전도사" },
+  { name: "박세움", role: "전도사" },
+  { name: "정도움", role: "전도사" },
+];

@@ -1,6 +1,7 @@
 import { BookOpen, Info, Laptop, Quote } from "lucide-react";
 import { Link } from "./TransitionLink";
 import { corpusStats } from "../lib/advice-corpus";
+import { isVerseLine } from "../lib/bible-refs";
 import { ADVICE_LIMITS, ADVICE_NOT_SCANNED, type AdviceEvidence, type AdviceReading } from "../lib/advice-engine";
 
 /**
@@ -134,8 +135,13 @@ export function AdvicePanel({ reading }: { reading: AdviceReading }) {
   );
 }
 
-/** 성구 줄 — 「사 25:1 …」처럼 책·장·절로 시작한다. **표시에만 쓰고 매칭에는 쓰지 않는다** */
-const VERSE_LINE = /^[가-힣]{1,2}\s?\d+\s*[:：]/;
+/*
+  성구 줄 판정은 `src/lib/bible-refs.ts`의 `isVerseLine`으로 옮겼다 (2026-08-13).
+  종전에는 여기 `/^[가-힣]{1,2}\s?\d+\s*[:：]/` 한 줄이 있었는데 **두 글자 책 이름까지만**
+  받아 「고전10:13」·「요일 5:2~4」를 놓쳤다. 66권 사전을 쓰는 쪽으로 합쳤다 —
+  녹취록 정리(`/digest`)와 두 벌로 갈리면 한쪽만 고쳐진다.
+  ⚠️ **표시에만 쓰고 매칭에는 쓰지 않는다**는 원칙은 그대로다.
+*/
 
 function EvidenceCard({ evidence: e }: { evidence: AdviceEvidence }) {
   const Icon = e.sourceType === "에니어그램" ? Quote : BookOpen;
@@ -159,7 +165,7 @@ function EvidenceCard({ evidence: e }: { evidence: AdviceEvidence }) {
           <p
             key={i}
             className={
-              VERSE_LINE.test(line)
+              isVerseLine(line)
                 ? "border-l-2 border-zion-200 pl-2 text-[12px] leading-relaxed text-ink"
                 : "text-[13px] leading-relaxed text-ink"
             }

@@ -1,12 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "../components/TransitionLink";
-import { CalendarDays, Megaphone } from "lucide-react";
+import { CalendarDays, Megaphone, PencilLine } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { isFieldStaff, studentScopeLabel } from "../lib/permissions";
-import { STUDENTS, COHORT, SCHEDULE } from "../content/cohort-mock";
+import { canEditCohortRecord, cohortKeyOf, isFieldStaff, studentScopeLabel } from "../lib/permissions";
+import { STUDENTS, COHORT, DIVISIONS, SCHEDULE } from "../content/cohort-mock";
+import {
+  effectiveSchedule,
+  newcomerEndOf,
+  progressPct,
+  scheduleSummary,
+} from "../lib/cohort-calendar";
 import { readAll } from "../lib/attendance-signals";
-import { rateOf } from "../lib/attendance-rate";
 import {
   GRADES,
   GRADE_LABELS,
@@ -16,19 +21,33 @@ import {
   isOverridden,
 } from "../lib/student-grade";
 import { STUDENT_PROFILES } from "../content/student-profiles";
+import { StudentDetailModal } from "../components/StudentDetailModal";
+import { AnchoredPopover } from "../components/AnchoredPopover";
 import { PageHeader, Card, StatTile } from "./common";
 
+function todayYmd(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
- * 전체 현황 — **점검자용 요약 화면** (2026-08-06 회의 확정).
+ * 전체 현황 — **점검자용 요약 화면이자 메인 페이지** (2026-08-06 회의 확정 · 2026-08-13 개편).
  *
  * 관리직(신학부장 이상)은 담당 기수가 없어 하위 조직 전체를 훑는 자리다. 그래서 여기서는
  * 수치 요약과 일정, 지금 손이 필요한 곳만 짚고 끝낸다.
  * 출석률 분포와 대면 시간대 같은 **상세 분석은 기수현황으로 옮겼다** — 한 기수를 파고드는
  * 도구여서 전국·지파 단위 요약 화면에는 맞지 않는다.
+ *
+ * 2026-08-13 리드 지시로 바뀐 것:
+ * - 마크(로고)를 누르면 이리로 온다 — 메인 노릇을 하므로 **카테고리 타일**을 놓았다
+ * - 요약 네모는 **전부 남색**으로 통일하고 「기수 진행률」을 더했다
+ * - 기수 일정의 개강일·종강 예정일을 **화면에서 고친다** (담당 기수의 강사·전도사만)
+ * - 등급별 명단을 **등급(세로)×분반(가로) 교차표**로 바꿨다 — 이름을 누르면 상세 팝업
  */
 export function Overview() {
   const session = useSession();
-  const { entries, studentStatusOverrides } = useStore();
+  const store = useStore();
+  const { entries, studentStatusOverrides, scheduleOverrides, setSchedule } = store;
 
   const students = STUDENTS;
   const total = students.length;
@@ -42,36 +61,72 @@ export function Overview() {
 
   const pinned = entries.filter((e) => e.kind === "notice_hq" && e.pinned).slice(0, 2);
 
+  /** 화면에서 고친 일정이 있으면 그 값 — 진행률·요약·달력이 전부 이걸 본다 */
+  const cohortKey = `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`;
+  const sched = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKey);
+  const summary = scheduleSummary(sched.startsOn, sched.endsOn);
+  const progress = progressPct(sched.startsOn, sched.endsOn, todayYmd());
+  const canEditSchedule = canEditCohortRecord(session, cohortKeyOf(session)) && cohortKeyOf(session) === cohortKey;
+  const schedNote = scheduleOverrides.find((o) => o.cohortKey === cohortKey);
+
+  /** 일정 편집 팝오버 — 어느 칸을 눌렀는지 */
+  const [editField, setEditField] = useState<"startsOn" | "endsOn" | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const anchorRef = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  /** 교차표에서 이름을 누르면 상세 팝업 (수강생 현황과 같은 방식) */
+  const [modalKey, setModalKey] = useState<string | null>(null);
+
   /**
-   * 명단 한 줄 — 등급·오픈 여부·출석률을 한 자리에 모은다 (2026-08-10 리드 지시).
-   *
+   * 명단 한 줄 — 등급·오픈 여부를 한 자리에 모은다 (2026-08-10 리드 지시).
    * **등급은 사람이 바꾼 값이 먼저다.** 안 바꿨으면 출결로 자동 판정한다.
    * **오픈 여부**는 유월 축(오픈/비오픈)만 본다 — `신앙전환`은 유월로는 이미 오픈이다.
    */
   const roster = useMemo(() => {
     const byKey = new Map(studentStatusOverrides.map((o) => [o.studentKey, o]));
-    return students
-      .map((s) => {
-        const ov = byKey.get(s.key);
-        const profile = STUDENT_PROFILES[s.key];
-        const faith = ov?.faithType ?? profile?.faithType ?? "비오픈";
-        return {
-          student: s,
-          grade: effectiveGrade(s, ov?.grade),
-          manual: isOverridden(s, ov?.grade),
-          opened: faith !== "비오픈",
-          rate: rateOf(s),
-        };
-      })
-      .sort(
-        (a, b) =>
-          GRADES.indexOf(a.grade) - GRADES.indexOf(b.grade) ||
-          b.student.attendanceRate - a.student.attendanceRate,
-      );
+    return students.map((s) => {
+      const ov = byKey.get(s.key);
+      const profile = STUDENT_PROFILES[s.key];
+      const faith = ov?.faithType ?? profile?.faithType ?? "비오픈";
+      return {
+        student: s,
+        grade: effectiveGrade(s, ov?.grade),
+        manual: isOverridden(s, ov?.grade),
+        opened: faith !== "비오픈",
+      };
+    });
   }, [students, studentStatusOverrides]);
 
   const openedCount = roster.filter((r) => r.opened).length;
   const gradeCounts = GRADES.map((g) => ({ g, n: roster.filter((r) => r.grade === g).length }));
+
+  /** 등급(세로) × 분반(가로) — 셀에 그 자리에 해당하는 이름들 (2026-08-13 리드 지시) */
+  const matrix = useMemo(() => {
+    const m = new Map<string, typeof roster>();
+    for (const r of roster) {
+      const key = `${r.grade}|${r.student.division}`;
+      m.set(key, [...(m.get(key) ?? []), r]);
+    }
+    return m;
+  }, [roster]);
+
+  function openEdit(field: "startsOn" | "endsOn") {
+    setEditField(field);
+    setEditValue(sched[field]);
+    setEditError(null);
+  }
+
+  function saveEdit() {
+    if (!editField || !editValue) return;
+    const next = { ...sched, [editField]: editValue };
+    if (next.endsOn <= next.startsOn) {
+      setEditError("종강 예정일은 개강일보다 뒤여야 합니다.");
+      return;
+    }
+    setSchedule(cohortKey, { [editField]: editValue }, session.name, session.roleCode);
+    setEditField(null);
+  }
 
   return (
     <div>
@@ -98,47 +153,124 @@ export function Overview() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-3 max-md:grid-cols-2">
+      {/* 요약 네모 — 전부 남색으로 통일 + 진행률 추가 (2026-08-13 리드 지시) */}
+      <div className="grid grid-cols-5 gap-3 max-lg:grid-cols-3 max-md:grid-cols-2">
         <StatTile label="수강생" value={`${total}명`} sub={COHORT.cohort} accent />
-        <StatTile label="누적 출석률" value={`${cumRate}%`} sub="진도 전체 기준" />
-        <StatTile label="수강 유지" value={`${activeCount}명`} sub="정상 출석 그룹" />
-        <StatTile label="위기·중단" value={`${riskCount}명`} sub="출석률 50% 미만" />
+        <StatTile label="누적 출석률" value={`${cumRate}%`} sub={`${summary.months}개월 과정 기준`} accent />
+        <StatTile label="수강 유지" value={`${activeCount}명`} sub="정상 출석 그룹" accent />
+        <StatTile label="위기·중단" value={`${riskCount}명`} sub="출석률 50% 미만" accent />
+        <StatTile label="기수 진행률" value={`${progress}%`} sub="개강일부터 오늘까지 기간 기준" accent />
       </div>
 
-      {/* 일정 — 점검자가 기수 진행 상황을 가늠하는 기준 (8/6 확정) */}
+      {/* 일정 — 점검자가 기수 진행 상황을 가늠하는 기준 (8/6 확정 · 8/13 편집 가능) */}
       <Card className="mt-5">
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <CalendarDays size={16} className="text-zion-600" />
           <h2 className="text-[14px] font-bold text-zion-900">기수 일정</h2>
           <span className="text-[12px] text-ink-soft">
             {COHORT.tribe} 지파 · {COHORT.church} · {COHORT.cohort}
           </span>
+          {/* 총 기간 요약 — 몇 개월·몇 주·수업 몇 회인지 (2026-08-13 리드 지시) */}
+          <span className="ml-auto rounded-lg bg-zion-100 px-2.5 py-1 text-[12px] font-semibold text-zion-800">
+            총 {summary.months}개월 · {summary.weeks}주 · 수업 {summary.sessions}회
+          </span>
         </div>
         <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
           {(
             [
-              ["개강일", SCHEDULE.startsOn],
-              ["종강 예정일", SCHEDULE.endsOn],
-              ["새신자 교육일", SCHEDULE.newcomerOn],
+              ["startsOn", "개강일", sched.startsOn, true],
+              ["endsOn", "종강 예정일", sched.endsOn, true],
+              /* 명칭 통일 (2026-08-13 리드 지시) — 값은 저장하지 않고 종강 + 2주로 파생한다 */
+              ["newcomer", "새신자교육 종강 예정일", newcomerEndOf(sched.endsOn), false],
             ] as const
-          ).map(([label, date]) => (
-            <div key={label} className="rounded-lg bg-zion-50 px-3 py-2.5">
-              <div className="text-[12px] text-ink-soft">{label}</div>
+          ).map(([field, label, date, editable]) => (
+            <div key={field} className="rounded-lg bg-zion-50 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-1">
+                <div className="text-[12px] text-ink-soft">{label}</div>
+                {editable && canEditSchedule && (
+                  <button
+                    ref={(el) => {
+                      anchorRef.current[field] = el;
+                    }}
+                    onClick={() => openEdit(field as "startsOn" | "endsOn")}
+                    aria-label={`${label} 고치기`}
+                    title={`${label} 고치기`}
+                    className="rounded p-1 text-ink-soft transition hover:bg-white hover:text-zion-700"
+                  >
+                    <PencilLine size={13} />
+                  </button>
+                )}
+              </div>
               <div className="mt-0.5 text-[15px] font-bold text-zion-900">{date}</div>
+              {field === "newcomer" && (
+                <div className="mt-0.5 text-[10px] text-ink-soft">종강 예정일 + 2주 자동</div>
+              )}
             </div>
           ))}
         </div>
+        {schedNote && (
+          <p className="mt-2 text-[11px] text-ink-soft">
+            일정 수정: {schedNote.updatedBy} · {schedNote.updatedAt.slice(0, 10)}
+          </p>
+        )}
+        {!canEditSchedule && (
+          <p className="mt-2 text-[11px] text-ink-soft">
+            일정은 해당 기수의 강사·전도사가 고칩니다.
+          </p>
+        )}
+
+        {editField && (
+          <AnchoredPopover
+            anchor={anchorRef.current[editField]}
+            width={280}
+            label="기수 일정 고치기"
+            onClose={() => setEditField(null)}
+          >
+            <div className="p-3">
+              <label className="mb-1 block text-[12px] font-semibold text-ink">
+                {editField === "startsOn" ? "개강일" : "종강 예정일"}
+              </label>
+              <input
+                type="date"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              />
+              {editField === "endsOn" && (
+                <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">
+                  새신자교육 종강 예정일은 이 날짜 + 2주로 따라 움직입니다.
+                </p>
+              )}
+              {editError && <p className="mt-1.5 text-[12px] text-red-600">{editError}</p>}
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  onClick={() => setEditField(null)}
+                  className="rounded-lg px-3 py-1.5 text-[12px] text-ink-soft hover:bg-zion-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-zion-700"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+          </AnchoredPopover>
+        )}
       </Card>
 
-      {/* 등급별 명단 — 한눈에 훑는 자리 (2026-08-10 리드 지시) */}
+      {/* 등급 × 분반 교차표 (2026-08-13 리드 지시 — 종전 세로 명단을 교체) */}
       <Card className="mt-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-[14px] font-bold text-zion-900">등급별 명단</h2>
             <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
-              등급은 <strong className="text-ink">누적 출석률</strong>로 자동 매겨지고,
-              담당 사명자가 화면에서 바꾸면 그 값이 우선합니다(직접 지정 표시).
-              <strong className="text-ink"> 노란 줄이 오픈된 분</strong>입니다 — 모두 {openedCount}명.
+              세로가 등급, 가로가 분반입니다. <strong className="text-ink">이름을 누르면</strong> 상세
+              현황이 열립니다. <strong className="text-ink">노란 이름이 오픈된 분</strong>입니다 — 모두{" "}
+              {openedCount}명. 등급은 누적 출석률로 자동 매겨지고, 담당 사명자가 바꾸면 그 값이
+              우선합니다(이름 뒤 *).
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -156,77 +288,84 @@ export function Overview() {
 
         {/* 좁은 화면에서는 표만 가로로 넘긴다 */}
         <div className="-mx-1 overflow-x-auto px-1">
-          <table className="w-full min-w-[620px] text-[13px]">
+          <table className="w-full min-w-[560px] text-[13px]">
             <thead>
               <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
-                <th className="pb-2 font-medium">등급</th>
-                <th className="pb-2 font-medium">이름</th>
-                <th className="pb-2 font-medium">분반</th>
-                <th className="pb-2 font-medium">오픈</th>
-                <th className="pb-2 text-right font-medium">누적</th>
-                <th className="pb-2 text-right font-medium">보강 포함</th>
-                <th className="pb-2 text-right font-medium">대면만</th>
+                <th className="w-24 pb-2 font-medium">등급</th>
+                {DIVISIONS.map((d) => (
+                  <th key={d} className="pb-2 font-medium">
+                    {d}
+                  </th>
+                ))}
+                <th className="w-12 pb-2 text-right font-medium">계</th>
               </tr>
             </thead>
             <tbody>
-              {roster.map((r, i) => {
-                const first = i === 0 || roster[i - 1].grade !== r.grade;
+              {GRADES.map((g) => {
+                const rowTotal = gradeCounts.find((c) => c.g === g)?.n ?? 0;
                 return (
-                  <tr
-                    key={r.student.key}
-                    className={
-                      "border-b border-zion-100 last:border-0 " +
-                      // 오픈된 분은 줄 전체를 노랗게 — 색만으로 전하지 않도록 「오픈」 글자도 함께 둔다
-                      (r.opened ? "bg-gold-100/50" : "") +
-                      (first ? " border-t-2 border-t-zion-200" : "")
-                    }
-                  >
+                  <tr key={g} className="border-b border-zion-100 align-top last:border-0">
                     <td className="py-2 pr-2">
-                      {first ? (
-                        <span className={"rounded border px-1.5 py-0.5 text-[11px] font-bold " + GRADE_TONE[r.grade]}>
-                          {r.grade} {GRADE_LABELS[r.grade]}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-ink-soft">{r.grade}</span>
-                      )}
+                      <span className={"rounded border px-1.5 py-0.5 text-[11px] font-bold " + GRADE_TONE[g]}>
+                        {g} {GRADE_LABELS[g]}
+                      </span>
                     </td>
-                    <td className="py-2 pr-2 font-medium text-ink">
-                      {r.student.name}
-                      {r.manual && (
-                        <span className="ml-1 text-[10px] text-ink-soft" title="담당자가 직접 지정한 등급">
-                          직접 지정
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-2 text-[12px] text-ink-soft">{r.student.division}</td>
-                    <td className="py-2 pr-2">
-                      {r.opened ? (
-                        <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[11px] font-bold text-gold-700">
-                          오픈
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-ink-soft">비오픈</span>
-                      )}
-                    </td>
-                    <td className="py-2 text-right font-semibold text-zion-800">
-                      {r.student.attendanceRate}%
-                    </td>
-                    <td className="py-2 text-right text-ink">{r.rate.withMakeup}%</td>
-                    <td className="py-2 text-right text-[12px] text-ink-soft">{r.rate.presentOnly}%</td>
+                    {DIVISIONS.map((d) => {
+                      const cell = matrix.get(`${g}|${d}`) ?? [];
+                      return (
+                        <td key={d} className="py-2 pr-2">
+                          {cell.length === 0 ? (
+                            <span className="text-[11px] text-ink-soft">—</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {cell.map((r) => (
+                                <button
+                                  key={r.student.key}
+                                  onClick={() => setModalKey(r.student.key)}
+                                  title={
+                                    `${r.student.name} — 누적 ${r.student.attendanceRate}%` +
+                                    (r.opened ? " · 오픈" : "") +
+                                    (r.manual ? " · 직접 지정 등급" : "")
+                                  }
+                                  className={
+                                    "rounded px-1.5 py-0.5 text-[12px] font-medium transition " +
+                                    (r.opened
+                                      ? "bg-gold-100/70 text-gold-700 hover:bg-gold-100"
+                                      : "text-ink hover:bg-zion-50 hover:text-zion-700")
+                                  }
+                                >
+                                  {r.student.name}
+                                  {r.manual && "*"}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="py-2 text-right text-[12px] font-semibold text-zion-800">{rowTotal}</td>
                   </tr>
                 );
               })}
+              <tr className="border-t-2 border-zion-200">
+                <td className="py-2 pr-2 text-[12px] font-semibold text-ink-soft">계</td>
+                {DIVISIONS.map((d) => (
+                  <td key={d} className="py-2 pr-2 text-[12px] font-semibold text-zion-800">
+                    {roster.filter((r) => r.student.division === d).length}명
+                  </td>
+                ))}
+                <td className="py-2 text-right text-[12px] font-bold text-zion-900">{total}명</td>
+              </tr>
             </tbody>
           </table>
         </div>
 
         <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-          「누적」은 진도 전체 기준이고 등급을 매기는 값입니다. 「보강 포함」·「대면만」은 최근 8주
-          기준입니다. 등급을 바꾸려면{" "}
+          출석률 등 상세 수치는 이름을 눌러 팝업에서 보거나{" "}
           <Link viewTransition to="/students-dashboard" className="text-zion-700 underline">
             수강생 현황
           </Link>
-          에서 그 사람을 열어 고칩니다.
+          에서 봅니다. 등급 변경도 그곳에서 합니다.
         </p>
       </Card>
 
@@ -242,6 +381,7 @@ export function Overview() {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            {/* 「관찰 필요」 화면은 2026-08-13에 없앴다 — 같은 사람들을 수강생 현황에서 본다 */}
             <Link
               viewTransition
               to="/cohort"
@@ -251,10 +391,10 @@ export function Overview() {
             </Link>
             <Link
               viewTransition
-              to="/signals"
+              to="/students-dashboard"
               className="rounded-lg bg-zion-800 px-4 py-2 text-center text-[13px] font-semibold text-white transition hover:bg-zion-700"
             >
-              관찰 필요 보기
+              수강생 현황
             </Link>
           </div>
         </div>
@@ -266,6 +406,8 @@ export function Overview() {
         {!isFieldStaff(session) &&
           " 담당 기수가 없는 관리직 계정은 이 요약 화면으로 들어옵니다."}
       </p>
+
+      {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
     </div>
   );
 }

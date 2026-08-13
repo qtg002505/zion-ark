@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Download, ExternalLink, FolderOpen, Plus, Search, Star, X } from "lucide-react";
+import { Download, ExternalLink, FolderOpen, Plus, Search, Star, ThumbsUp, X } from "lucide-react";
 import { Portal } from "./Portal";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -10,11 +10,26 @@ import {
   type LibraryCategory,
   type LibraryMaterial,
 } from "../lib/types";
+import { looseIncludes } from "../lib/text-match";
 import { MediaLinks } from "./MediaLinks";
 import { FavoriteButton } from "./FavoriteButton";
 import { PageHeader, Card } from "../pages/common";
 
 const CATEGORIES: LibraryCategory[] = ["standard_lecture", "class_material", "excellent_plan"];
+
+/**
+ * 게시판 정렬 (2026-08-13 리드 지시 — 이미지로 확인한 게시판 표 형식).
+ * 동점이면 최신순으로 떨어뜨린다 — 상담 도우미·상담 사례의 정렬 관례와 같다.
+ * ⚠️ `SortKey`가 세 화면째 따로 있지만 공용화하지 않는다 — 두 곳은 알약 tablist,
+ * 여기는 셀렉트라 UI가 달라서 타입만 공유하게 되는데 얻는 것이 없다.
+ */
+type MaterialSortKey = "recent" | "popular" | "helpful" | "views";
+const SORT_LABELS: Record<MaterialSortKey, string> = {
+  recent: "최신순",
+  popular: "인기순 (즐겨찾기)",
+  helpful: "추천순",
+  views: "조회순",
+};
 
 /**
  * 폴더 하나의 자료를 열고 등록하는 화면 — **자료실과 강의 도우미가 같은 부품을 쓴다.**
@@ -62,20 +77,32 @@ export function FolderLibrary({
   children?: ReactNode;
 }) {
   const session = useSession();
-  const { materials, addMaterial, toggleFeatured } = useStore();
+  const { materials, addMaterial, toggleFeatured, toggleMaterialHelpful, materialViews, logMaterialView, favorites } =
+    useStore();
 
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<MaterialSortKey>("recent");
   const [selected, setSelected] = useState<LibraryMaterial | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const writable = canWriteLibrary(session);
   const featureAdmin = canToggleFeatured(session);
 
+  /** 자료별 즐겨찾기 수 — 인기순의 근거. O(자료×즐겨찾기)가 되지 않게 한 번 세어 둔다 */
+  const favCount = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const f of favorites) {
+      if (f.targetType !== "material") continue;
+      map.set(f.targetId, (map.get(f.targetId) ?? 0) + 1);
+    }
+    return map;
+  }, [favorites]);
+
   const scopeKey = folders.join("|");
   const list = useMemo(() => {
     const q = query.trim();
     const scope = scopeKey.split("|");
-    return materials
+    const filtered = materials
       .filter((m) => {
         const top = (m.folderPath ?? [])[0];
         if (categoryFilter) {
@@ -87,8 +114,32 @@ export function FolderLibrary({
         // 화면 범위 전체 — 자료실은 폴더가 없는 옛 자료까지 맡는다(어디에도 안 뜨면 영영 못 찾는다)
         return scopeAll ? true : scope.includes(top ?? "");
       })
-      .filter((m) => !q || m.title.includes(q) || m.body.includes(q));
-  }, [materials, folder, scopeKey, scopeAll, categoryFilter, query]);
+      // 띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙)
+      .filter((m) => !q || looseIncludes(m.title, q) || looseIncludes(m.body, q));
+
+    // 동점은 전부 최신순 2차 키 — 정렬을 넣으면서 시드가 끝에 붙던 어정쩡한 순서도 사라진다
+    const recent = (a: LibraryMaterial, b: LibraryMaterial) => b.createdAt.localeCompare(a.createdAt);
+    switch (sort) {
+      case "popular":
+        return filtered.sort((a, b) => (favCount.get(b.id) ?? 0) - (favCount.get(a.id) ?? 0) || recent(a, b));
+      case "helpful":
+        return filtered.sort(
+          (a, b) => (b.helpfulBy?.length ?? 0) - (a.helpfulBy?.length ?? 0) || recent(a, b),
+        );
+      case "views":
+        return filtered.sort(
+          (a, b) => (materialViews[b.id] ?? 0) - (materialViews[a.id] ?? 0) || recent(a, b),
+        );
+      default:
+        return filtered.sort(recent);
+    }
+  }, [materials, folder, scopeKey, scopeAll, categoryFilter, query, sort, favCount, materialViews]);
+
+  /** 상세 열기 — 조회수는 **이 클릭에서만** 오른다 (렌더·effect에서 부르지 않는다) */
+  function openDetail(m: LibraryMaterial) {
+    logMaterialView(m.id);
+    setSelected(m);
+  }
 
   return (
     <div>
@@ -112,15 +163,30 @@ export function FolderLibrary({
 
       {children}
 
-      <div className="mb-4 flex min-w-0 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
-        <Search size={13} className="shrink-0 text-ink-soft" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="제목·내용 검색"
-          aria-label="자료 검색"
-          className="min-w-0 flex-1 bg-transparent text-[12px] outline-none"
-        />
+      {/* 게시판 컨트롤 — 왼쪽 정렬, 오른쪽 검색 (리드가 이미지로 확인한 배치) */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as MaterialSortKey)}
+          aria-label="정렬"
+          className="rounded-lg border border-zion-100 bg-white px-3 py-2 text-[12px] outline-none focus:border-zion-500"
+        >
+          {(Object.keys(SORT_LABELS) as MaterialSortKey[]).map((k) => (
+            <option key={k} value={k}>
+              {SORT_LABELS[k]}
+            </option>
+          ))}
+        </select>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
+          <Search size={13} className="shrink-0 text-ink-soft" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="제목·내용 검색"
+            aria-label="자료 검색"
+            className="min-w-0 flex-1 bg-transparent text-[12px] outline-none"
+          />
+        </div>
       </div>
 
       {/* 지금 보고 있는 폴더. 폴더 **목록**은 왼쪽 사이드바에만 둔다 */}
@@ -153,9 +219,31 @@ export function FolderLibrary({
                 {(selected.folderPath ?? []).join(" › ") || "폴더 없음"}
                 {" · "}
                 {LIBRARY_CATEGORY_LABELS[selected.category]} · {selected.createdBy} (
-                {ROLE_LABELS[selected.createdByRole]}) · {selected.createdAt.slice(0, 10)}
+                {ROLE_LABELS[selected.createdByRole]}) · {selected.createdAt.slice(0, 10)} · 조회{" "}
+                {materialViews[selected.id] ?? 0}
               </div>
             </div>
+            {/* 추천 — 1인 1표 토글. 게시판 표의 추천순이 이 수를 본다 */}
+            <button
+              onClick={() => {
+                toggleMaterialHelpful(selected.id, session.name);
+                const list = selected.helpfulBy ?? [];
+                const has = list.includes(session.name);
+                setSelected({
+                  ...selected,
+                  helpfulBy: has ? list.filter((n) => n !== session.name) : [...list, session.name],
+                });
+              }}
+              aria-pressed={(selected.helpfulBy ?? []).includes(session.name)}
+              className={
+                "flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition " +
+                ((selected.helpfulBy ?? []).includes(session.name)
+                  ? "border-gold-500 bg-gold-100 text-gold-700"
+                  : "border-zion-200 text-zion-700 hover:bg-zion-50")
+              }
+            >
+              <ThumbsUp size={13} /> 추천 {(selected.helpfulBy ?? []).length}
+            </button>
             {featureAdmin && (
               <button
                 onClick={() => {
@@ -197,35 +285,59 @@ export function FolderLibrary({
           </p>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {list.map((m) => (
-            /*
-              카드는 `div`다 — `button` 안에 즐겨찾기 `button`을 넣으면 HTML에서 금지된
-              중첩이라 콘솔 오류가 나고 낭독기도 혼란스러워한다(2026-08-13 정리).
-              대신 제목이 버튼이고, 카드 전체 클릭은 그 버튼으로 넘긴다.
-            */
-            <div
-              key={m.id}
-              className="rounded-card border border-zion-100 bg-white p-4 shadow-sm transition hover:border-zion-300"
-            >
-              <div className="flex items-center gap-1.5">
-                {m.isFeatured && <Star size={13} className="shrink-0 fill-gold-500 text-gold-500" />}
-                <button
-                  onClick={() => setSelected(m)}
-                  className="min-w-0 flex-1 truncate text-left text-[14px] font-semibold text-ink hover:text-zion-700"
-                >
-                  {m.title}
-                </button>
-                <FavoriteButton targetType="material" targetId={m.id} label={m.title} size={13} />
-              </div>
-              <button onClick={() => setSelected(m)} className="block w-full text-left">
-                <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-ink-soft">{m.body}</p>
-                <div className="mt-1.5 text-[11px] text-ink-soft">
-                  {(m.folderPath ?? []).join(" › ") || "폴더 없음"} · {m.createdBy} · {m.createdAt.slice(0, 10)}
-                </div>
-              </button>
-            </div>
-          ))}
+        /*
+          게시판 표 (2026-08-13 리드 지시 — 이미지로 확인한 형식).
+          번호 · 추천수(노란 뱃지) · 제목 · 작성일시 · 작성자.
+          ⚠️ **행(tr)을 버튼으로 만들지 않는다** — 행 안에 즐겨찾기 버튼이 있어 버튼 중첩이
+          된다(카드 시절 콘솔 오류가 났던 그 규칙이다). 제목이 버튼이다.
+        */
+        <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[560px] text-[13px]">
+            <thead>
+              <tr className="border-b-2 border-zion-200 text-left text-[12px] text-ink-soft">
+                <th className="w-12 pb-2 font-medium">번호</th>
+                <th className="w-14 pb-2 text-center font-medium">추천</th>
+                <th className="pb-2 font-medium">제목</th>
+                <th className="w-32 pb-2 font-medium">작성일시</th>
+                <th className="w-24 pb-2 font-medium">작성자</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((m, idx) => {
+                const helpful = m.helpfulBy?.length ?? 0;
+                return (
+                  <tr key={m.id} className="border-b border-zion-100 last:border-0 hover:bg-zion-50/60">
+                    {/* 번호는 현재 정렬 기준의 역순 일련번호다 — 게시판 관례 */}
+                    <td className="py-2.5 pr-2 text-[12px] text-ink-soft">{list.length - idx}</td>
+                    <td className="py-2.5 text-center">
+                      {helpful > 0 ? (
+                        <span className="inline-block min-w-6 rounded bg-gold-100 px-1.5 py-0.5 text-[11px] font-bold text-gold-700">
+                          {helpful}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="max-w-0 py-2.5 pr-2">
+                      <span className="flex items-center gap-1.5">
+                        {m.isFeatured && <Star size={12} className="shrink-0 fill-gold-500 text-gold-500" />}
+                        <button
+                          onClick={() => openDetail(m)}
+                          className="min-w-0 flex-1 truncate text-left font-medium text-zion-800 hover:underline"
+                          title={m.title}
+                        >
+                          {m.title}
+                        </button>
+                        <FavoriteButton targetType="material" targetId={m.id} label={m.title} size={13} />
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-2 text-[12px] text-ink-soft">
+                      {m.createdAt.slice(0, 16).replace("T", " ")}
+                    </td>
+                    <td className="py-2.5 text-[12px] text-ink-soft">{m.createdBy}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 

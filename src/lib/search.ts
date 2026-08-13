@@ -4,6 +4,7 @@ import { enneagramGuides } from "../content/enneagram-guides";
 import { SERIES } from "../content/series-content";
 import { QUOTE_ITEMS } from "../content/quotes-data";
 import { ALL_TERMS } from "../content/glossary";
+import { looseIndexOf, normalizeForSearch } from "./text-match";
 import type { LibraryMaterial, WorkspaceEntry } from "./types";
 
 /**
@@ -106,12 +107,19 @@ interface Scored {
 }
 
 function scoreOf(tokens: string[], title: string, body: string): Scored | null {
-  const lowTitle = title.toLowerCase();
-  const lowBody = body.toLowerCase();
+  /*
+    ⚠️ **띄어쓰기를 무시하고 견준다** (2026-08-13 리드 지시).
+    「천국 비밀」로 찾든 「천국비밀」로 찾든 같은 자료가 나와야 한다 — 원문 표기와
+    검색어의 띄어쓰기가 같을 이유가 없다.
+  */
+  const lowTitle = normalizeForSearch(title);
+  const lowBody = normalizeForSearch(body);
   let score = 0;
   let matched = 0;
   let term = "";
-  for (const t of tokens) {
+  for (const raw of tokens) {
+    const t = normalizeForSearch(raw);
+    if (!t) continue;
     const inTitle = lowTitle.includes(t);
     const inBody = lowBody.includes(t);
     if (!inTitle && !inBody) continue;
@@ -130,8 +138,12 @@ function scoreOf(tokens: string[], title: string, body: string): Scored | null {
 }
 
 function snippetOf(text: string, term: string, len = 90): string {
-  const idx = text.toLowerCase().indexOf(term);
-  const start = Math.max(0, idx - 20);
+  /*
+    자리는 **원문에서** 잡는다 — 공백을 지운 문자열의 위치는 원문과 어긋난다.
+    `looseIndexOf`가 원문의 공백을 건너뛰며 시작 자리를 찾아 준다.
+  */
+  const idx = looseIndexOf(text, term);
+  const start = Math.max(0, (idx === -1 ? 0 : idx) - 20);
   const cut = text.slice(start, start + len).replace(/\n+/g, " ");
   return (start > 0 ? "…" : "") + cut + (start + len < text.length ? "…" : "");
 }
@@ -227,10 +239,16 @@ function buildStaticDocs(): Doc[] {
 /** 결과 수 — 점수순으로 정렬한 뒤 자르므로 종전(8건, 순서 없음)보다 손해가 없다 */
 const LIMIT = 10;
 
+/**
+ * `limit` 인자 (2026-08-13 카테고리 필터) — 호출 쪽이 전체 결과를 받아 **거른 뒤에**
+ * 자를 수 있게 한다. 여기서 10건으로 잘라 버리면 「교안만 보기」가 0건이 되는 함정이
+ * 생긴다(상위 10건이 전부 다른 갈래일 때). 기본값은 종전과 같아 하위 호환이다.
+ */
 export function searchSite(
   rawQuery: string,
   materials: LibraryMaterial[],
   entries: WorkspaceEntry[],
+  limit: number = LIMIT,
 ): SearchHit[] {
   const tokens = tokenize(rawQuery);
   if (tokens.length === 0) return [];
@@ -266,7 +284,7 @@ export function searchSite(
       title: d.title,
       href: d.href,
       // 제목에만 걸렸으면 본문에서 잘라 봐야 엉뚱한 자리가 나온다 — 그럴 때는 제목을 보여 준다
-      snippet: d.body.toLowerCase().includes(s.term) ? snippetOf(d.body, s.term) : d.title,
+      snippet: normalizeForSearch(d.body).includes(s.term) ? snippetOf(d.body, s.term) : d.title,
       score: s.score,
       matched: s.matched,
     });
@@ -279,5 +297,5 @@ export function searchSite(
    * 스친 에니어그램 유형이 맨 위로 올라온 것이 그 경우였다.
    */
   scored.sort((a, b) => b.matched - a.matched || b.score - a.score);
-  return scored.map(({ matched: _matched, ...hit }) => hit).slice(0, LIMIT);
+  return scored.map(({ matched: _matched, ...hit }) => hit).slice(0, limit);
 }

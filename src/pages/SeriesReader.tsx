@@ -3,6 +3,7 @@ import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { findSeries } from "../content/series-content";
 import { MarkdownLite, splitSections } from "../lib/markdown";
+import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
@@ -22,7 +23,7 @@ export function SeriesReader() {
     const q = query.trim();
     if (!q) return chapters;
     return chapters.filter(
-      (c) => c.label.includes(q) || c.title.includes(q) || c.body.includes(q),
+      (c) => looseIncludes(c.label, q) || looseIncludes(c.title, q) || looseIncludes(c.body, q),
     );
   }, [chapters, query]);
 

@@ -153,15 +153,22 @@ export function Quotes() {
  */
 function QuotePicker() {
   const [input, setInput] = useState("");
-  const [limit, setLimit] = useState(20);
-  const [asked, setAsked] = useState<{ keywords: string[]; results: PickResult[] } | null>(null);
+  const [asked, setAsked] = useState<{
+    keywords: string[];
+    results: PickResult[];
+    total: number;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const topics = useMemo(() => popularTopics(8), []);
 
-  function run(text: string, take = 20) {
+  /**
+   * 2026-08-13 리드 지시 — 「요청 단어를 넣으면 다 나오도록」.
+   * 종전에는 20건만 뽑고 「더 뽑기」로 스무 개씩 늘렸다. 이제 처음부터 **50건**을 뽑고
+   * 걸린 총 건수를 함께 보여 준 뒤, 「전부 보기」로 한 번에 펼친다.
+   */
+  function run(text: string, take = 50) {
     const trimmed = text.trim();
     setInput(trimmed);
-    setLimit(take);
     setCopied(false);
     setAsked(trimmed ? pickQuotes(trimmed, take) : null);
   }
@@ -242,16 +249,32 @@ function QuotePicker() {
               주제어를 두 글자 이상 넣어 주세요 (예: 전도, 기도, 청년).
             </p>
           ) : asked.results.length === 0 ? (
-            <p className="py-4 text-center text-[13px] text-ink-soft">
+            <p className="py-4 text-center text-[13px] leading-relaxed text-ink-soft">
               <strong className="text-zion-800">{asked.keywords.join(" · ")}</strong> 관련 어록을 찾지 못했습니다.
-              다른 표현으로 찾아보시거나 위 주제 버튼을 눌러 보세요.
+              {/* 붙여 쓴 한 낱말은 그 연속이 원문에 있어야 걸린다 — 나눠 찾으면 넓어진다 */}
+              {asked.keywords.length === 1 && asked.keywords[0].length >= 4 && (
+                <>
+                  <br />
+                  <strong className="text-zion-800">낱말을 띄어서</strong> 찾아 보세요 — 예:{" "}
+                  <span className="text-zion-700">
+                    {asked.keywords[0].slice(0, 2)} {asked.keywords[0].slice(2)}
+                  </span>
+                </>
+              )}
+              <br />
+              위 주제 버튼을 눌러 봐도 됩니다.
             </p>
           ) : (
             <>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[13px] font-semibold text-zion-900">
                   <span className="text-zion-700">{asked.keywords.join(" · ")}</span> 관련 어록{" "}
-                  {asked.results.length}건
+                  {asked.total}건
+                  {asked.results.length < asked.total && (
+                    <span className="ml-1 font-normal text-ink-soft">
+                      — 상위 {asked.results.length}건 보는 중
+                    </span>
+                  )}
                 </span>
                 <button
                   onClick={copy}
@@ -280,12 +303,12 @@ function QuotePicker() {
                 ))}
               </ol>
 
-              {asked.results.length >= limit && (
+              {asked.results.length < asked.total && (
                 <button
-                  onClick={() => run(input, limit + 20)}
+                  onClick={() => run(input, asked.total)}
                   className="mt-3 w-full rounded-lg border border-zion-200 bg-white py-2 text-[13px] font-semibold text-zion-700 transition hover:bg-zion-50"
                 >
-                  더 뽑기
+                  전부 보기 ({asked.total}건)
                 </button>
               )}
             </>

@@ -14,6 +14,7 @@ import {
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canWriteCounselCase } from "../lib/permissions";
+import { looseIncludes } from "../lib/text-match";
 import { scanPII } from "../lib/privacy";
 import { ROLE_LABELS, type CounselCase } from "../lib/types";
 import { FavoriteButton } from "../components/FavoriteButton";
@@ -97,7 +98,8 @@ export function CounselCases() {
     return counselCases
       .filter((c) => filter === "all" || c.outcome === filter)
       .filter(
-        (c) => !q || c.situation.includes(q) || c.approach.includes(q) || c.result.includes(q),
+        (c) =>
+          !q || looseIncludes(c.situation, q) || looseIncludes(c.approach, q) || looseIncludes(c.result, q),
       )
       .sort((a, b) =>
         sort === "popular"

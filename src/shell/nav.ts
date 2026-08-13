@@ -7,6 +7,7 @@ import {
   INSTRUCTOR_OTHER_FOLDERS,
 } from "../lib/types";
 import {
+  Home,
   LayoutDashboard,
   Users,
   GraduationCap,
@@ -28,15 +29,14 @@ import {
   Baby,
   Leaf,
   TreeDeciduous,
-  BellRing,
   Layers,
+  FileText,
   CalendarDays,
   MessagesSquare,
   FolderClosed,
   Shovel,
   ClipboardList,
   RefreshCw,
-  HeartPulse,
   MapPin,
   type LucideIcon,
 } from "lucide-react";
@@ -118,11 +118,13 @@ function folderItems(basePath: string, folders: string[]): NavItem[] {
 
 const NAV_GROUPS: NavGroup[] = [
   /**
-   * 홈 — 카테고리 7개 어디에도 넣지 않는다 (지시문 §1).
-   * 로그인 직후 착지하는 자리이고, 담당 범위 전체를 한눈에 보는 요약이다.
-   * ("/"는 역할별 착지 분기에 쓰므로 메뉴에서는 실제 경로를 가리킨다)
+   * 홈(메인) — **카테고리를 펼쳐 보는 첫 화면** (2026-08-13 리드 지시로 분리).
+   * 종전에는 「홈 · 전체 현황」 하나였는데, 리드가 「홈페이지 노릇을 하는 메인을 따로」
+   * 달라고 해서 갈랐다. `/`가 메인, `/overview`가 점검자용 요약이다.
+   * 둘 다 카테고리 어디에도 넣지 않는다 (지시문 §1).
    */
-  { label: "홈 · 전체 현황", icon: LayoutDashboard, to: "/overview" },
+  { label: "홈", icon: Home, to: "/" },
+  { label: "전체 현황", icon: LayoutDashboard, to: "/overview" },
 
   /** 1. 기수 현황 — 한 기수를 깊게 파고드는 자리. 조직별 운영 영역 */
   {
@@ -130,7 +132,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Gauge,
     items: [
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
-      { to: "/plan", label: "기수 주간계획", icon: CalendarDays },
+      /* 2026-08-13 리드 지시 — 주간 보기가 생겨 「월간·주간 계획」으로 이름을 바꿨다 (경로 불변) */
+      { to: "/plan", label: "월간·주간 계획", icon: CalendarDays },
     ],
   },
 
@@ -184,7 +187,15 @@ const NAV_GROUPS: NavGroup[] = [
         items: folderItems("/teaching", INSTRUCTOR_OTHER_FOLDERS),
       },
     ],
-    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
+    /*
+      직속 항목은 보조 도구라 하위 묶음 뒤에 놓인다.
+      「자료 모으기」는 **강의 전**(주제어로 사이트 자료를 모은다), 「녹취 정리」는 **강의 후**
+      (밖에서 받아쓴 글을 사이트가 자른다)라 짝을 이룬다 (2026-08-13).
+    */
+    items: [
+      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
+      { to: "/digest", label: "강의 녹취 정리", icon: FileText },
+    ],
   },
 
   /**
@@ -232,9 +243,13 @@ const NAV_GROUPS: NavGroup[] = [
       들어갔고, `/students`는 현황으로 넘긴다(북마크가 죽지 않게).
       개인 상세(`/students/:key`)는 목록에서 눌러 들어가는 화면이라 메뉴에 두지 않는다.
     */
+    /*
+      2026-08-13 리드 지시로 「관찰 필요」(`/signals`)를 없앴다. 출결 신호 계산
+      (`lib/attendance-signals.ts`)은 **남는다** — 등급 판정과 수강생 상세의 「주의 포인트」가
+      그 값을 쓰기 때문이다. 화면만 걷어낸 것이다.
+    */
     items: [
       { to: "/students-dashboard", label: "수강생 현황", icon: Users },
-      { to: "/signals", label: "관찰 필요", icon: BellRing },
       /*
         수강생 성향 분석 (2026-08-13 리드 지시) — 관찰한 성향을 넣으면 AI가 읽어 준다.
         ⚠️ 불변식 4 — 외부 AI에는 **동의받고 비식별화한 것만** 나간다. 화면이 아니라
@@ -344,15 +359,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 
-  /**
-   * 7. 사명자 심방 도우미 — 수강생이 아니라 **사명자 본인**이 대상이다. 전부 신설.
-   * ⚠️ 사명자 본인의 심리 상태도 개인정보다 — 자가진단 결과를 서버에 저장하지 않는 것이
-   * 기본 방침이다 (지시문 §2-7).
-   */
-  { label: "사명자 심방 도우미", icon: HeartPulse, to: "/care" },
+  /*
+    「사명자 심방 도우미」(`/care`)는 2026-08-13 리드 지시로 없앴다.
+    번아웃 척도 원문을 못 받아 자가진단 카드가 계속 비어 있었고, 프롬프트 생성기만 남아
+    있던 화면이다. 되살릴 때는 git 이력에서 `pages/Care.tsx`를 꺼내면 된다.
+  */
 
   /**
-   * 8. 12지파 선교센터 — 어디에 있고 지금 어느 기수가 도는지 (2026-08-11 리드 지시).
+   * 12지파 선교센터 — 어디에 있고 지금 어느 기수가 도는지 (2026-08-11 리드 지시).
    * **기존 카테고리 순서(2026-08-09 기준)는 건드리지 않고 뒤에 붙였다.**
    */
   { label: "12지파 선교센터", icon: MapPin, to: "/centers" },
