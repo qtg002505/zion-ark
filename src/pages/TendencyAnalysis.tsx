@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CircleAlert, Info, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { CircleAlert, ExternalLink, Info, Lock, ShieldCheck, Sparkles } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { visibleDivisions } from "../lib/permissions";
 import { COHORT, DIVISIONS, STUDENTS } from "../content/cohort-mock";
@@ -7,6 +7,8 @@ import { STUDENT_PROFILES } from "../content/student-profiles";
 import { enneagramGuides } from "../content/enneagram-guides";
 import { TEMPERAMENT_GUIDES } from "../content/temperament-guides";
 import { canSendToAI, redactForAI, scanPII, type ConsentState } from "../lib/privacy";
+import { adviceToPromptBlock, readAdvice, type AdviceReading } from "../lib/advice-engine";
+import { AdvicePanel } from "../components/AdvicePanel";
 import { PromptBox } from "../components/PromptBox";
 import { Link } from "../components/TransitionLink";
 import { PageHeader, Card } from "./common";
@@ -45,6 +47,14 @@ export function TendencyAnalysis() {
    * 그 데이터가 붙기 전까지 **기본값은 「모름」**이고, 모르면 내보내지 않는다.
    */
   const [consent, setConsent] = useState<ConsentState>("unknown");
+  /**
+   * 1차 조언 — **버튼을 눌렀을 때 한 번만** 읽는다 (`AskAiBar`가 제출 때만 찾는 것과 같다).
+   * 타자마다 돌리면 1,000여 건을 훑는 계산이 글자 수만큼 되풀이된다.
+   * 계산에 쓴 관찰문을 함께 들고 있어야 **글이 바뀐 뒤에도 옛 결과를 보고 있는 일**을 막는다.
+   */
+  const [reading, setReading] = useState<{ text: string; result: AdviceReading } | null>(null);
+  /** 찾은 근거를 외부 GPT 프롬프트에도 실을지 (2026-08-13 리드 결정 — 기본은 꺼 둔다) */
+  const [withEvidence, setWithEvidence] = useState(false);
 
   const profile = studentKey ? STUDENT_PROFILES[studentKey] : undefined;
 
@@ -55,19 +65,37 @@ export function TendencyAnalysis() {
 
   const enneagram = profile ? enneagramGuides.find((g) => g.typeNo === profile.enneagramType) : undefined;
 
+  const ready = observation.trim().length >= 10;
+  const stale = reading !== null && reading.text !== observation;
+
+  const evidenceBlock =
+    withEvidence && reading && !stale ? adviceToPromptBlock(reading.result) : "";
+
   const prompt = useMemo(
-    () => buildPrompt({ redactedText: redacted.text, profile }),
-    [redacted.text, profile],
+    () => buildPrompt({ redactedText: redacted.text, profile, evidenceBlock }),
+    [redacted.text, profile, evidenceBlock],
   );
 
-  const ready = observation.trim().length >= 10;
+  function readNow() {
+    setReading({
+      text: observation,
+      result: readAdvice({
+        observation,
+        // ⚠️ 기록된 유형만 넘긴다 — 엔진이 관찰문으로 유형을 추정하는 일은 없다
+        enneagramType: profile?.enneagramType,
+        shapeType: profile?.shapeType,
+        mbti: profile?.mbti,
+        sajuElement: profile?.sajuElement,
+      }),
+    });
+  }
 
   return (
     <div>
       <PageHeader
         crumb="수강생 관리 도우미"
         title="수강생 성향 분석"
-        desc="관찰한 성향과 언행을 적으면 AI가 읽고 상담 실마리를 돌려줍니다. 사람을 유형에 가두거나 판정하는 도구가 아닙니다."
+        desc="관찰한 성향과 언행을 적으면 사이트가 관련 원문을 찾아 1차 조언을 만듭니다. 더 깊은 답이 필요할 때 외부 AI로 이어집니다. 사람을 유형에 가두거나 판정하는 도구가 아닙니다."
       />
 
       {/* 불변식 4 고지 — 화면을 여는 순간 먼저 읽히도록 맨 위에 둔다 */}
@@ -129,16 +157,22 @@ export function TendencyAnalysis() {
 
           <Card>
             <h2 className="mb-1 text-[15px] font-bold text-zion-900">2. 무엇을 보았습니까</h2>
+            {/*
+              두 갈래를 함께 적게 안내한다 — 원문의 성질이 갈리기 때문이다.
+              성향·정서는 **에니어그램 원문**에, 교리를 어떻게 받아들이는지는 **교안**에 걸린다.
+              (교안은 교리 강의안이라 「가족」·「지각」 같은 낱말이 아예 없다 — 실측으로 확인했다.)
+            */}
             <p className="mb-2 text-[12px] leading-relaxed text-ink-soft">
               말투 · 반응 · 참여 모습 · 최근 달라진 점을 있는 그대로 적습니다. 이름 대신 「이 수강생」으로
-              적어 주세요.
+              적어 주세요. <strong className="font-semibold text-ink">교리를 어떻게 받아들이는지</strong>도
+              함께 적으면 교안 원문에서도 찾아 줍니다.
             </p>
             <textarea
               value={observation}
               onChange={(e) => setObservation(e.target.value)}
               rows={8}
               aria-label="관찰 내용"
-              placeholder="예) 강의 중 질문이 많고 근거를 되묻습니다. 분반 나눔에서는 말수가 줄고, 답을 정리할 시간을 주면 그때 깊게 말합니다. 최근 2주는 지각이 잦아졌습니다."
+              placeholder="예) 강의 중 질문이 많고 근거를 되묻습니다. 선악 구분은 아직 인정하지 못합니다. 분반 나눔에서는 말수가 줄고, 최근 2주는 지각이 잦아졌습니다."
               className="w-full resize-y rounded-lg border border-zion-100 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
             />
 
@@ -197,11 +231,53 @@ export function TendencyAnalysis() {
           </Card>
         </div>
 
-        {/* 오른쪽 — 나오는 자리 */}
+        {/* 오른쪽 — 나오는 자리. 위가 무료(사이트 안), 아래가 외부 AI다 */}
         <div className="space-y-4">
+          {/*
+            1차 조언 — **동의 게이트 밖에 둔다** (2026-08-13 리드 결정).
+            계산이 기기 안에서 끝나 외부로 나가는 것이 없으니 `canSendToAI`가 막을 이유가 없고,
+            오히려 **동의가 없을 때 유일하게 쓸모 있는 것이 이 조언**이다.
+          */}
           <Card>
             <h2 className="mb-1 flex items-center gap-1.5 text-[15px] font-bold text-zion-900">
-              <Sparkles size={15} className="text-zion-600" /> AI 분석
+              <Sparkles size={15} className="text-zion-600" /> 1차 조언 — 사이트 안에서
+            </h2>
+
+            {!ready ? (
+              <p className="py-8 text-center text-[13px] leading-relaxed text-ink-soft">
+                관찰 내용을 10자 이상 적으면 사이트가 관련 원문을 찾아 줍니다.
+              </p>
+            ) : (
+              <>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={readNow}
+                    className="rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700"
+                  >
+                    {reading ? "다시 읽기" : "관련 원문 찾기"}
+                  </button>
+                  {stale && (
+                    <span className="text-[11px] text-gold-700">
+                      관찰 내용이 바뀌었습니다 — 다시 읽어 주세요
+                    </span>
+                  )}
+                </div>
+                {reading ? (
+                  <AdvicePanel reading={reading.result} />
+                ) : (
+                  <p className="text-[12px] leading-relaxed text-ink-soft">
+                    에니어그램 원문과 초등 교안에서 관찰 내용과 겹치는 대목을 찾습니다. 비용이 들지
+                    않고, 기록이 기기 밖으로 나가지 않습니다.
+                  </p>
+                )}
+              </>
+            )}
+          </Card>
+
+          {/* 더 깊은 답이 필요할 때 — 여기서부터는 밖으로 나간다 */}
+          <Card>
+            <h2 className="mb-1 flex items-center gap-1.5 text-[15px] font-bold text-zion-900">
+              <ExternalLink size={15} className="text-zion-600" /> 외부 AI에 더 물어보기
             </h2>
 
             {!ready ? (
@@ -216,7 +292,8 @@ export function TendencyAnalysis() {
                     <strong className="font-bold">{check.reason}</strong>
                     <br />
                     동의가 확인되기 전에는 프롬프트도 열지 않습니다 — 사람이 옮겨 붙이는 것도 외부로
-                    보내는 것이기 때문입니다.
+                    보내는 것이기 때문입니다. <strong className="font-semibold">위 1차 조언은 그대로
+                    쓰실 수 있습니다</strong> — 기기 밖으로 나가지 않기 때문입니다.
                   </span>
                 </p>
               </div>
@@ -224,20 +301,30 @@ export function TendencyAnalysis() {
               <>
                 <p className="mb-2 text-[12px] leading-relaxed text-ink-soft">
                   아래 프롬프트에는 <strong className="font-semibold">가린 글</strong>만 들어 있습니다. 복사해
-                  상담 GPT에 붙여 넣습니다. 사이트 안 분석은 백엔드 연결 후 열립니다.
+                  상담 GPT에 붙여 넣습니다.
                 </p>
-                <PromptBox prompt={prompt} linkNote="상담 GPT 링크는 주소 수령 후 연결됩니다" />
+
                 {/*
-                  비활성이지만 **글자가 정보**다 — 왜 못 누르는지 알려 준다.
-                  그래서 흐릿한 진한 면(`bg-zion-300` + 흰 글자, 대비 1.72)을 쓰지 않고
-                  옅은 면에 읽히는 글자를 얹는다.
+                  찾은 근거를 함께 실으면 외부 AI의 신학 환각이 줄어든다.
+                  내부 **교육 원문**이라 개인정보가 없어 `redactForAI` 대상이 아니다.
+                  분량이 크므로 기본은 꺼 둔다 (2026-08-13 리드 결정 — 체크박스로).
                 */}
-                <button
-                  disabled
-                  className="mt-3 w-full cursor-not-allowed rounded-lg border border-zion-200 bg-zion-50 px-4 py-2 text-[13px] font-semibold text-ink-soft"
-                >
-                  사이트 안에서 분석 요청 — 백엔드 연결 대기
-                </button>
+                {reading && !stale && reading.result.total > 0 && (
+                  <label className="mb-2 flex items-start gap-2 rounded-lg bg-zion-50 p-2.5 text-[12px] leading-relaxed text-ink">
+                    <input
+                      type="checkbox"
+                      checked={withEvidence}
+                      onChange={(e) => setWithEvidence(e.target.checked)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <span>
+                      사이트가 찾은 <strong className="font-semibold">내부 근거 {reading.result.total}건</strong>을
+                      프롬프트에 함께 싣기 — 외부 AI가 우리 자료 안에서 답하게 됩니다. 프롬프트가 길어집니다.
+                    </span>
+                  </label>
+                )}
+
+                <PromptBox prompt={prompt} linkNote="상담 GPT 링크는 주소 수령 후 연결됩니다" />
               </>
             )}
           </Card>
@@ -303,9 +390,12 @@ function Row({ label, value }: { label: string; value: string }) {
 function buildPrompt({
   redactedText,
   profile,
+  evidenceBlock,
 }: {
   redactedText: string;
   profile?: (typeof STUDENT_PROFILES)[string];
+  /** 사이트가 찾은 내부 근거 — 비면 넣지 않는다 (기본은 꺼져 있다) */
+  evidenceBlock?: string;
 }) {
   const tendency = profile
     ? `[기록된 성향] MBTI ${profile.mbti} · 에니어그램 ${profile.enneagramType}번 · 도형 ${profile.shapeType} · 오행 ${profile.sajuElement}`
@@ -319,6 +409,7 @@ function buildPrompt({
     tendency,
     "[관찰 기록]",
     redactedText,
+    ...(evidenceBlock ? ["", evidenceBlock] : []),
     "",
     "다음을 지켜 답해 주세요.",
     "1. 이 사람의 신앙·인격·심리를 확정해 판정하지 마세요. 「~일 수 있습니다」처럼 가능성으로 적습니다.",

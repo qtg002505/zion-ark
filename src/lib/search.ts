@@ -71,8 +71,15 @@ function stripParticle(token: string): string {
   return token;
 }
 
-/** 질의를 찾을 수 있는 낱말들로 바꾼다. 남는 것이 없으면 빈 배열 */
-function tokenize(raw: string): string[] {
+/**
+ * 질의를 찾을 수 있는 낱말들로 바꾼다. 남는 것이 없으면 빈 배열.
+ *
+ * `export`인 이유: 1차 조언 엔진(`advice-engine.ts`)이 같은 토크나이저를 쓴다.
+ * 복사해 가면 **STOPWORDS와 조사 목록이 두 벌로 갈려** 한쪽만 고쳐지는 사고가 난다.
+ * ⚠️ 점수 규칙(`scoreOf`)은 공유하지 않는다 — 거기 걸린 절반 미만 컷오프가 조언 쪽에서는
+ * 결과를 0건으로 만든다. 자세한 것은 `advice-engine.ts`의 주석에 있다.
+ */
+export function tokenize(raw: string): string[] {
   const out: string[] = [];
   for (const piece of raw.toLowerCase().split(/[\s,./?!·:;()[\]"'—~]+/)) {
     if (!piece) continue;
