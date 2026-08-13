@@ -109,25 +109,31 @@ export function Main() {
             글자 판 — 사진을 넓게 덮는 대신 **글자가 놓인 자리에만** 어둠을 준다.
             덕분에 방주는 옅은 막(20%)만 쓰고 그대로 보인다.
           */}
-          <div className="max-w-xl rounded-2xl bg-zion-950/72 p-5 backdrop-blur-sm sm:p-6">
-            <p className="text-[12px] font-semibold tracking-wide text-white/80">
+          {/*
+            ⚠️ 판을 **좁고 옅게** 유지한다 (2026-08-13 리드 「배가 더 잘 보이도록」).
+            대비에 여유가 있어(9.42 → 필요치 4.5) 어둠을 절반 가까이 덜어 냈고,
+            폭도 `max-w-xl`(576px)에서 줄여 방주 왼쪽 끝을 덜 가린다.
+            흐림(`backdrop-blur`)을 한 단계 올려 옅어진 만큼을 메운다.
+          */}
+          <div className="max-w-md rounded-2xl bg-zion-950/55 p-4 backdrop-blur-md sm:p-5">
+            {/* ⚠️ 판을 옅게 한 만큼 작은 글자는 흐리게 두지 않는다 — /80·/85에서 4.18·3.76으로 미달했다 */}
+            <p className="text-[11px] font-semibold tracking-wide text-white">
               {COHORT.tribe}지파 · {COHORT.church} · {COHORT.cohort}
             </p>
-            <h1 className="mt-2 text-[26px] font-bold leading-tight tracking-tight text-white sm:text-[34px]">
+            <h1 className="mt-1.5 text-[23px] font-bold leading-tight tracking-tight text-white sm:text-[29px]">
               만국소성의 사명
               <br />
               <span className="text-white">시온 아크가 함께 합니다.</span>
             </h1>
-            <p className="mt-3 text-[13px] leading-relaxed text-white/85">
-              {session.name}님, 담당 범위는 {studentScopeLabel(session)}입니다. 아래에서 필요한
-              자리를 바로 여세요.
+            <p className="mt-2 text-[12px] leading-relaxed text-white">
+              {session.name}님, 담당 범위는 {studentScopeLabel(session)}입니다.
             </p>
 
-            <div className="mt-4 inline-flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl bg-white/12 px-4 py-2.5">
-              <span className="text-[12px] text-white/85">
-                {summary.months}개월 과정 · 수업 {summary.sessions}회
+            <div className="mt-3 inline-flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-white/12 px-3 py-1.5">
+              <span className="text-[11px] text-white">
+                {summary.months}개월 · 수업 {summary.sessions}회
               </span>
-              <span className="text-[15px] font-bold text-white">{progress}% 진행</span>
+              <span className="text-[13px] font-bold text-white">{progress}% 진행</span>
             </div>
           </div>
 
