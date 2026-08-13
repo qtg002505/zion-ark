@@ -1,15 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import {
-  Search,
-  Users,
-  RotateCcw,
-  Sparkles,
-  CalendarCheck,
-  RefreshCw,
-  MessageCircle,
-  ChevronRight,
-  Maximize2,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Users, RotateCcw, Maximize2 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
@@ -17,24 +7,19 @@ import { STUDENTS, DIVISIONS, COHORT, STATUS_LABELS } from "../content/cohort-mo
 import {
   STUDENT_PROFILES,
   DIVISION_EVANGELISTS,
-  FEEDBACK_KIND_LABELS,
   FAITH_STATUS_LABELS,
   fellowshipOf,
   type FaithType,
   type Fellowship,
 } from "../content/student-profiles";
-import { weekDots, attendanceStreak } from "../lib/attendance-signals";
 import {
   gradeOf,
   GRADE_LABELS,
   GRADE_TONE,
   GRADE_ICON,
   GRADE_ICON_BG,
-  SUGGESTIONS,
-  growthScore,
   type Grade,
 } from "../lib/student-grade";
-import { weekdayOf } from "../lib/date-format";
 import { enneagramGuides } from "../content/enneagram-guides";
 import type { Student } from "../lib/types";
 import { StudentDetailModal } from "../components/StudentDetailModal";
@@ -71,7 +56,6 @@ export function StudentsDashboard() {
    */
   const [statusFilter, setStatusFilter] = useState<Student["status"] | "all">("all");
   const [query, setQuery] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   /** 상세는 팝업으로 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 (2026-08-10 리드 지시) */
   const [modalKey, setModalKey] = useState<string | null>(null);
 
@@ -123,8 +107,6 @@ export function StudentsDashboard() {
     divisionScoped.forEach((r) => c[r.grade]++);
     return c;
   }, [divisionScoped]);
-
-  const selected = filtered.find((r) => r.student.key === selectedKey) ?? rows.find((r) => r.student.key === selectedKey);
 
   const hasFilter =
     divisionFilter !== "all" ||
@@ -230,8 +212,13 @@ export function StudentsDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* 왼쪽: 분반 선택 + 선택 분반 수강생 표 */}
+      {/*
+        목록은 **1단**이다 (2026-08-13 파트 B 작업 반영).
+        종전에는 오른쪽에 인라인 미리보기 패널을 두어 「행을 고르면 옆에서 요약, 상세는 또
+        팝업」이라는 **두 단계**가 됐다. 같은 것을 두 자리에서 보여 주니 표는 좁아지고
+        어느 쪽을 봐야 할지도 흐렸다. 요약을 걷어내고 **표 → 팝업** 한 단계로 줄였다.
+      */}
+      <div>
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <div className="text-[14px] font-bold text-zion-900">분반별 수강생 현황</div>
@@ -321,11 +308,9 @@ export function StudentsDashboard() {
                       {filtered.map(({ student: s, profile: p, grade, yuwol, fellowship }) => (
                         <tr
                           key={s.key}
-                          onClick={() => setSelectedKey(s.key)}
-                          className={
-                            "cursor-pointer border-b border-zion-100 transition last:border-0 hover:bg-zion-50 " +
-                            (selectedKey === s.key ? "bg-zion-50" : "")
-                          }
+                          // 줄을 누르면 바로 상세가 열린다 — 요약 패널을 걷어냈으므로 한 단계로 간다
+                          onClick={() => setModalKey(s.key)}
+                          className="cursor-pointer border-b border-zion-100 transition last:border-0 hover:bg-zion-50"
                         >
                           <td className="whitespace-nowrap py-2 pr-2">
                             <span className="flex items-center gap-1.5">
@@ -383,12 +368,9 @@ export function StudentsDashboard() {
           </div>
 
           <p className="mt-3 border-t border-zion-100 pt-3 text-[11px] leading-relaxed text-ink-soft">
-            시범 목업 데이터(가상 인물)입니다. 행을 누르면 오른쪽에서 상세 메모를 볼 수 있습니다.
+            시범 목업 데이터(가상 인물)입니다. 줄을 누르면 그 수강생의 상세가 열립니다.
           </p>
         </Card>
-
-        {/* 오른쪽: 선택 수강생 메모장 */}
-        <StudentDetail row={selected} onOpenDetail={() => setModalKey(selected?.student.key ?? null)} />
       </div>
 
       {/* 하단: 복합 분석 */}
@@ -506,222 +488,6 @@ type Row = {
   fellowship: Fellowship;
   yuwol: "오픈" | "비오픈";
 };
-
-function StudentDetail({ row, onOpenDetail }: { row: Row | undefined; onOpenDetail: () => void }) {
-  if (!row) {
-    return (
-      <Card className="flex min-h-[240px] items-center justify-center text-center">
-        <p className="text-[13px] leading-relaxed text-ink-soft">
-          왼쪽 목록에서 수강생을 선택하면
-          <br />
-          기본정보와 출석·보강·상담 메모를 볼 수 있습니다.
-        </p>
-      </Card>
-    );
-  }
-
-  const { student: s, profile: p, grade, fellowship, yuwol } = row;
-  const score = growthScore(s);
-  const recentDots = weekDots(s.recentWeeks).slice(-4);
-  const streak = attendanceStreak(s.recentWeeks);
-  const makeupDoneCount = s.recentWeeks.filter((w) => w.mark === "makeupDone").length;
-  const hasMakeupPending = s.recentWeeks.some((w) => w.mark === "makeupPending");
-  const counselCount = p.feedback.filter((f) => f.kind === "counsel").length;
-  // ⚠️ "진행중/완료"는 상담 워크플로 값이 따로 없어 등급(C·D=아직 관리 필요)으로 대신 가늠한 것 —
-  // 신앙·인격 판정이 아니라 출결 참여도 등급을 그대로 재사용한 것뿐이다(불변식 4)
-  const counselOngoing = grade === "C" || grade === "D";
-  const latestNote = p.feedback[0];
-  const OK_TONE = "border-emerald-200 bg-emerald-50 text-emerald-700";
-  const WARN_TONE = "border-amber-200 bg-amber-50 text-amber-700";
-
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[16px] font-bold text-zion-700">
-            {s.name[0]}
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-[15px] font-bold text-ink">{s.name}</span>
-              <span className="text-[12px] text-ink-soft">
-                {p.gender} {p.age}세 {fellowship.replace("회", "")} {s.division}
-              </span>
-            </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <GradeBadge grade={grade} />
-              <Tag>{p.registrationType}</Tag>
-              <Tag>{p.faithStatus}</Tag>
-              <Tag>{yuwol}</Tag>
-            </div>
-          </div>
-        </div>
-        {/*
-          상세 진입은 이 화면에서 가장 많이 누르는 버튼이다 — 테두리만 있는 작은 버튼이라
-          눈에 띄지 않는다는 지적을 받아 **채운 주 버튼**으로 올렸다 (2026-08-10).
-        */}
-        <button
-          onClick={onOpenDetail}
-          aria-haspopup="dialog"
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-zion-800 px-3 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-zion-700"
-          title="수강생 정보 상세 열기"
-        >
-          <Maximize2 size={13} /> 상세 보기
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <Tag>MBTI {p.mbti}</Tag>
-        <Tag>에니어그램 {p.enneagramType}유형</Tag>
-        <Tag>{p.shapeType}</Tag>
-        <Tag>사주 {p.sajuElement}</Tag>
-      </div>
-
-      {/* 최근 활동 요약 — 행마다 한눈에 보이는 요약 + 상세 진입 화살표(연결은 다음 단계) */}
-      <div className="mt-4">
-        <div className="mb-1 text-[12px] font-bold text-zion-900">최근 활동 요약</div>
-        <div className="divide-y divide-zion-100">
-          <ActivityRow
-            onOpen={onOpenDetail}
-            icon={CalendarCheck}
-            label={FEEDBACK_KIND_LABELS.attendance}
-            badge={`연속 ${streak}회`}
-            badgeTone={OK_TONE}
-            sub={
-              <>
-                {/*
-                  종전 「출석률 84% (21/25회)」 — 같은 사실을 두 번 말한다는 검수 의견을 받았다
-                  (2026-08-11 파트 B). 회차를 앞세우고 비율은 괄호로 내렸다.
-                  ⚠️ 비율을 아주 빼지는 않았다 — 등급(A~E)을 가르는 값이라 21/25를
-                  머릿속으로 환산하게 두면 이 줄만 보고는 등급을 가늠할 수 없다.
-                */}
-                출석 {s.presentCount}/{s.totalSessions}회 ({s.attendanceRate}%) · 최근 출석{" "}
-                {s.lastAttended ? `${s.lastAttended} (${weekdayOf(s.lastAttended)})` : "기록 없음"}
-              </>
-            }
-          >
-            {recentDots.map((d, i) => (
-              <span
-                key={i}
-                title={d.title}
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[9px] font-bold ${d.tone}`}
-              >
-                {d.label}
-              </span>
-            ))}
-          </ActivityRow>
-
-          <ActivityRow
-            onOpen={onOpenDetail}
-            icon={RefreshCw}
-            label={FEEDBACK_KIND_LABELS.makeup}
-            badge={hasMakeupPending ? "확인 필요" : "정상"}
-            badgeTone={hasMakeupPending ? WARN_TONE : OK_TONE}
-          >
-            <span className="truncate text-[12px] text-ink-soft">보강 {makeupDoneCount}회 완료</span>
-          </ActivityRow>
-
-          <ActivityRow
-            onOpen={onOpenDetail}
-            icon={MessageCircle}
-            label={FEEDBACK_KIND_LABELS.counsel}
-            badge={counselOngoing ? "진행중" : "완료"}
-            badgeTone={counselOngoing ? WARN_TONE : OK_TONE}
-          >
-            <span className="truncate text-[12px] text-ink-soft">상담 {counselCount}회</span>
-          </ActivityRow>
-        </div>
-
-        {latestNote && (
-          <div className="mt-3 border-t border-zion-100 pt-3">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[12px] font-bold text-zion-900">메모 미리보기</span>
-              <span className="text-[11px] text-ink-soft">{latestNote.date}</span>
-            </div>
-            <p className="line-clamp-2 text-[12.5px] leading-relaxed text-ink-soft">{latestNote.text}</p>
-            <button
-              onClick={onOpenDetail}
-              aria-haspopup="dialog"
-              className="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-zion-700 hover:underline"
-            >
-              전체 메모 보기 <ChevronRight size={12} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 rounded-lg border border-zion-100 bg-zion-50 p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[12px] font-bold text-zion-800">
-            <Sparkles size={13} /> AI 성장 분석
-          </div>
-          <div className="text-[15px] font-bold text-zion-800">{score}/100</div>
-        </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">
-          출결 참여도를 바탕으로 한 참고 제안입니다. 신앙·인격을 확정 판정하지 않으며, 연락 여부는
-          담당자가 정합니다.
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {SUGGESTIONS[grade].map((sug) => (
-            <span key={sug} className="rounded-full border border-zion-200 bg-white px-2.5 py-1 text-[11px] text-zion-700">
-              {sug}
-            </span>
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-/** 최근 활동 요약 한 줄 — 아이콘·라벨·요약 내용·상태 배지·상세 진입 화살표(참고 화면 구성) */
-function ActivityRow({
-  icon: Icon,
-  label,
-  badge,
-  badgeTone,
-  children,
-  sub,
-  onOpen,
-}: {
-  icon: typeof CalendarCheck;
-  label: string;
-  badge: string;
-  badgeTone: string;
-  children: ReactNode;
-  /** 행 아래 보조 설명 줄 (예: 출석률·최근 출석일) */
-  sub?: ReactNode;
-  /** 누르면 상세를 **팝업으로** 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 */
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      onClick={onOpen}
-      aria-haspopup="dialog"
-      className="-mx-1 block w-[calc(100%+0.5rem)] rounded-lg px-1 py-2 text-left transition hover:bg-zion-50"
-    >
-      <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zion-100 text-zion-700">
-          <Icon size={14} />
-        </span>
-        <span className="w-9 shrink-0 text-[12px] font-semibold text-ink">{label}</span>
-        <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">{children}</span>
-        <span className={`shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${badgeTone}`}>
-          {badge}
-        </span>
-        <ChevronRight size={14} className="shrink-0 text-ink-soft" />
-      </div>
-      {sub && <div className="mt-1 pl-9 text-[11px] leading-relaxed text-ink-soft">{sub}</div>}
-    </button>
-  );
-}
-
-function Tag({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full border border-zion-100 bg-zion-50 px-2.5 py-1 text-[11px] font-medium text-zion-700">
-      {children}
-    </span>
-  );
-}
 
 function AnalysisSection({ rows, divisionFilter }: { rows: Row[]; divisionFilter: string }) {
   const total = rows.length;
