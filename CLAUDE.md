@@ -39,7 +39,10 @@ npm.cmd run build
 화면을 건드렸으면 여기에 더한다 — 이 셋은 실제로 결함을 잡아낸 항목이다.
 
 - 미리보기에서 직접 열어 확인. 콘솔 오류 0
-- **모바일 폭(375)에서 가로 넘침 0**: `document.body.scrollWidth === document.documentElement.clientWidth`
+- **모바일 폭(375)에서 가로 넘침 0**:
+  `document.body.scrollWidth - document.documentElement.clientWidth > 0` 이면 넘친 것이다.
+  ⚠️ `===`로 견주지 않는다 — `scrollbar-gutter: stable` 때문에 **본문이 뷰포트보다 좁을 때**가
+  있어(내용이 짧아 세로 스크롤이 없는 화면) 멀쩡한 화면이 넘침으로 잡힌다
 - **외부 사이트 임베드 여부는 개발용 인앱 브라우저를 믿지 않는다** — 실제 브라우저에서 확인한다
   (인앱 브라우저는 `X-Frame-Options`를 무시해 "표시된다"고 잘못 판단한 적이 있다)
 

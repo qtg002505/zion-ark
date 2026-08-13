@@ -73,9 +73,13 @@ overflow-wrap: anywhere;   /* 끊을 자리가 없는 긴 문자열은 강제로
 ## 화면을 만들거나 고친 뒤 확인
 
 ```js
-// 가로 넘침이 없어야 한다
-document.body.scrollWidth === document.documentElement.clientWidth
+// 0보다 크면 넘친 것이다 (0 이하가 정상)
+document.body.scrollWidth - document.documentElement.clientWidth
 ```
+
+⚠️ **`===`로 견주지 않는다.** `scrollbar-gutter: stable`이 스크롤바 자리를 늘 비워 두므로
+**내용이 짧아 세로 스크롤이 없는 화면은 본문이 15px쯤 좁다.** 같은지 물으면 그런 화면이
+전부 「넘침」으로 잡힌다 (2026-08-13에 `/notices`가 그렇게 오탐됐다).
 
 세로 찢김은 이렇게 잡는다 — 폭이 아주 좁은데 높이가 큰 텍스트 요소를 찾는다:
 

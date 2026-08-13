@@ -184,7 +184,10 @@ npm.cmd run build
   남기는데, **이건 결함이 아니라 잔재다.** 새로고침만으로는 콘솔 기록이 남아 계속 보이므로
   `tabs_create`로 **새 탭을 열어** 확인한다. 이 세션에서만 네 번 헷갈렸다
 - 모바일 폭(375)에서 가로 넘침 0 —
-  `document.body.scrollWidth === document.documentElement.clientWidth`
+  `document.body.scrollWidth - document.documentElement.clientWidth > 0` 이면 넘친 것이다.
+  ⚠️ **`===`로 견주지 않는다.** `scrollbar-gutter: stable`이 스크롤바 자리를 늘 비워 둬서
+  **내용이 짧은 화면은 본문이 뷰포트보다 15px쯤 좁다** — 그걸 넘침으로 잡으면 멀쩡한 화면이
+  걸린다(2026-08-13에 `/notices`가 그렇게 오탐됐다)
 - **외부 사이트 임베드 가능 여부는 개발용 인앱 브라우저를 믿지 않는다.** 인앱 브라우저는
   `X-Frame-Options`를 무시해 "표시된다"고 잘못 판단하게 만든다. 실제 브라우저에서 확인한다
 
@@ -284,7 +287,7 @@ overlay.contains(el)   // 모달이 위여야 true
 ```js
 // 한 번에 여러 가지를 재서 왕복을 줄인다
 JSON.stringify({
-  overflow: document.body.scrollWidth === document.documentElement.clientWidth,
+  overflowPx: document.body.scrollWidth - document.documentElement.clientWidth, // 0 이하가 정상
   hasX: document.querySelector('main').textContent.includes('찾는 말'),
   rows: document.querySelectorAll('main tbody tr').length,
 })
