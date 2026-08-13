@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Users, RotateCcw } from "lucide-react";
+import { Search, Users, RotateCcw, Lock, Unlock } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { visibleDivisions } from "../lib/permissions";
@@ -13,7 +13,6 @@ import {
   fellowshipOf,
   type FaithType,
   type Fellowship,
-  type EnrollmentStatus,
 } from "../content/student-profiles";
 import {
   gradeOf,
@@ -29,8 +28,6 @@ import { StudentDetailModal } from "../components/StudentDetailModal";
 import { PageHeader, Card, EnrollmentStatusBadge } from "./common";
 
 const GRADE_ORDER: Grade[] = ["A", "B", "D", "E"];
-const FAITH_TYPES: FaithType[] = ["비오픈", "오픈", "신앙전환"];
-const ENROLLMENT_STATUSES: EnrollmentStatus[] = ["수강", "탈락", "유급"];
 
 /**
  * 수강생관리 도우미 — 상세 운영 화면 (2026-08-09 개편).
@@ -52,13 +49,6 @@ export function StudentsDashboard() {
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<Grade | "all">("all");
   const [faithFilter, setFaithFilter] = useState<FaithType | "all">("all");
-  /**
-   * 수강 상태 — 담당자(강사·전도사)가 상세 페이지에서 직접 고르는 값(2026-08-13부터).
-   * ⚠️ 출결에서 자동으로 오는 `Student["status"]`(읽기 전용, 불변식 3)와는 다른 필드다 —
-   * 여기 값은 `StudentStatusOverride.enrollmentStatus`에서 온다. 상세 페이지에서 조정한
-   * 값이 이 목록에도 그대로 보이도록 같은 필드를 쓴다.
-   */
-  const [statusFilter, setStatusFilter] = useState<EnrollmentStatus | "all">("all");
   const [query, setQuery] = useState("");
   /** 상세는 팝업으로 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 (2026-08-10 리드 지시) */
   const [modalKey, setModalKey] = useState<string | null>(null);
@@ -91,10 +81,9 @@ export function StudentsDashboard() {
       rows
         .filter((r) => divisionFilter === "all" || r.student.division === divisionFilter)
         .filter((r) => gradeFilter === "all" || r.grade === gradeFilter)
-        .filter((r) => statusFilter === "all" || r.enrollmentStatus === statusFilter)
         .filter((r) => faithFilter === "all" || r.profile.faithType === faithFilter)
         .filter((r) => !query.trim() || r.student.name.includes(query.trim())),
-    [rows, divisionFilter, gradeFilter, statusFilter, faithFilter, query],
+    [rows, divisionFilter, gradeFilter, faithFilter, query],
   );
 
   const gradeCounts = useMemo(() => {
@@ -115,15 +104,10 @@ export function StudentsDashboard() {
   }, [divisionScoped]);
 
   const hasFilter =
-    divisionFilter !== "all" ||
-    gradeFilter !== "all" ||
-    statusFilter !== "all" ||
-    faithFilter !== "all" ||
-    query.trim() !== "";
+    divisionFilter !== "all" || gradeFilter !== "all" || faithFilter !== "all" || query.trim() !== "";
   function resetFilters() {
     setDivisionFilter("all");
     setGradeFilter("all");
-    setStatusFilter("all");
     setFaithFilter("all");
     setQuery("");
   }
@@ -138,11 +122,6 @@ export function StudentsDashboard() {
       <PageHeader crumb="수강생 관리 도우미" title="수강생 현황" />
 
       {/* 상단 필터 — 분반(전도사) 선택은 아래 목록 왼쪽 패널에서 한다 */}
-      {/*
-        ⚠️ 드롭다운(select)과 칩(분반 목록)이 섞여 있어 형식이 안 통일됐다는 지적(2026-08-13)
-        으로, 등급·수강 상태·신앙유형도 분반 필터와 같은 「클릭하는 칩」 형식으로 바꿨다 —
-        옵션을 열어 보지 않아도 한눈에 다 보인다.
-      */}
       <Card className="mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg border border-zion-100 bg-zion-50 px-3 py-1.5 text-[12px] text-ink-soft">
@@ -169,38 +148,14 @@ export function StudentsDashboard() {
             </button>
           )}
         </div>
-
-        <div className="mt-2.5 flex flex-col gap-2 border-t border-zion-100 pt-2.5">
-          <FilterChipGroup
-            label="등급"
-            value={gradeFilter}
-            onChange={(v) => setGradeFilter(v as Grade | "all")}
-            options={[
-              { value: "all", label: "전체 등급" },
-              ...GRADE_ORDER.map((g) => ({ value: g, label: `${GRADE_LABELS[g]}(${g})` })),
-            ]}
-          />
-          {/* 수강 상태 — 담당자가 상세 페이지에서 직접 고르는 값(등급과 다른 축) */}
-          <FilterChipGroup
-            label="수강 상태"
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as EnrollmentStatus | "all")}
-            options={[
-              { value: "all", label: "전체 상태" },
-              ...ENROLLMENT_STATUSES.map((s) => ({ value: s, label: s })),
-            ]}
-          />
-          <FilterChipGroup
-            label="신앙유형"
-            value={faithFilter}
-            onChange={(v) => setFaithFilter(v as FaithType | "all")}
-            options={[{ value: "all", label: "전체 신앙유형" }, ...FAITH_TYPES.map((f) => ({ value: f, label: f }))]}
-          />
-        </div>
       </Card>
 
-      {/* 통계 카드 — 흰 배경 + 색깔 아이콘 원형으로 통일 */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      {/*
+        통계 카드 — 등급(전체·정상·관심·위기·중단)에 신앙유형(오픈·비오픈)까지 한 줄에
+        더해 클릭으로 거르게 했다(2026-08-13 지적) — 칸이 늘어난 만큼 폭은 줄여 7칸에 맞춘다.
+        ⚠️ 신앙전환은 이 빠른 필터에 넣지 않는다 — 오픈/비오픈 두 값만 요청받았다.
+      */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <StatCard
           icon={Users}
           label="전체 수강생"
@@ -222,6 +177,24 @@ export function StudentsDashboard() {
             iconBg={GRADE_ICON_BG[g]}
           />
         ))}
+        <StatCard
+          icon={Unlock}
+          label="오픈"
+          count={rows.filter((r) => r.profile.faithType === "오픈").length}
+          total={rows.length}
+          active={faithFilter === "오픈"}
+          onClick={() => setFaithFilter(faithFilter === "오픈" ? "all" : "오픈")}
+          iconBg="bg-sky-500"
+        />
+        <StatCard
+          icon={Lock}
+          label="비오픈"
+          count={rows.filter((r) => r.profile.faithType === "비오픈").length}
+          total={rows.length}
+          active={faithFilter === "비오픈"}
+          onClick={() => setFaithFilter(faithFilter === "비오픈" ? "all" : "비오픈")}
+          iconBg="bg-slate-500"
+        />
       </div>
 
       {/*
@@ -373,43 +346,6 @@ export function StudentsDashboard() {
   );
 }
 
-/** 분반 목록(DivisionListItem)과 같은 「클릭하는 칩」형식 — 옵션이 항상 다 보인다 */
-function FilterChipGroup({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-0.5 shrink-0 text-[11px] font-semibold text-ink-soft">{label}</span>
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            aria-pressed={active}
-            className={
-              "shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition " +
-              (active
-                ? "border-zion-700 bg-zion-700 text-white"
-                : "border-zion-100 bg-white text-ink-soft hover:border-zion-300 hover:text-ink")
-            }
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 /** 통계 카드 — 흰 배경 + 색깔 아이콘 원형(참고 화면 스타일 통일) */
 function StatCard({
