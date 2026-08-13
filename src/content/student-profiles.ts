@@ -33,11 +33,38 @@ export const FAITH_STATUS_LABELS: Record<FaithStatus, string> = {
   기타: "기타",
 };
 export type Fellowship = "청년회" | "장년회" | "부녀회" | "자문회";
+/**
+ * 화면 표시용 — 「회」를 뗀 짧은 표기(2026-08-13 리드 지시). 저장값·비교식(`fellowship ===
+ * "청년회"`)은 그대로 두고 화면에 낼 때만 이 표를 거친다 — 기존 저장 데이터(`StudentStatusOverride`)와
+ * `glossary.ts`(용어 정의 원문, 재작성 금지 대상)는 안 건드린다.
+ */
+export const FELLOWSHIP_LABELS: Record<Fellowship, string> = {
+  청년회: "청년",
+  장년회: "장년",
+  부녀회: "부녀",
+  자문회: "자문",
+};
 export type ShapeType = "동그라미" | "세모" | "네모" | "에스";
 export type SajuElement = "목" | "화" | "토" | "금" | "수";
 export type FeedbackKind = "attendance" | "makeup" | "counsel" | "note" | "memo";
 /** 혼인 상태 — 장년회·부녀회·자문회에서 이성친구 여부·교제기간 대신 쓰는 축(2026-08-13 확정) */
 export type MaritalStatus = "미혼" | "결혼" | "이혼" | "사별";
+
+/**
+ * 수강 상태 — 담당자(강사·전도사)가 상세 페이지에서 직접 고르는 값(2026-08-13 추가).
+ *
+ * ⚠️ `Student["status"]`(출결에서 자동으로 오는 읽기 전용 값 — 수강 중/중단 위기/중단,
+ * `src/content/cohort-mock.ts`)와는 **다른 축**이다. 그 값은 불변식 3(출결 원본은 읽기 전용)이
+ * 지키는 자리라 여기서 덮어쓰지 않는다. 이 필드는 별도의 새 개념이고, 담당자가 안 고치면
+ * 기본값 "수강"을 쓴다. 수강생 현황·상세 페이지가 이 값을 같이 쓴다.
+ */
+export type EnrollmentStatus = "수강" | "탈락" | "유급";
+export const ENROLLMENT_STATUS_DEFAULT: EnrollmentStatus = "수강";
+export const ENROLLMENT_STATUS_TONE: Record<EnrollmentStatus, string> = {
+  수강: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  유급: "bg-amber-50 text-amber-700 border-amber-200",
+  탈락: "bg-red-50 text-red-700 border-red-200",
+};
 
 export const FEEDBACK_KIND_LABELS: Record<FeedbackKind, string> = {
   attendance: "출석",
@@ -72,6 +99,16 @@ export interface StudentStatusOverride {
   fellowship?: Fellowship;
   /** 사람이 직접 지정한 등급 — 없으면 출결로 자동 판정한다 (`student-grade.ts`) */
   grade?: Grade;
+  /**
+   * 분반 — 담당자가 「현재 상황」에서 직접 고른다(2026-08-13 추가). 없으면 출결 원본의
+   * `Student.division`을 쓴다. ⚠️ 출결 원본(`cohort-mock.ts`)은 그대로 두고 화면 표시만
+   * 바꾸는 값이다(불변식 3) — 담당 전도사는 `DIVISION_EVANGELISTS`로 이 값에서 자동으로 따라온다.
+   */
+  division?: string;
+  /** 등록 구분 — 없으면 씨앗 값(`StudentProfile.registrationType`) 대신 쓴다(2026-08-13 추가) */
+  registrationType?: RegistrationType;
+  /** 수강 상태 — 없으면 기본값 "수강"을 쓴다. `Student["status"]`(출결 자동값)와는 별개 필드다 */
+  enrollmentStatus?: EnrollmentStatus;
   /** 유월 — 이 축은 오픈/비오픈 둘뿐이다. 신앙전환은 유월 기준으로는 이미 "오픈"이다 */
   faithType?: "오픈" | "비오픈";
   faithStatus?: FaithStatus;
@@ -83,6 +120,13 @@ export interface StudentStatusOverride {
   availableTime?: string;
   /** 관심사 — 있으면 씨앗 값(`StudentProfile.interests`) 대신 쓴다 */
   interests?: string;
+  /**
+   * 인교섬(인도자·교사·섬김이) 메모 — 관심사와 같은 방식(한 칸에 바로 고쳐 쓰기)으로 바꿨다
+   * (2026-08-13). 종전엔 날짜별로 쌓는 기록 목록(`FeedbackKind` "memo")이었다.
+   */
+  guideMemo?: string;
+  /** guideMemo를 덮어쓸 때마다 직전 값을 여기 쌓는다(최근 20건, 최신이 앞) — note와 같은 패턴 */
+  guideMemoHistory?: NoteRevision[];
   /** 혼인 상태 — 장년회·부녀회·자문회 카드에서 담당자가 직접 고른다 */
   maritalStatus?: MaritalStatus;
   /** 자녀 동거유무 — 위와 같은 자리에서 담당자가 직접 고른다 */
@@ -93,6 +137,43 @@ export interface StudentStatusOverride {
   materialPeriod?: string;
   /** 부모와 동거 여부 — 청년회 카드에서 담당자가 직접 고른다 */
   livesWithParents?: boolean;
+  /** MBTI — 없으면 씨앗 값(`StudentProfile.mbti`) 대신 쓴다(2026-08-13 추가, 편집 상태에서만 고른다) */
+  mbti?: string;
+  /** 에니어그램 유형(1~9) — 없으면 씨앗 값 대신 쓴다 */
+  enneagramType?: number;
+  /** 도형 성향 — 없으면 씨앗 값 대신 쓴다 */
+  shapeType?: ShapeType;
+  /**
+   * 일주(육십갑자, 예: "기사") — 없으면 생년월일에서 뽑은 시범값(`iljuOf`)을 쓴다.
+   * 명리학 참고(2026-08-13) — `SIXTY_GAPJA` 60개 중에서 고른다
+   */
+  ilju?: string;
+  /**
+   * 오행분포 — 목·화·토·금·수 각각 개수를 담당자가 직접 매긴다. 없으면 시범값(`ohaengOf`)을 쓴다.
+   * 명리학 참고(2026-08-13) — 단일 우세 원소 하나로는 못 담아 다섯 숫자로 바꿨다
+   */
+  ohaeng?: Record<SajuElement, number>;
+  /**
+   * 인도자·교사·섬김이 — 원래 마팔 자료에서 오지만 중간에 바뀌기도 해 담당자가 직접
+   * 고쳐 쓸 수 있게 했다(2026-08-13 추가). 없으면 씨앗 값(`StudentProfile`)을 쓴다
+   */
+  guideName?: string;
+  teacherName?: string;
+  helperName?: string;
+  /**
+   * 나이·생년월일·전화·주소 — 마팔에서 처음 오지만 중간에 바뀌기도 해 담당자가 직접
+   * 고쳐 쓸 수 있게 했다(2026-08-13 추가). 없으면 씨앗 값(`StudentProfile`)을 쓴다
+   */
+  age?: number;
+  birthDate?: string;
+  phone?: string;
+  address?: string;
+  /**
+   * 프로필 사진 — 편집 상태에서 등록한다(2026-08-13 추가). Data URL(문자열)로 저장한다.
+   * ⚠️ 로컬스토리지 용량 때문에 올릴 때 작게 줄여(200px, JPEG) 저장한다 — 원본을 그대로
+   * 넣지 않는다. 시범 인물의 표시용 사진일 뿐 실제 개인정보가 아니어야 한다(불변식 2·6)
+   */
+  photoUrl?: string;
   updatedBy: string;
   updatedByRole: RoleCode;
   updatedAt: string;
@@ -147,7 +228,8 @@ export interface ChecklistProgress {
   level: CourseLevel;
   groupNo: number;
   qIndex: number;
-  checked: boolean;
+  /** 0~5점 — 예/아니오 체크 대신 점수로 매긴다(2026-08-13). 문항마다 매번 완전히 되는 게 아니라서다 */
+  score: number;
   week?: number;
   updatedBy: string;
   updatedByRole: RoleCode;
@@ -228,6 +310,16 @@ export function ohaengOf(dominant: SajuElement): Record<SajuElement, number> {
   dist[dominant] += 1;
   return dist;
 }
+
+/**
+ * 육십갑자(60개) — 명리학 참고(2026-08-13 리드 지시). 천간(10) × 지지(12)를
+ * `iljuOf`와 같은 규칙(n%10, n%12)으로 60바퀴 돌려 정통 순서(갑자·을축·병인…계해)를 그대로 낸다.
+ * 일주를 직접 고를 때 이 목록에서 고른다 — 항목이 많아 드롭다운으로 낸다.
+ */
+export const SIXTY_GAPJA: string[] = Array.from(
+  { length: 60 },
+  (_, n) => `${HEAVENLY_STEMS[n % 10]}${EARTHLY_BRANCHES[n % 12]}`,
+);
 
 /**
  * 생일이 양력인지 음력인지 — 실제 마팔 연동 전까지는 기록이 없어 생년월일에서

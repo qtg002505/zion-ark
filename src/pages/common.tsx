@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { CheckCircle2, AlertTriangle, PauseCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, PauseCircle, XCircle } from "lucide-react";
 import type { Student } from "../lib/types";
 import { STATUS_LABELS } from "../content/cohort-mock";
+import { ENROLLMENT_STATUS_TONE, type EnrollmentStatus } from "../content/student-profiles";
 
 export function PageHeader({
   crumb,
@@ -86,6 +87,22 @@ export function StatusBadge({ status }: { status: Student["status"] }) {
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${spec.cls}`}>
       <Icon size={12} />
       {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+/**
+ * 수강 상태 배지 — 담당자가 직접 고르는 값(`EnrollmentStatus`, 2026-08-13 추가).
+ * 출결에서 자동으로 오는 `StatusBadge`(수강 중·중단 위기·중단)와는 다른 필드다.
+ */
+export function EnrollmentStatusBadge({ status }: { status: EnrollmentStatus }) {
+  const Icon = { 수강: CheckCircle2, 유급: AlertTriangle, 탈락: XCircle }[status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${ENROLLMENT_STATUS_TONE[status]}`}
+    >
+      <Icon size={12} />
+      {status}
     </span>
   );
 }

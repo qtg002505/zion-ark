@@ -27,7 +27,9 @@ import {
   cohortRates,
   rateOf,
 } from "../lib/attendance-rate";
-import { PageHeader, Card, StatTile, StatusBadge } from "./common";
+import { ENROLLMENT_STATUS_DEFAULT, type EnrollmentStatus } from "../content/student-profiles";
+import type { Student } from "../lib/types";
+import { PageHeader, Card, StatTile, StatusBadge, EnrollmentStatusBadge } from "./common";
 
 type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
 const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"];
@@ -41,12 +43,26 @@ const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"
  */
 export function CohortStatus() {
   const session = useSession();
+  const { studentStatusOverrides } = useStore();
   const [searchParams] = useSearchParams();
   const initialTab = TAB_IDS.includes(searchParams.get("tab") as Tab) ? (searchParams.get("tab") as Tab) : "summary";
   const [tab, setTab] = useState<Tab>(initialTab);
 
   const divisions = visibleDivisions(session, DIVISIONS);
   const students = STUDENTS.filter((s) => divisions.includes(s.division));
+
+  /**
+   * 수강 상태 — 상세 페이지에서 담당자가 고른 값(`StudentStatusOverride.enrollmentStatus`).
+   * ⚠️ 「출석 현황」 탭의 `StatusBadge`(원본 출결에서 자동으로 오는 읽기 전용 값)와는 다른
+   * 필드다 — 그 탭은 출결 원본 동기화를 그대로 보여주는 자리라 손대지 않는다(불변식 3).
+   * 여기(기수 요약·분반별 현황)는 수강생 현황·상세 페이지와 같은 값을 보여준다.
+   */
+  const overrideByKey = useMemo(
+    () => Object.fromEntries(studentStatusOverrides.map((o) => [o.studentKey, o])),
+    [studentStatusOverrides],
+  );
+  const enrollmentStatusOf = (s: Student): EnrollmentStatus =>
+    overrideByKey[s.key]?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "summary", label: "기수 요약" },
@@ -109,14 +125,14 @@ export function CohortStatus() {
           <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
             <StatTile label="등록 수강생" value={`${students.length}명`} sub={`${divisions.length}개 분반`} accent />
             <StatTile
-              label="수강 유지"
-              value={`${students.filter((s) => s.status === "active").length}명`}
-              sub="97% 이상 출석 그룹"
+              label="수강"
+              value={`${students.filter((s) => enrollmentStatusOf(s) === "수강").length}명`}
+              sub="담당자가 지정한 수강 상태"
             />
             <StatTile
-              label="위기·중단"
-              value={`${students.filter((s) => s.status !== "active").length}명`}
-              sub="50% 미만 — 보강·상담 대상"
+              label="탈락·유급"
+              value={`${students.filter((s) => enrollmentStatusOf(s) !== "수강").length}명`}
+              sub="담당자가 지정한 수강 상태"
             />
           </div>
 
@@ -191,7 +207,7 @@ export function CohortStatus() {
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
           {divisions.map((d) => {
             const group = students.filter((s) => s.division === d);
-            const active = group.filter((s) => s.status === "active").length;
+            const active = group.filter((s) => enrollmentStatusOf(s) === "수강").length;
             return (
               <Card key={d}>
                 <div className="flex items-center justify-between">
@@ -204,13 +220,13 @@ export function CohortStatus() {
                       <span className="text-ink">{s.name}</span>
                       <span className="flex items-center gap-2">
                         <span className="text-ink-soft">{s.attendanceRate}%</span>
-                        <StatusBadge status={s.status} />
+                        <EnrollmentStatusBadge status={enrollmentStatusOf(s)} />
                       </span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-3 border-t border-zion-100 pt-2 text-[12px] text-ink-soft">
-                  유지 {active} · 위기·중단 {group.length - active}
+                  수강 {active} · 탈락·유급 {group.length - active}
                 </div>
               </Card>
             );
