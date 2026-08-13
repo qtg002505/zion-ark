@@ -283,3 +283,44 @@ export const STATUS_LABELS: Record<Student["status"], string> = {
   atRisk: "중단 위기",
   paused: "중단",
 };
+
+/**
+ * 기수 요약 퍼널 지표 (2026-08-13 리드 지시) — 신카부터 예상 종강까지의 흐름.
+ *
+ * ⚠️ **라벨은 리드가 적어 준 표기 그대로다** — 「신카」·「인섬교」는 용어집에 정의가 없는
+ * 미확정 용어라 **키·enum으로 굳히지 않는다**(GLOSSARY 원칙). 「인섬교」가 용어집의
+ * 「인교섬」(인도자·교사·섬김이)과 같은 것인지도 미확인이다 — 임의로 고쳐 적지 않는다.
+ * 수치는 17명 목업과 정합하게 지어낸 시범 값이다(가상 — 불변식 6).
+ */
+export interface FunnelMetric {
+  label: string;
+  value: string;
+  sub?: string;
+}
+
+export const COHORT_FUNNEL: FunnelMetric[] = [
+  { label: "신카수", value: "31명" },
+  { label: "인섬교 면접수", value: "27명" },
+  { label: "수강생 면접수", value: "23명" },
+  { label: "개강 1주차 출석", value: "20명", sub: "출석률 87%" },
+  { label: "개강 4주차 출석", value: "18명", sub: "출석률 78%" },
+  { label: "등록", value: "17명", sub: "등록률 74% (신카 대비)" },
+  { label: "초등 시작 출석수", value: "17명" },
+  { label: "중등 시작 출석수", value: "15명" },
+  { label: "고등 시작 출석수", value: "―", sub: "아직 진입 전" },
+  { label: "예상 종강률", value: "47%", sub: "유지 8명 / 17명 기준" },
+];
+
+/**
+ * 기수 사명자 현황 (2026-08-13 리드 지시) — 강사 1 · 주전도사 1 · 전도사 2.
+ *
+ * ⚠️ `role`은 **화면 표시 문자열일 뿐**이다. 「주전도사」 역할 코드는 미확정이라
+ * (OPEN_QUESTIONS §C-2) `RoleCode`를 늘리지 않는다 — 계정·권한과 무관한 명단 표시다.
+ * 이름은 전원 가상 인물이다 (불변식 6).
+ */
+export const COHORT_STAFF: { name: string; role: string }[] = [
+  { name: "김이끎", role: "강사" },
+  { name: "이맡음", role: "주전도사" },
+  { name: "박세움", role: "전도사" },
+  { name: "정도움", role: "전도사" },
+];
