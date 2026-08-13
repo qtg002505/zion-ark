@@ -209,12 +209,28 @@ export function Sidebar({
                 <span className="block text-[11px] text-ink-soft">만국 소성 플랫폼</span>
               </span>
             </NavLink>
-            {/* 고정 토글 — 풀면 접히되, 마우스가 아직 위에 있어 펼침이 유지되다가 떼면 접힌다 */}
+            {/*
+              고정 토글 — **누르는 즉시** 접히고 펼쳐진다.
+
+              ⚠️ 고정을 풀 때 `hovering`을 함께 끈다. 이걸 빠뜨리면 마우스가 아직 사이드바
+              위에 있어 `expanded`가 참으로 남는다 — **본문 여백만 68px로 줄고 패널은 272px
+              그대로**여서 「눌렀는데 안 접힌다」로 보인다(2026-08-13 실측으로 잡은 결함).
+              마우스가 떠날 때까지 기다리게 두면 누른 것이 먹혔는지 알 수 없다.
+              접은 뒤 마우스를 다시 올리면 종전대로 잠시 펼쳐진다.
+            */}
             <button
-              onClick={() => onSetPinned?.(!pinned)}
+              onClick={() => {
+                const next = !pinned;
+                onSetPinned?.(next);
+                if (!next) setHovering(false);
+              }}
               aria-pressed={pinned}
-              title={pinned ? "사이드바 고정 해제 — 접힌 상태로 둡니다" : "사이드바 고정"}
-              aria-label={pinned ? "사이드바 고정 해제" : "사이드바 고정"}
+              title={
+                pinned
+                  ? "카테고리 접기 — 마우스를 대면 잠시 펼쳐집니다"
+                  : "카테고리 펼친 채로 고정"
+              }
+              aria-label={pinned ? "카테고리 접기 (고정 해제)" : "카테고리 펼쳐 고정"}
               className="shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-zion-50 max-lg:hidden"
             >
               {pinned ? <Pin size={15} /> : <PinOff size={15} />}
