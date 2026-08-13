@@ -49,7 +49,7 @@ export function DailyQuote() {
         <button
           onClick={() => setCollapsedState(false)}
           aria-expanded={false}
-          className="mx-auto flex w-full max-w-5xl items-center gap-2 px-4 py-1.5 text-left transition hover:bg-zion-800 sm:px-6"
+          className="mx-auto flex w-full max-w-[var(--content-w,72rem)] items-center gap-2 px-4 py-1.5 text-left transition hover:bg-zion-800 sm:px-6"
         >
           <span className="flex h-4 shrink-0 items-center gap-1 rounded bg-gold-500 px-1.5 text-[9.5px] font-black text-zion-950">
             <Quote size={9} /> 오늘의 어록
@@ -67,7 +67,7 @@ export function DailyQuote() {
 
   return (
     <div className="border-b border-zion-800 bg-zion-900 text-white">
-      <div className="mx-auto flex max-w-5xl items-start gap-2.5 px-4 py-2.5 sm:px-6">
+      <div className="mx-auto flex max-w-[var(--content-w,72rem)] items-start gap-2.5 px-4 py-2.5 sm:px-6">
         <span className="mt-0.5 flex h-5 shrink-0 items-center gap-1 rounded bg-gold-500 px-1.5 text-[10px] font-black text-zion-950">
           <Quote size={10} /> 오늘의 어록
         </span>

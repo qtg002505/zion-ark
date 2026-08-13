@@ -78,8 +78,22 @@ export function Layout() {
   return (
     <div
       className="min-h-screen"
-      /* 사이드바 폭의 정본 — 본문 여백과 aside 폭이 이 변수 하나를 본다 */
-      style={{ "--sidebar-w": pinned ? "272px" : "68px" } as React.CSSProperties}
+      /*
+        사이드바 폭의 정본 — 본문 여백과 aside 폭이 이 변수 하나를 본다.
+
+        `--content-w`는 **본문 기둥의 최대 폭**이다 (2026-08-13 리드 지시로 1024 → 1152px).
+        카테고리와 본문 사이가 너무 벌어져 좁혔다 — 그 틈의 대부분은 좌우 패딩이 아니라
+        `mx-auto`가 만드는 **가운데 정렬 여백**이라, 기둥을 넓히는 것이 그 틈을 줄이는 길이다
+        (1280px 화면·레일 상태에서 111px → 47px로 실측).
+        ⚠️ 머리(어록·헤더)·본문·꼬리가 **같은 폭을 봐야 세로선이 맞는다** — 다섯 군데가
+        이 변수를 함께 읽는 이유다. 한 곳만 고치면 검색창과 본문이 어긋난다.
+      */
+      style={
+        {
+          "--sidebar-w": pinned ? "272px" : "68px",
+          "--content-w": "72rem",
+        } as React.CSSProperties
+      }
     >
       {navOpen && (
         <button
@@ -100,8 +114,14 @@ export function Layout() {
         {/* 오늘의 어록 — 화면 맨 위. 모두가 같은 날 같은 것을 본다 */}
         <DailyQuote />
 
-        <header className="sticky top-0 z-20 bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
-          <div className="mx-auto flex max-w-5xl items-center gap-2">
+        {/*
+          ⚠️ 좌우 패딩은 **기둥(max-w) 안쪽**에 준다 — 본문·꼬리·어록과 같은 구조여야
+          세로선이 맞는다. 종전에는 헤더만 패딩을 기둥 바깥(`header`)에 줘서 검색창이
+          본문 제목보다 23px 왼쪽에 서 있었다(2026-08-13 실측). 배경은 `header`가
+          전폭으로 깔므로 패딩을 안으로 옮겨도 띠는 그대로다.
+        */}
+        <header className="sticky top-0 z-20 bg-surface/90 py-3 backdrop-blur">
+          <div className="mx-auto flex max-w-[var(--content-w,72rem)] items-center gap-2 px-4 sm:px-6">
             <button
               onClick={() => setNavOpen(true)}
               aria-label="메뉴 열기"
@@ -135,11 +155,11 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6">
+        <main className="mx-auto max-w-[var(--content-w,72rem)] px-4 py-4 sm:px-6">
           <Outlet />
         </main>
 
-        <footer className="mx-auto max-w-5xl px-4 pb-8 pt-4 text-[11px] text-ink-soft sm:px-6">
+        <footer className="mx-auto max-w-[var(--content-w,72rem)] px-4 pb-8 pt-4 text-[11px] text-ink-soft sm:px-6">
           시온 아크 · 내부 운영 플랫폼 — 수강생 개인정보는 담당 범위 밖으로 반출하지 않습니다 (집계·통계만 공유 가능).
         </footer>
       </div>
