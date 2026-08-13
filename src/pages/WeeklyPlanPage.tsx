@@ -161,6 +161,12 @@ export function WeeklyPlanPage() {
   const [picked, setPicked] = useState<{ date: string; anchor: HTMLElement } | null>(null);
   /** 년·월 판을 연 라벨 — 누른 자리에서 열린다 (2026-08-11) */
   const [monthPickAnchor, setMonthPickAnchor] = useState<HTMLElement | null>(null);
+  /**
+   * 「계획 추가」 버튼 (2026-08-13 리드 지적 — 「추가 기능이 사라졌다」).
+   * 기능은 있었지만 **날짜 칸을 눌러야 나온다는 것을 알아야** 쓸 수 있었다.
+   * 눈에 보이는 진입점을 둔다 — 누르면 오늘(또는 보고 있는 달의 1일)로 팝오버가 열린다.
+   */
+  const addBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
 
@@ -298,6 +304,28 @@ export function WeeklyPlanPage() {
         >
           오늘
         </button>
+        {/* 눈에 보이는 추가 진입점 — 날짜 칸을 눌러도 되지만 그걸 몰라도 쓸 수 있게 */}
+        {canEdit && (
+          <button
+            ref={addBtnRef}
+            onClick={() => {
+              const t = todayYmd();
+              const monthPrefix = `${cursor.year}-${`${cursor.month + 1}`.padStart(2, "0")}`;
+              const date =
+                view === "week"
+                  ? weekDates.includes(t)
+                    ? t
+                    : weekStart
+                  : t.startsWith(monthPrefix)
+                    ? t
+                    : `${monthPrefix}-01`;
+              setPicked({ date, anchor: addBtnRef.current! });
+            }}
+            className="flex items-center gap-1 rounded-lg bg-zion-800 px-2.5 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700"
+          >
+            <Plus size={13} /> 계획 추가
+          </button>
+        )}
         {view === "month" && (
           <span className="text-[12px] text-ink-soft">이 달에 계획이 있는 날 {monthCount}일</span>
         )}
@@ -737,6 +765,20 @@ function DayPopover({
           <X size={16} />
         </button>
       </div>
+
+      {/*
+        ⚠️ 권한이 없을 때 **왜 못 넣는지** 밝힌다. 종전에는 폼만 조용히 사라져서
+        「추가 기능이 없어졌다」로 읽혔다 (2026-08-13 리드 지적).
+      */}
+      {!canEdit && (
+        <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-zion-50 p-2.5 text-[12px] leading-relaxed text-ink">
+          <Lock size={13} className="mt-0.5 shrink-0 text-ink-soft" />
+          <span>
+            <strong className="font-semibold">보기 전용입니다.</strong> 기수 계획은 그 기수의
+            강사·전도사가 적고 고칩니다 — 계정 권한 때문이지 기능이 없는 것이 아닙니다.
+          </span>
+        </p>
+      )}
 
       {entries.length === 0 ? (
         <p className="py-4 text-center text-[13px] text-ink-soft">

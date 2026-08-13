@@ -21,8 +21,6 @@ import {
   isOverridden,
 } from "../lib/student-grade";
 import { STUDENT_PROFILES } from "../content/student-profiles";
-import { newGroups } from "../lib/nav-badges";
-import { visibleNavGroups, groupItems } from "../shell/nav";
 import { StudentDetailModal } from "../components/StudentDetailModal";
 import { AnchoredPopover } from "../components/AnchoredPopover";
 import { PageHeader, Card, StatTile } from "./common";
@@ -113,33 +111,6 @@ export function Overview() {
     return m;
   }, [roster]);
 
-  /** 메인의 카테고리 타일 — `nav.ts`가 정본이라 여기서 다시 적지 않고 파생한다 */
-  const categories = useMemo(
-    () => visibleNavGroups(session).filter((g) => g.to !== "/overview"),
-    [session],
-  );
-  const fresh = useMemo(
-    () =>
-      newGroups({
-        materials: store.materials,
-        entries: store.entries,
-        counselingTips: store.counselingTips,
-        counselCases: store.counselCases,
-        lessonNotes: store.lessonNotes,
-        lessonResources: store.lessonResources,
-        planEntries: store.planEntries,
-      }),
-    [
-      store.materials,
-      store.entries,
-      store.counselingTips,
-      store.counselCases,
-      store.lessonNotes,
-      store.lessonResources,
-      store.planEntries,
-    ],
-  );
-
   function openEdit(field: "startsOn" | "endsOn") {
     setEditField(field);
     setEditValue(sched[field]);
@@ -190,44 +161,6 @@ export function Overview() {
         <StatTile label="위기·중단" value={`${riskCount}명`} sub="출석률 50% 미만" accent />
         <StatTile label="기수 진행률" value={`${progress}%`} sub="개강일부터 오늘까지 기간 기준" accent />
       </div>
-
-      {/* 메인 카테고리 — 마크를 누르면 오는 화면이라, 어디로 갈지 한눈에 보이게 */}
-      <Card className="mt-5">
-        <h2 className="mb-3 text-[14px] font-bold text-zion-900">카테고리</h2>
-        <div className="grid grid-cols-3 gap-2 max-md:grid-cols-2">
-          {categories.map((g) => {
-            const Icon = g.icon;
-            const items = groupItems(g);
-            const to = g.to ?? items[0]?.to ?? "/overview";
-            return (
-              <Link
-                viewTransition
-                key={g.label}
-                to={to}
-                className="flex items-center gap-2.5 rounded-xl border border-zion-100 bg-white p-3 transition hover:border-zion-300 hover:bg-zion-50"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zion-50 text-zion-600">
-                  <Icon size={17} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-bold text-ink">{g.label}</span>
-                  <span className="block text-[11px] text-ink-soft">
-                    {g.to ? "바로 가기" : `${items.length}개 항목`}
-                  </span>
-                </span>
-                {fresh.has(g.label) && (
-                  <span
-                    className="shrink-0 rounded bg-gold-500 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-zion-950"
-                    title="최근 24시간 안에 새 자료가 올라왔습니다"
-                  >
-                    NEW
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      </Card>
 
       {/* 일정 — 점검자가 기수 진행 상황을 가늠하는 기준 (8/6 확정 · 8/13 편집 가능) */}
       <Card className="mt-5">
@@ -448,6 +381,7 @@ export function Overview() {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            {/* 「관찰 필요」 화면은 2026-08-13에 없앴다 — 같은 사람들을 수강생 현황에서 본다 */}
             <Link
               viewTransition
               to="/cohort"
@@ -457,10 +391,10 @@ export function Overview() {
             </Link>
             <Link
               viewTransition
-              to="/signals"
+              to="/students-dashboard"
               className="rounded-lg bg-zion-800 px-4 py-2 text-center text-[13px] font-semibold text-white transition hover:bg-zion-700"
             >
-              관찰 필요 보기
+              수강생 현황
             </Link>
           </div>
         </div>

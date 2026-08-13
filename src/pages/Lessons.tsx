@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { MarkdownLite, splitSections } from "../lib/markdown";
+import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { LessonNotes } from "../components/LessonNotes";
 import { LessonResources } from "../components/LessonResources";
@@ -38,15 +39,17 @@ export function Lessons() {
     if (!q) return elementaryLessons;
     return elementaryLessons.filter(
       (l) =>
-        l.title.includes(q) ||
-        l.sections.some((s) => s.label.includes(q) || s.items.some((i) => i.includes(q))),
+        looseIncludes(l.title, q) ||
+        l.sections.some((s) => looseIncludes(s.label, q) || s.items.some((i) => looseIncludes(i, q))),
     );
   }, [query]);
 
   const highList = useMemo(() => {
     const q = query.trim();
     if (!q) return HIGH_LESSONS;
-    return HIGH_LESSONS.filter((l) => l.label.includes(q) || l.title.includes(q) || l.body.includes(q));
+    return HIGH_LESSONS.filter(
+      (l) => looseIncludes(l.label, q) || looseIncludes(l.title, q) || looseIncludes(l.body, q),
+    );
   }, [query]);
 
   const elCurrent = elementaryLessons.find((l) => l.lessonNo === pickedEl) ?? elementaryLessons[0];

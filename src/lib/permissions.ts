@@ -121,10 +121,14 @@ export function canModerateCounselingTips(s: Session): boolean {
 }
 
 /**
- * 로그인 직후 착지 화면 (ORG_CHART §6).
+ * 역할에 맞는 다음 화면 (ORG_CHART §6).
  * 관리직은 담당 기수가 없어 "내 기수" 화면이 비므로 전체현황으로 보낸다.
  * 편의 기능일 뿐 권한이 아니다 — 어느 화면이든 서버가 다시 검증한다(불변식 1).
+ *
+ * ⚠️ 2026-08-13부터 **로그인 직후 자동 이동에는 쓰지 않는다.** 메인 페이지(`/`)가
+ * 생기면서 로그인하면 늘 메인으로 온다 — 이 값은 메인 화면의 「내 기수부터 보기」
+ * 안내가 어디를 가리킬지 정하는 데만 쓴다.
  */
-export function landingPath(s: Session): "/" | "/cohort" {
-  return isFieldStaff(s) ? "/cohort" : "/";
+export function landingPath(s: Session): "/overview" | "/cohort" {
+  return isFieldStaff(s) ? "/cohort" : "/overview";
 }

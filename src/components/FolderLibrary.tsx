@@ -10,6 +10,7 @@ import {
   type LibraryCategory,
   type LibraryMaterial,
 } from "../lib/types";
+import { looseIncludes } from "../lib/text-match";
 import { MediaLinks } from "./MediaLinks";
 import { FavoriteButton } from "./FavoriteButton";
 import { PageHeader, Card } from "../pages/common";
@@ -113,7 +114,8 @@ export function FolderLibrary({
         // 화면 범위 전체 — 자료실은 폴더가 없는 옛 자료까지 맡는다(어디에도 안 뜨면 영영 못 찾는다)
         return scopeAll ? true : scope.includes(top ?? "");
       })
-      .filter((m) => !q || m.title.includes(q) || m.body.includes(q));
+      // 띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙)
+      .filter((m) => !q || looseIncludes(m.title, q) || looseIncludes(m.body, q));
 
     // 동점은 전부 최신순 2차 키 — 정렬을 넣으면서 시드가 끝에 붙던 어정쩡한 순서도 사라진다
     const recent = (a: LibraryMaterial, b: LibraryMaterial) => b.createdAt.localeCompare(a.createdAt);

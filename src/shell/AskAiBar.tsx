@@ -1,8 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "../components/TransitionLink";
-import { Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, ListFilter, Sparkles, X } from "lucide-react";
 import { useStore } from "../lib/store";
 import { searchSite, type SearchHit } from "../lib/search";
+
+type Kind = SearchHit["sourceType"];
+
+/** 고를 수 있는 갈래 — `search.ts`의 `sourceType`과 같은 목록이다 */
+const ALL_KINDS: Kind[] = ["교안", "시리즈", "어록", "자료실", "공지", "용어", "에니어그램"];
 
 /**
  * Ask AI 바 — 사이트 자료 기반 답변 + 출처 표시 (확정 결정 5).
@@ -10,52 +15,163 @@ import { searchSite, type SearchHit } from "../lib/search";
  * 영역만이며 수강생 개인정보는 입력하지 않는다.
  * aria-live 영역은 조건부가 아니라 상시 렌더한다 (낭독 안정성).
  *
- * **카테고리 필터** (2026-08-13 리드 지시) — 결과를 갈래(교안·어록·시리즈…)로 걸러 본다.
- * ⚠️ 전체 결과를 받아 두고 **거른 뒤에 10건으로 자른다.** 순서를 바꾸면(10건으로 자른 뒤
- * 거르면) 상위 10건이 전부 다른 갈래일 때 「교안만 보기」가 0건이 된다.
+ * **다중 선택 필터** (2026-08-13 리드 지시 — 참고 이미지의 「다중 선택」 드롭다운).
+ * 갈래를 여러 개 골라 두고 찾으면 그 갈래들만 나온다. 아무것도 안 고르면 전부 본다.
+ * ⚠️ 자르기(상위 N건)는 **거른 뒤에** 한다 — 순서를 바꾸면 상위 N건이 전부 다른 갈래일 때
+ * 「교안만 보기」가 0건이 되는 함정이 생긴다.
  */
 export function AskAiBar() {
   const { materials, entries } = useStore();
   const [query, setQuery] = useState("");
   const [allHits, setAllHits] = useState<SearchHit[] | null>(null);
-  const [filter, setFilter] = useState<SearchHit["sourceType"] | null>(null);
+  const [picked, setPicked] = useState<Set<Kind>>(new Set());
+  const [filterOpen, setFilterOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  // 드롭다운 밖을 누르거나 Esc를 누르면 닫는다
+  useEffect(() => {
+    if (!filterOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!filterRef.current?.contains(e.target as Node)) setFilterOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setFilterOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filterOpen]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     // 전체를 받아 둔다 — 갈래별 건수와 필터가 여기서 나온다 (로컬 자료라 부담 없음)
     setAllHits(searchSite(query, materials, entries, Number.POSITIVE_INFINITY));
-    setFilter(null);
     setOpen(true);
   }
 
   function close() {
     setOpen(false);
     setAllHits(null);
-    setFilter(null);
   }
 
-  /** 결과에 실제로 있는 갈래만 칩으로 낸다 — 눌러도 0건인 죽은 칩을 만들지 않는다 */
-  const typeCounts = useMemo(() => {
-    const counts = new Map<SearchHit["sourceType"], number>();
-    for (const h of allHits ?? []) counts.set(h.sourceType, (counts.get(h.sourceType) ?? 0) + 1);
-    return [...counts.entries()];
+  function toggleKind(k: Kind) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  }
+
+  /** 갈래별 건수 — 결과가 있을 때만 옆에 숫자를 보여 준다 */
+  const counts = useMemo(() => {
+    const map = new Map<Kind, number>();
+    for (const h of allHits ?? []) map.set(h.sourceType, (map.get(h.sourceType) ?? 0) + 1);
+    return map;
   }, [allHits]);
 
-  const hits = useMemo(() => {
+  const filtered = useMemo(() => {
     if (allHits === null) return null;
-    const filtered = filter ? allHits.filter((h) => h.sourceType === filter) : allHits;
-    return filtered.slice(0, 10);
-  }, [allHits, filter]);
+    return picked.size === 0 ? allHits : allHits.filter((h) => picked.has(h.sourceType));
+  }, [allHits, picked]);
 
-  const totalShown = filter ? (typeCounts.find(([t]) => t === filter)?.[1] ?? 0) : (allHits?.length ?? 0);
+  const hits = filtered?.slice(0, 20) ?? null;
+  const pickedLabel =
+    picked.size === 0 ? "전체" : picked.size === 1 ? [...picked][0] : `${picked.size}개 갈래`;
 
   return (
     <div className="relative">
       <form onSubmit={submit} role="search" aria-label="사이트 자료 검색">
-        <div className="flex items-center gap-2 rounded-card border border-zion-100 bg-white px-3.5 py-2 shadow-sm transition-shadow duration-300 focus-within:border-zion-400 focus-within:shadow-lg focus-within:shadow-zion-700/10">
-          <Sparkles size={16} className="shrink-0 text-zion-600" />
+        <div className="flex items-center gap-2 rounded-card border border-zion-100 bg-white px-2 py-1.5 shadow-sm transition-shadow duration-300 focus-within:border-zion-400 focus-within:shadow-lg focus-within:shadow-zion-700/10 sm:px-3.5 sm:py-2">
+          {/* 갈래 다중 선택 — 검색창 안 왼쪽 */}
+          <div ref={filterRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setFilterOpen((v) => !v)}
+              aria-expanded={filterOpen}
+              aria-haspopup="true"
+              title="찾을 갈래 고르기"
+              className={
+                "flex items-center gap-1 rounded-lg border px-2 py-1 text-[12px] font-semibold transition " +
+                (picked.size > 0
+                  ? "border-zion-500 bg-zion-50 text-zion-800"
+                  : "border-zion-200 text-zion-600 hover:bg-zion-50")
+              }
+            >
+              <ListFilter size={13} />
+              <span className="max-sm:hidden">{pickedLabel}</span>
+              <ChevronDown size={12} className={filterOpen ? "rotate-180 transition" : "transition"} />
+            </button>
+
+            {filterOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-52 rounded-xl border border-zion-200 bg-white p-2 shadow-lg">
+                <div className="mb-1 flex items-center justify-between px-1.5 pb-1">
+                  <span className="text-[12px] font-bold text-ink">다중 선택</span>
+                  {picked.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPicked(new Set())}
+                      className="text-[11px] font-semibold text-zion-700 hover:underline"
+                    >
+                      해제
+                    </button>
+                  )}
+                </div>
+                <ul className="space-y-0.5">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setPicked(new Set())}
+                      aria-pressed={picked.size === 0}
+                      className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left text-[13px] transition hover:bg-zion-50"
+                    >
+                      <span
+                        className={
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded border " +
+                          (picked.size === 0 ? "border-zion-700 bg-zion-700 text-white" : "border-zion-300")
+                        }
+                      >
+                        {picked.size === 0 && <Check size={11} />}
+                      </span>
+                      <span className="flex-1 text-ink">전체</span>
+                    </button>
+                  </li>
+                  {ALL_KINDS.map((k) => {
+                    const on = picked.has(k);
+                    const n = counts.get(k);
+                    return (
+                      <li key={k}>
+                        <button
+                          type="button"
+                          onClick={() => toggleKind(k)}
+                          aria-pressed={on}
+                          className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left text-[13px] transition hover:bg-zion-50"
+                        >
+                          <span
+                            className={
+                              "flex h-4 w-4 shrink-0 items-center justify-center rounded border " +
+                              (on ? "border-zion-700 bg-zion-700 text-white" : "border-zion-300")
+                            }
+                          >
+                            {on && <Check size={11} />}
+                          </span>
+                          <span className="flex-1 text-ink">{k}</span>
+                          {n !== undefined && <span className="text-[11px] text-ink-soft">{n}</span>}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <Sparkles size={16} className="shrink-0 text-zion-600 max-sm:hidden" />
           <input
             ref={inputRef}
             value={query}
@@ -75,14 +191,15 @@ export function AskAiBar() {
 
       {/* aria-live 상시 렌더 */}
       <div aria-live="polite" className="sr-only">
-        {hits !== null ? `검색 결과 ${totalShown}건${filter ? ` — ${filter}만 보는 중` : ""}` : ""}
+        {filtered !== null ? `검색 결과 ${filtered.length}건${picked.size > 0 ? ` — ${pickedLabel}만 보는 중` : ""}` : ""}
       </div>
 
-      {open && allHits !== null && hits !== null && (
+      {open && filtered !== null && hits !== null && (
         <div className="absolute left-0 right-0 top-full z-40 mt-2 rounded-xl border border-zion-200 bg-white p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[12px] font-semibold text-zion-800">
-              사이트 자료 기반 결과 {totalShown}건
+              사이트 자료 기반 결과 {filtered.length}건
+              {picked.size > 0 && <span className="ml-1 text-zion-600">({pickedLabel})</span>}
               <span className="ml-2 font-normal text-ink-soft">
                 AI 응답 연결 전 — 로컬 자료 검색으로 동작 중
               </span>
@@ -92,40 +209,21 @@ export function AskAiBar() {
             </button>
           </div>
 
-          {/* 갈래 필터 — 결과가 여러 갈래일 때만 뜬다 */}
-          {typeCounts.length > 1 && (
-            <div className="mb-2 flex gap-1 overflow-x-auto pb-0.5" role="group" aria-label="결과 갈래 필터">
-              <button
-                onClick={() => setFilter(null)}
-                aria-pressed={filter === null}
-                className={
-                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition " +
-                  (filter === null ? "bg-zion-700 text-white" : "bg-zion-100 text-zion-700 hover:bg-zion-200")
-                }
-              >
-                전체 {allHits.length}
-              </button>
-              {typeCounts.map(([type, count]) => (
-                <button
-                  key={type}
-                  onClick={() => setFilter(filter === type ? null : type)}
-                  aria-pressed={filter === type}
-                  className={
-                    "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition " +
-                    (filter === type ? "bg-zion-700 text-white" : "bg-zion-100 text-zion-700 hover:bg-zion-200")
-                  }
-                >
-                  {type} {count}
-                </button>
-              ))}
-            </div>
-          )}
-
           {hits.length === 0 ? (
             <p className="py-3 text-center text-[13px] leading-relaxed text-ink-soft">
-              일치하는 자료가 없습니다.
-              <br />
-              문장으로 물어도 되니, 찾는 것을 가리키는 낱말을 함께 넣어 보세요.
+              {picked.size > 0 && allHits !== null && allHits.length > 0 ? (
+                <>
+                  고른 갈래에는 결과가 없습니다. 전체로 보면 {allHits.length}건입니다.
+                  <br />
+                  왼쪽 필터에서 「전체」를 눌러 보세요.
+                </>
+              ) : (
+                <>
+                  일치하는 자료가 없습니다.
+                  <br />
+                  문장으로 물어도 되니, 찾는 것을 가리키는 낱말을 함께 넣어 보세요.
+                </>
+              )}
             </p>
           ) : (
             /* 관련도 높은 것부터 나온다. 좁은 화면에서 화면을 넘기지 않게 안에서 스크롤한다 */
@@ -146,8 +244,10 @@ export function AskAiBar() {
               ))}
             </ul>
           )}
-          {totalShown > hits.length && (
-            <p className="mt-2 text-[11px] text-ink-soft">상위 {hits.length}건만 보입니다.</p>
+          {filtered.length > hits.length && (
+            <p className="mt-2 text-[11px] text-ink-soft">
+              상위 {hits.length}건만 보입니다 — 갈래를 좁히면 더 찾기 쉽습니다.
+            </p>
           )}
         </div>
       )}
