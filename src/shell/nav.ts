@@ -131,7 +131,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Gauge,
     items: [
       { to: "/cohort", label: "기수 현황", icon: GraduationCap },
-      { to: "/plan", label: "기수 주간계획", icon: CalendarDays },
+      /* 2026-08-13 리드 지시 — 주간 보기가 생겨 「월간·주간 계획」으로 이름을 바꿨다 (경로 불변) */
+      { to: "/plan", label: "월간·주간 계획", icon: CalendarDays },
     ],
   },
 

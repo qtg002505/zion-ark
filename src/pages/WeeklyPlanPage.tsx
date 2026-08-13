@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Portal } from "../components/Portal";
 import {
+  Cake,
   ChevronLeft,
   ChevronRight,
   History,
   Lock,
+  PencilLine,
   Plus,
   Star,
   Trash2,
@@ -13,9 +15,13 @@ import {
 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { canEditCohortRecord, cohortKeyOf } from "../lib/permissions";
+import { canEditCohortRecord, cohortKeyOf, isFieldStaff } from "../lib/permissions";
 import { PLAN_ENTRY_LABELS, ROLE_LABELS, type PlanEntry, type PlanEntryKind } from "../lib/types";
-import { COHORT, SCHEDULE } from "../content/cohort-mock";
+import { COHORT, SCHEDULE, STUDENTS } from "../content/cohort-mock";
+import { STUDENT_PROFILES } from "../content/student-profiles";
+import { effectiveSchedule, newcomerEndOf } from "../lib/cohort-calendar";
+import { HOLIDAYS_2026 } from "../content/holidays-kr-2026";
+import { SCJ_SEASONS } from "../content/scj-seasons";
 import { buildXlsx, downloadBlob, readXlsx } from "../lib/xlsx";
 import { AnchoredPopover } from "../components/AnchoredPopover";
 import { MonthYearPicker } from "../components/MonthYearPicker";
@@ -57,12 +63,36 @@ function monthGrid(year: number, month: number): (string | null)[] {
   return cells;
 }
 
-/** 기수 일정 — 달력에 함께 찍어 준다 (개강·종강·새신자교육) */
-const COHORT_MARKS: Record<string, string> = {
-  [SCHEDULE.startsOn]: "개강",
-  [SCHEDULE.endsOn]: "종강 예정",
-  [SCHEDULE.newcomerOn]: "새신자 교육",
+/**
+ * 날짜에 붙는 표시 (2026-08-13 다중화) — 기수 일정 · 공휴일 · 수강생 생일 · 신천지 절기.
+ * 종전에는 `Record<날짜, 라벨>` 하나라 **한 날짜에 표시 하나**뿐이었다. 추석에 수업 계획이
+ * 겹치는 날처럼 여러 표시가 한 날에 모이므로 배열로 바꿨다.
+ */
+interface DayMark {
+  label: string;
+  tone: "cohort" | "holiday" | "birthday" | "season";
+}
+
+/** 색은 검증된 조합만 — red-50·200은 index.css 다크 팔레트가 뒤집는 계열이다 */
+const DAYMARK_TONE: Record<DayMark["tone"], string> = {
+  cohort: "bg-gold-100 text-gold-700",
+  holiday: "border border-red-200 bg-red-50 text-red-600",
+  birthday: "bg-gold-100/70 text-gold-700",
+  season: "bg-zion-100 text-zion-800",
 };
+
+/** 주의 시작(일요일) — `WEEKDAYS`가 일요일부터라 주간 보기도 같은 기준을 쓴다 */
+function weekStartOf(date: string): string {
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate() - d.getDay());
+  return ymd(d);
+}
+
+function addDaysYmd(date: string, n: number): string {
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return ymd(d);
+}
 
 /**
  * 기수 주간계획 — **월별 달력** (2026-08-10 리드 지시로 개편).
@@ -78,13 +108,51 @@ const COHORT_MARKS: Record<string, string> = {
  */
 export function WeeklyPlanPage() {
   const session = useSession();
-  const { planEntries, plans } = useStore();
+  const { planEntries, plans, scheduleOverrides } = useStore();
 
   const cohortKey = cohortKeyOf(session);
   const canEdit = canEditCohortRecord(session, cohortKey);
 
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  /** 월간/주간 보기 (2026-08-13 리드 지시 — 「월간·주간 계획」) */
+  const [view, setView] = useState<"month" | "week">("month");
+  const [weekStart, setWeekStart] = useState(() => weekStartOf(todayYmd()));
+
+  /** 화면에서 고친 일정이 있으면 그 값 — 개강·종강·새신자교육 표시가 따라온다 */
+  const sched = effectiveSchedule(SCHEDULE, scheduleOverrides, `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`);
+
+  /**
+   * 담당 수강생 생일 (MM-DD → 이름들) — 마이페이지 주간 스케줄러의 로직을 옮겨 왔다.
+   * **강사·전도사만 본다** (`isFieldStaff`). 이 화면에는 내보내기가 없어 반출 경로도 없다 —
+   * 주간 스케줄러의 「ics에 생일 제외」 규칙과 같은 취지다.
+   */
+  const birthdayByMd = useMemo(() => {
+    if (!isFieldStaff(session)) return new Map<string, string[]>();
+    const map = new Map<string, string[]>();
+    for (const s of STUDENTS) {
+      const p = STUDENT_PROFILES[s.key];
+      if (!p?.birthDate) continue;
+      const md = p.birthDate.slice(5); // 태어난 해는 쓰지 않는다
+      map.set(md, [...(map.get(md) ?? []), s.name]);
+    }
+    return map;
+  }, [session]);
+
+  /** 이 날짜에 붙는 표시 전부 — 기수 일정 → 공휴일 → 생일 → 절기 순서 */
+  function marksOf(date: string): DayMark[] {
+    const out: DayMark[] = [];
+    if (date === sched.startsOn) out.push({ label: "개강", tone: "cohort" });
+    if (date === sched.endsOn) out.push({ label: "종강 예정", tone: "cohort" });
+    if (date === newcomerEndOf(sched.endsOn)) out.push({ label: "새신자교육 종강 예정", tone: "cohort" });
+    const holiday = HOLIDAYS_2026[date];
+    if (holiday) out.push({ label: holiday, tone: "holiday" });
+    const births = birthdayByMd.get(date.slice(5));
+    if (births) out.push({ label: `${births.join(" · ")} 생일`, tone: "birthday" });
+    const season = SCJ_SEASONS[date];
+    if (season) out.push({ label: season, tone: "season" });
+    return out;
+  }
   /**
    * 고른 날짜와 **그 칸 요소** — 팝오버가 누른 자리에서 열리려면 앵커가 필요하다
    * (2026-08-10 리드 지시). 팝오버 안에서 날짜를 옮겨도 앵커는 처음 자리에 둔다 —
@@ -111,15 +179,29 @@ export function WeeklyPlanPage() {
     return map;
   }, [planEntries, cohortKey]);
 
+  /** 월간 보기는 달 단위, 주간 보기는 주 단위로 옮긴다 */
   function shift(delta: number) {
-    setCursor((c) => {
-      const d = new Date(c.year, c.month + delta, 1);
-      return { year: d.getFullYear(), month: d.getMonth() };
-    });
+    if (view === "week") {
+      setWeekStart((w) => addDaysYmd(w, delta * 7));
+    } else {
+      setCursor((c) => {
+        const d = new Date(c.year, c.month + delta, 1);
+        return { year: d.getFullYear(), month: d.getMonth() };
+      });
+    }
     setPicked(null);
   }
 
+  const weekDates = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i)),
+    [weekStart],
+  );
   const monthLabel = `${cursor.year}년 ${cursor.month + 1}월`;
+  const weekLabel = (() => {
+    const a = new Date(weekStart + "T00:00:00");
+    const b = new Date(weekDates[6] + "T00:00:00");
+    return `${a.getMonth() + 1}.${a.getDate()} ~ ${b.getMonth() + 1}.${b.getDate()}`;
+  })();
   const monthCount = [...byDate.entries()].filter(([d]) =>
     d.startsWith(`${cursor.year}-${`${cursor.month + 1}`.padStart(2, "0")}`),
   ).length;
@@ -128,7 +210,7 @@ export function WeeklyPlanPage() {
     <div>
       <PageHeader
         crumb="기수 현황"
-        title="기수 주간계획"
+        title="월간·주간 계획"
         desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 담당 강사·전도사가 함께 작성하고 고칩니다.`}
         action={
           canEdit ? (
@@ -141,32 +223,64 @@ export function WeeklyPlanPage() {
         }
       />
 
-      {/* 달 이동 */}
+      {/* 보기 전환 + 이동 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* 월간/주간 전환 (2026-08-13 리드 지시) */}
+        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="달력 보기">
+          {(
+            [
+              ["month", "월간"],
+              ["week", "주간"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => {
+                setView(v);
+                setPicked(null);
+              }}
+              className={
+                "rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
+                (view === v ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-1">
           <button
             onClick={() => shift(-1)}
-            aria-label="이전 달"
+            aria-label={view === "week" ? "이전 주" : "이전 달"}
             className="rounded-lg border border-zion-200 p-1.5 text-zion-700 transition hover:bg-zion-50"
           >
             <ChevronLeft size={15} />
           </button>
-          {/*
-            라벨을 누르면 년·월을 바둑판에서 고른다 (2026-08-11 리드 지시).
-            화살표만으로는 몇 달 떨어진 곳까지 가는 데 열 번 넘게 눌러야 했다.
-          */}
-          <button
-            onClick={(e) => setMonthPickAnchor(e.currentTarget)}
-            aria-haspopup="dialog"
-            aria-expanded={monthPickAnchor != null}
-            title="년·월을 골라 옮깁니다"
-            className="min-w-[110px] rounded-lg px-2 py-1 text-center text-[15px] font-bold text-zion-900 transition hover:bg-zion-50"
-          >
-            {monthLabel}
-          </button>
+          {view === "month" ? (
+            /*
+              라벨을 누르면 년·월을 바둑판에서 고른다 (2026-08-11 리드 지시).
+              화살표만으로는 몇 달 떨어진 곳까지 가는 데 열 번 넘게 눌러야 했다.
+            */
+            <button
+              onClick={(e) => setMonthPickAnchor(e.currentTarget)}
+              aria-haspopup="dialog"
+              aria-expanded={monthPickAnchor != null}
+              title="년·월을 골라 옮깁니다"
+              className="min-w-[110px] rounded-lg px-2 py-1 text-center text-[15px] font-bold text-zion-900 transition hover:bg-zion-50"
+            >
+              {monthLabel}
+            </button>
+          ) : (
+            <span className="min-w-[110px] px-2 py-1 text-center text-[15px] font-bold text-zion-900">
+              {weekLabel}
+            </span>
+          )}
           <button
             onClick={() => shift(1)}
-            aria-label="다음 달"
+            aria-label={view === "week" ? "다음 주" : "다음 달"}
             className="rounded-lg border border-zion-200 p-1.5 text-zion-700 transition hover:bg-zion-50"
           >
             <ChevronRight size={15} />
@@ -174,16 +288,19 @@ export function WeeklyPlanPage() {
         </div>
         <button
           onClick={() => {
-            // 이번 달로만 옮긴다 — 팝오버는 칸을 눌러야 그 자리에서 열린다
+            // 오늘이 든 달·주로 옮긴다 — 팝오버는 칸을 눌러야 그 자리에서 열린다
             const n = new Date();
             setCursor({ year: n.getFullYear(), month: n.getMonth() });
+            setWeekStart(weekStartOf(todayYmd()));
             setPicked(null);
           }}
           className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
         >
           오늘
         </button>
-        <span className="text-[12px] text-ink-soft">이 달에 계획이 있는 날 {monthCount}일</span>
+        {view === "month" && (
+          <span className="text-[12px] text-ink-soft">이 달에 계획이 있는 날 {monthCount}일</span>
+        )}
         <div className="ml-auto flex flex-wrap gap-1.5 text-[11px]">
           {KIND_ORDER.map((k) => (
             <span key={k} className={"rounded px-1.5 py-0.5 font-semibold " + KIND_TONE[k]}>
@@ -200,7 +317,8 @@ export function WeeklyPlanPage() {
       */}
       <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-1">
       <div className="col-span-3 max-lg:col-span-1">
-      {/* 달력 — 좁은 화면에서는 가로로 넘긴다. 7열을 억지로 줄이면 글자가 뭉갠다 */}
+      {view === "month" ? (
+      /* 달력 — 좁은 화면에서는 가로로 넘긴다. 7열을 억지로 줄이면 글자가 뭉갠다 */
       <div className="-mx-1 overflow-x-auto px-1">
         <div className="min-w-[640px]">
           <div className="grid grid-cols-7 gap-1">
@@ -221,7 +339,8 @@ export function WeeklyPlanPage() {
               if (!date) return <div key={`e${i}`} className="min-h-[86px] rounded-lg bg-zion-50/40" />;
               const list = byDate.get(date) ?? [];
               const isToday = date === todayYmd();
-              const mark = COHORT_MARKS[date];
+              const marks = marksOf(date);
+              const isHoliday = marks.some((m) => m.tone === "holiday");
               const dayNum = Number(date.slice(8));
               const dow = i % 7;
               return (
@@ -238,23 +357,37 @@ export function WeeklyPlanPage() {
                   }
                 >
                   <div className="mb-1 flex items-center gap-1">
+                    {/* 날짜 숫자는 칸 왼쪽 위 고정 — 공휴일은 일요일처럼 붉게 */}
                     <span
                       className={
                         "text-[12px] font-bold " +
                         (isToday
                           ? "flex h-5 w-5 items-center justify-center rounded-full bg-zion-700 text-white"
-                          : dow === 0
+                          : dow === 0 || isHoliday
                             ? "text-red-500"
                             : "text-ink")
                       }
                     >
                       {dayNum}
                     </span>
-                    {mark && (
-                      <span className="truncate rounded bg-gold-100 px-1 text-[9px] font-bold text-gold-700">
-                        {mark}
-                      </span>
-                    )}
+                    <span className="flex min-w-0 gap-0.5 overflow-hidden">
+                      {marks.slice(0, 2).map((m, j) => (
+                        <span
+                          key={j}
+                          title={m.label}
+                          className={"truncate rounded px-1 text-[9px] font-bold " + DAYMARK_TONE[m.tone]}
+                        >
+                          {m.tone === "birthday" ? <Cake size={9} className="inline" /> : null}
+                          {m.tone === "birthday" ? " " : ""}
+                          {m.label}
+                        </span>
+                      ))}
+                      {marks.length > 2 && (
+                        <span className="shrink-0 text-[9px] text-ink-soft" title={marks.map((m) => m.label).join(" · ")}>
+                          +{marks.length - 2}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="space-y-0.5">
                     {list.slice(0, 3).map((e) => (
@@ -284,6 +417,80 @@ export function WeeklyPlanPage() {
           </div>
         </div>
       </div>
+      ) : (
+      /*
+        주간 보기 (2026-08-13 리드 지시) — 하루가 칸 하나. 항목을 자르지 않고 전부 보여 준다.
+        좁은 화면에서는 요일별 칸이 세로로 쌓인다 — 하루하루가 독립 카드라 쌓여도 읽힌다.
+      */
+      <div className="grid grid-cols-7 gap-1.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
+        {weekDates.map((date, i) => {
+          const list = byDate.get(date) ?? [];
+          const isToday = date === todayYmd();
+          const marks = marksOf(date);
+          const isHoliday = marks.some((m) => m.tone === "holiday");
+          const d = new Date(date + "T00:00:00");
+          return (
+            <button
+              key={date}
+              onClick={(e) => setPicked({ date, anchor: e.currentTarget })}
+              className={
+                "min-h-[150px] rounded-lg border p-2 text-left align-top transition hover:border-zion-400 " +
+                (picked?.date === date
+                  ? "border-zion-500 bg-zion-50"
+                  : isToday
+                    ? "border-zion-300 bg-white"
+                    : "border-zion-100 bg-white")
+              }
+            >
+              <div className="mb-1.5 flex items-center gap-1">
+                <span
+                  className={
+                    "text-[12px] font-bold " +
+                    (isToday
+                      ? "rounded-full bg-zion-700 px-1.5 text-white"
+                      : i === 0 || isHoliday
+                        ? "text-red-500"
+                        : "text-ink")
+                  }
+                >
+                  {d.getMonth() + 1}.{d.getDate()} ({WEEKDAYS[d.getDay()]})
+                </span>
+              </div>
+              {marks.length > 0 && (
+                <div className="mb-1.5 flex flex-wrap gap-0.5">
+                  {marks.map((m, j) => (
+                    <span key={j} className={"rounded px-1 py-0.5 text-[9px] font-bold " + DAYMARK_TONE[m.tone]}>
+                      {m.tone === "birthday" && <Cake size={9} className="mr-0.5 inline" />}
+                      {m.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {list.length === 0 ? (
+                  <span className="text-[11px] text-ink-soft">—</span>
+                ) : (
+                  list.map((e) => (
+                    <div
+                      key={e.id}
+                      className={
+                        "flex items-center gap-0.5 rounded px-1 py-0.5 text-[10.5px] font-medium " + KIND_TONE[e.kind]
+                      }
+                    >
+                      {e.important && <Star size={8} className="shrink-0 fill-current" />}
+                      <span className="min-w-0 flex-1 truncate">
+                        {e.session != null && `${e.session}강 `}
+                        {e.title}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      )}
 
       </div>
 
@@ -313,6 +520,7 @@ export function WeeklyPlanPage() {
           date={picked.date}
           anchor={picked.anchor}
           entriesOf={(d) => byDate.get(d) ?? []}
+          marksOf={marksOf}
           canEdit={canEdit}
           cohortKey={cohortKey}
           onMove={(d) => setPicked({ date: d, anchor: picked.anchor })}
@@ -431,6 +639,7 @@ function DayPopover({
   date,
   anchor,
   entriesOf,
+  marksOf,
   canEdit,
   cohortKey,
   onMove,
@@ -440,17 +649,21 @@ function DayPopover({
   anchor: HTMLElement;
   /** 날짜를 옮겨도 그 날 목록을 다시 받아야 한다 */
   entriesOf: (date: string) => PlanEntry[];
+  marksOf: (date: string) => DayMark[];
   canEdit: boolean;
   cohortKey: string;
   onMove: (date: string) => void;
   onClose: () => void;
 }) {
   const session = useSession();
-  const { addPlanEntry, deletePlanEntry, togglePlanImportant } = useStore();
+  const { addPlanEntry, deletePlanEntry, togglePlanImportant, updatePlanEntry } = useStore();
   const [kind, setKind] = useState<PlanEntryKind>("progress");
   const [title, setTitle] = useState("");
   const [sessionNo, setSessionNo] = useState("");
   const [important, setImportant] = useState(false);
+  /** 날짜를 고치는 중인 항목 (2026-08-13 리드 지시 — 일정 날짜 편집) */
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [moveDate, setMoveDate] = useState(date);
   const titleRef = useRef<HTMLInputElement | null>(null);
 
   const entries = entriesOf(date);
@@ -502,10 +715,15 @@ function DayPopover({
         </button>
         <div className="min-w-0 flex-1 text-center">
           <div className="truncate text-[14px] font-bold text-zion-900">{label}</div>
-          {COHORT_MARKS[date] && (
-            <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700">
-              {COHORT_MARKS[date]}
-            </span>
+          {marksOf(date).length > 0 && (
+            <div className="mt-0.5 flex flex-wrap justify-center gap-0.5">
+              {marksOf(date).map((m, j) => (
+                <span key={j} className={"rounded px-1.5 py-0.5 text-[10px] font-bold " + DAYMARK_TONE[m.tone]}>
+                  {m.tone === "birthday" && <Cake size={10} className="mr-0.5 inline" />}
+                  {m.label}
+                </span>
+              ))}
+            </div>
           )}
         </div>
         <button
@@ -527,47 +745,92 @@ function DayPopover({
       ) : (
         <ul className="mb-3 space-y-1.5">
           {entries.map((e) => (
-            <li key={e.id} className="flex items-center gap-2 rounded-lg border border-zion-100 px-2.5 py-2">
-              <span className={"shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold " + KIND_TONE[e.kind]}>
-                {PLAN_ENTRY_LABELS[e.kind]}
-              </span>
-              <span className="min-w-0 flex-1 text-[13px] text-ink">
-                {e.session != null && <strong className="mr-1 text-zion-800">{e.session}강</strong>}
-                {e.title}
-              </span>
-              {e.fromUpload && (
-                <span className="shrink-0 text-[10px] text-ink-soft" title="진도표 파일에서 들어온 항목">
-                  파일
+            <li key={e.id} className="rounded-lg border border-zion-100 px-2.5 py-2">
+              <div className="flex items-center gap-2">
+                <span className={"shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold " + KIND_TONE[e.kind]}>
+                  {PLAN_ENTRY_LABELS[e.kind]}
                 </span>
-              )}
-              <span className="shrink-0 text-[10px] text-ink-soft">
-                {e.updatedBy} ({ROLE_LABELS[e.updatedByRole]})
-              </span>
-              {canEdit && (
-                <>
-                  {/* 별을 켜면 달력 옆 「중요 일정」에 올라간다 */}
+                <span className="min-w-0 flex-1 text-[13px] text-ink">
+                  {e.session != null && <strong className="mr-1 text-zion-800">{e.session}강</strong>}
+                  {e.title}
+                </span>
+                {e.fromUpload && (
+                  <span className="shrink-0 text-[10px] text-ink-soft" title="진도표 파일에서 들어온 항목">
+                    파일
+                  </span>
+                )}
+                <span className="shrink-0 text-[10px] text-ink-soft">
+                  {e.updatedBy} ({ROLE_LABELS[e.updatedByRole]})
+                </span>
+                {canEdit && (
+                  <>
+                    {/* 별을 켜면 달력 옆 「중요 일정」에 올라간다 */}
+                    <button
+                      onClick={() => togglePlanImportant(e.id, session.name, session.roleCode)}
+                      aria-pressed={!!e.important}
+                      aria-label={e.important ? `${e.title} 중요 해제` : `${e.title} 중요 표시`}
+                      title={e.important ? "중요 해제" : "중요 일정으로 표시"}
+                      className={
+                        "shrink-0 rounded p-1 transition " +
+                        (e.important
+                          ? "text-gold-600 hover:bg-gold-100/60"
+                          : "text-zion-300 hover:bg-zion-50 hover:text-gold-600")
+                      }
+                    >
+                      <Star size={13} className={e.important ? "fill-gold-500" : ""} />
+                    </button>
+                    {/* 날짜 옮기기 (2026-08-13 리드 지시) — store의 updatePlanEntry 첫 사용처다 */}
+                    <button
+                      onClick={() => {
+                        setMovingId(movingId === e.id ? null : e.id);
+                        setMoveDate(e.date);
+                      }}
+                      aria-expanded={movingId === e.id}
+                      aria-label={`${e.title} 날짜 옮기기`}
+                      title="다른 날짜로 옮기기"
+                      className="shrink-0 rounded p-1 text-ink-soft transition hover:bg-zion-50 hover:text-zion-700"
+                    >
+                      <PencilLine size={13} />
+                    </button>
+                    <button
+                      onClick={() => deletePlanEntry(e.id)}
+                      aria-label={`${e.title} 지우기`}
+                      className="shrink-0 rounded p-1 text-ink-soft transition hover:bg-zion-50 hover:text-red-600"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </>
+                )}
+              </div>
+              {movingId === e.id && canEdit && (
+                <div className="mt-2 flex items-center gap-2 border-t border-zion-100 pt-2">
+                  <input
+                    type="date"
+                    value={moveDate}
+                    onChange={(ev) => setMoveDate(ev.target.value)}
+                    aria-label="옮길 날짜"
+                    className="rounded-lg border border-zion-100 bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-zion-500"
+                  />
                   <button
-                    onClick={() => togglePlanImportant(e.id, session.name, session.roleCode)}
-                    aria-pressed={!!e.important}
-                    aria-label={e.important ? `${e.title} 중요 해제` : `${e.title} 중요 표시`}
-                    title={e.important ? "중요 해제" : "중요 일정으로 표시"}
-                    className={
-                      "shrink-0 rounded p-1 transition " +
-                      (e.important
-                        ? "text-gold-600 hover:bg-gold-100/60"
-                        : "text-zion-300 hover:bg-zion-50 hover:text-gold-600")
-                    }
+                    onClick={() => {
+                      if (!moveDate || moveDate === e.date) {
+                        setMovingId(null);
+                        return;
+                      }
+                      updatePlanEntry(e.id, { date: moveDate }, session.name, session.roleCode);
+                      setMovingId(null);
+                    }}
+                    className="rounded-lg bg-zion-800 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zion-700"
                   >
-                    <Star size={13} className={e.important ? "fill-gold-500" : ""} />
+                    옮기기
                   </button>
                   <button
-                    onClick={() => deletePlanEntry(e.id)}
-                    aria-label={`${e.title} 지우기`}
-                    className="shrink-0 rounded p-1 text-ink-soft transition hover:bg-zion-50 hover:text-red-600"
+                    onClick={() => setMovingId(null)}
+                    className="rounded-lg px-2 py-1.5 text-[12px] text-ink-soft hover:bg-zion-50"
                   >
-                    <Trash2 size={13} />
+                    취소
                   </button>
-                </>
+                </div>
               )}
             </li>
           ))}
