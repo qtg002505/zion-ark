@@ -18,6 +18,7 @@ import type {
   PlanEntry,
   PlanEntryKind,
   RoleCode,
+  ScheduleOverride,
   TipReport,
   WeekNote,
   WeeklyPlan,
@@ -61,6 +62,7 @@ const STUDENT_FEEDBACK_KEY = "zion_ark_student_feedback";
 const FEEDBACK_EDIT_KEY = "zion_ark_student_feedback_edits";
 const FEEDBACK_DELETED_KEY = "zion_ark_student_feedback_deleted";
 const CHECKLIST_KEY = "zion_ark_checklist_progress";
+const SCHEDULE_KEY = "zion_ark_schedule_overrides";
 
 function nowIso() {
   return new Date().toISOString();
@@ -379,6 +381,8 @@ interface StoreValue {
   lessonNotes: LessonNote[];
   plans: WeeklyPlan[];
   weekNotes: WeekNote[];
+  /** 기수 일정 수정 (2026-08-13) — 읽는 쪽은 `effectiveSchedule()`로 병합한다 */
+  scheduleOverrides: ScheduleOverride[];
   counselCases: CounselCase[];
   counselingTips: CounselingTip[];
   tipReports: TipReport[];
@@ -436,6 +440,13 @@ interface StoreValue {
     editedByRole: RoleCode;
   }) => void;
   saveWeekNote: (input: WeekNote) => void;
+  /** 개강일·종강 예정일 수정 — 준 필드만 갈아 끼운다. 권한 대조는 화면이 먼저 한다 */
+  setSchedule: (
+    cohortKey: string,
+    patch: { startsOn?: string; endsOn?: string },
+    updatedBy: string,
+    updatedByRole: RoleCode,
+  ) => void;
   addCounselCase: (input: Omit<CounselCase, "id" | "createdAt" | "updatedAt" | "helpfulBy">) => void;
   /** 본인 글만 — 권한 대조는 화면이 먼저 한다 */
   updateCounselCase: (
@@ -605,6 +616,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [lessonNotes, setLessonNotes] = useState<LessonNote[]>(() => load(NOTE_KEY, SEED_NOTES));
   const [plans, setPlans] = useState<WeeklyPlan[]>(() => load(PLAN_KEY, []));
   const [weekNotes, setWeekNotes] = useState<WeekNote[]>(() => loadPlain<WeekNote>(WEEKNOTE_KEY));
+  const [scheduleOverrides, setScheduleOverrides] = useState<ScheduleOverride[]>(() =>
+    loadPlain<ScheduleOverride>(SCHEDULE_KEY),
+  );
   const [counselCases, setCounselCases] = useState<CounselCase[]>(() =>
     migrateCases(load(CASE_KEY, SEED_CASES)),
   );
@@ -665,6 +679,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const persistWeekNotes = useCallback((next: WeekNote[]) => {
     localStorage.setItem(WEEKNOTE_KEY, JSON.stringify(next));
     setWeekNotes(next);
+  }, []);
+
+  const persistScheduleOverrides = useCallback((next: ScheduleOverride[]) => {
+    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(next));
+    setScheduleOverrides(next);
   }, []);
 
   const persistCases = useCallback((next: CounselCase[]) => {
@@ -744,6 +763,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       lessonNotes,
       plans,
       weekNotes,
+      scheduleOverrides,
       counselCases,
       counselingTips,
       tipReports,
@@ -830,6 +850,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           (n) => !(n.cohortKey === input.cohortKey && n.week === input.week),
         );
         persistWeekNotes([input, ...rest]);
+      },
+      setSchedule: (cohortKey, patch, updatedBy, updatedByRole) => {
+        const prev = scheduleOverrides.find((o) => o.cohortKey === cohortKey);
+        const rest = scheduleOverrides.filter((o) => o.cohortKey !== cohortKey);
+        persistScheduleOverrides([
+          {
+            cohortKey,
+            startsOn: patch.startsOn ?? prev?.startsOn,
+            endsOn: patch.endsOn ?? prev?.endsOn,
+            updatedBy,
+            updatedByRole,
+            updatedAt: nowIso(),
+          },
+          ...rest,
+        ]);
       },
       addCounselCase: (input) => {
         persistCases([{ id: uid(), ...input, createdAt: nowIso(), helpfulBy: [] }, ...counselCases]);
@@ -1131,6 +1166,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       lessonNotes,
       plans,
       weekNotes,
+      scheduleOverrides,
       counselCases,
       counselingTips,
       tipReports,
@@ -1164,6 +1200,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persistFeedbackEdits,
       persistDeletedFeedbackIds,
       persistChecklistProgress,
+      persistScheduleOverrides,
     ],
   );
 
