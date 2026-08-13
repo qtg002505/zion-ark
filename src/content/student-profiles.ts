@@ -36,6 +36,8 @@ export type Fellowship = "청년회" | "장년회" | "부녀회" | "자문회";
 export type ShapeType = "동그라미" | "세모" | "네모" | "에스";
 export type SajuElement = "목" | "화" | "토" | "금" | "수";
 export type FeedbackKind = "attendance" | "makeup" | "counsel" | "note" | "memo";
+/** 혼인 상태 — 장년회·부녀회·자문회에서 이성친구 여부·교제기간 대신 쓰는 축(2026-08-13 확정) */
+export type MaritalStatus = "미혼" | "결혼" | "이혼" | "사별";
 
 export const FEEDBACK_KIND_LABELS: Record<FeedbackKind, string> = {
   attendance: "출석",
@@ -79,8 +81,18 @@ export interface StudentStatusOverride {
   noteHistory?: NoteRevision[];
   /** 연락 가능 시간대 — 있으면 씨앗 값(`StudentProfile.availableTime`) 대신 쓴다 */
   availableTime?: string;
-  /** 관심사 · 메모 — 있으면 씨앗 값(`StudentProfile.interests`) 대신 쓴다 */
+  /** 관심사 — 있으면 씨앗 값(`StudentProfile.interests`) 대신 쓴다 */
   interests?: string;
+  /** 혼인 상태 — 장년회·부녀회·자문회 카드에서 담당자가 직접 고른다 */
+  maritalStatus?: MaritalStatus;
+  /** 자녀 동거유무 — 위와 같은 자리에서 담당자가 직접 고른다 */
+  livesWithChildren?: boolean;
+  /** 이성친구 여부 — 청년회 카드에서 담당자가 직접 고른다(2026-08-13 확정) */
+  hasPartner?: boolean;
+  /** 교제 기간 — 자유 텍스트로 직접 쓴다. 있으면 씨앗 값(`materialPeriodMonths`) 대신 쓴다 */
+  materialPeriod?: string;
+  /** 부모와 동거 여부 — 청년회 카드에서 담당자가 직접 고른다 */
+  livesWithParents?: boolean;
   updatedBy: string;
   updatedByRole: RoleCode;
   updatedAt: string;
@@ -171,12 +183,21 @@ export interface StudentProfile {
   /** 최근이 앞 */
   feedback: FeedbackEntry[];
   /**
-   * 청년회·장년회 전용 정보 — 참고 화면의 「청년 전용 정보」를 두 회로 넓혔다(2026-08-09 리드).
-   * 부녀회·자문회에는 이 카드 자체를 띄우지 않는다(`fellowshipOf` 기준, 상단 표시줄에서
-   * 담당자가 소속을 바꾸면 이 카드의 노출 여부도 같이 바뀐다).
+   * 청년회 전용 정보 — 참고 화면의 「청년 전용 정보」 그대로다(2026-08-13 리드 확정).
+   * 소속이 청년회일 때만 이 필드로 카드를 채운다(`fellowshipOf` 기준, 상단 표시줄에서
+   * 담당자가 소속을 바꾸면 이 카드의 내용도 같이 바뀐다).
    */
   hasPartner: boolean;
   materialPeriodMonths: number;
+  /** 부모와 동거 여부 — 청년회 카드 두 번째 자리(2026-08-13 확정, 교제기간 자리를 대신함) */
+  livesWithParents: boolean;
+  /**
+   * 장년회·부녀회·자문회 전용 정보 — 2026-08-13 리드 확정으로 청년회의
+   * 이성친구 여부·교제기간을 대신한다. 청년회일 때는 화면에 안 쓰지만, 담당자가
+   * 소속을 바꾸면 바로 전환돼 보여야 하므로 모든 수강생에 값을 채워 둔다.
+   */
+  maritalStatus: MaritalStatus;
+  livesWithChildren: boolean;
   availableTime: string;
   interests: string;
 }
@@ -186,6 +207,35 @@ export function fellowshipOf(age: number, gender: Gender): Fellowship {
   if (age > 69) return "자문회";
   if (age >= 40) return gender === "남" ? "장년회" : "부녀회";
   return "청년회";
+}
+
+const HEAVENLY_STEMS = ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"];
+const EARTHLY_BRANCHES = ["자", "축", "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해"];
+export const SAJU_ELEMENTS: SajuElement[] = ["목", "화", "토", "금", "수"];
+
+/**
+ * 일주(간지 두 글자) — 실제 사주 계산이 아니라 생년월일에서 결정론적으로 뽑은 시범 표시값이다
+ * (불변식 6). 같은 사람은 항상 같은 값이 나오지만, 만세력 계산과는 무관하다.
+ */
+export function iljuOf(birthDate: string): string {
+  const n = Number(birthDate.replace(/-/g, "")) || 0;
+  return `${HEAVENLY_STEMS[n % 10]}${EARTHLY_BRANCHES[n % 12]}`;
+}
+
+/** 오행분포 — `sajuElement`(기존 단일 태그)를 우세 원소로 삼아 나머지에 1씩 채운 시범값이다 */
+export function ohaengOf(dominant: SajuElement): Record<SajuElement, number> {
+  const dist: Record<SajuElement, number> = { 목: 1, 화: 1, 토: 1, 금: 1, 수: 1 };
+  dist[dominant] += 1;
+  return dist;
+}
+
+/**
+ * 생일이 양력인지 음력인지 — 실제 마팔 연동 전까지는 기록이 없어 생년월일에서
+ * 결정론적으로 뽑은 시범 표시값이다(불변식 6). 실연동 시 마팔의 실제 값으로 바뀐다.
+ */
+export function birthCalendarOf(birthDate: string): "양력" | "음력" {
+  const n = Number(birthDate.replace(/-/g, "")) || 0;
+  return n % 2 === 0 ? "양력" : "음력";
 }
 
 /**
@@ -222,6 +272,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "8주 연속 저녁 대면 개근 — 소그룹에서도 앞장서 참여함",
     hasPartner: true,
     materialPeriodMonths: 6,
+    livesWithParents: true,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "평일 19:00~22:00, 주말 오전 가능",
     interests: "음악, 독서, 영상 편집",
     feedback: [
@@ -248,6 +301,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "누적 출석 99%인데 최근 2주 연속 결석 — 지금 연락이 필요함",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "결혼",
+    livesWithChildren: true,
     availableTime: "평일 저녁, 주말 낮",
     interests: "요리, 등산",
     feedback: [
@@ -274,6 +330,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "저녁에서 오전으로 대면 시간대 변경 — 출석은 꾸준함",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "결혼",
+    livesWithChildren: true,
     availableTime: "평일 오전, 주말 오후",
     interests: "원예, 봉사활동",
     feedback: [
@@ -299,6 +358,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "질문이 깊고 적극적 — 왜곡씻기 이후 이해도가 눈에 띄게 늘어남",
     hasPartner: false,
     materialPeriodMonths: 6,
+    livesWithParents: false,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "평일 20:00 이후",
     interests: "운동, 독서",
     feedback: [
@@ -325,6 +387,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "보강 1건이 아직 이행되지 않음 — 다음 주 안내 필요",
     hasPartner: false,
     materialPeriodMonths: 3,
+    livesWithParents: true,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "평일 저녁, 주말 자유",
     interests: "그림, 음악",
     feedback: [
@@ -350,6 +415,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "꾸준하고 성실함 — 특이사항 없음",
     hasPartner: true,
     materialPeriodMonths: 6,
+    livesWithParents: false,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "평일 저녁",
     interests: "축구, 게임",
     feedback: [
@@ -375,6 +443,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "리더십이 있어 소그룹을 이끔",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "결혼",
+    livesWithChildren: true,
     availableTime: "평일 저녁, 주말 오전",
     interests: "낚시, 독서",
     feedback: [
@@ -400,6 +471,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "최근 1주 출결 미입력 — 확인 필요(약한 신호)",
     hasPartner: false,
     materialPeriodMonths: 6,
+    livesWithParents: true,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "평일 저녁, 주말 오후",
     interests: "여행, 사진",
     feedback: [
@@ -425,6 +499,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "결석이 잦고 보강도 밀림 — 집중 관리 대상",
     hasPartner: true,
     materialPeriodMonths: 6,
+    livesWithParents: false,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "평일 야간 불가, 주말만",
     interests: "운동",
     feedback: [
@@ -451,6 +528,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "생업 사정으로 참석이 불규칙함",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "이혼",
+    livesWithChildren: true,
     availableTime: "야간 근무라 불규칙",
     interests: "산책",
     feedback: [
@@ -476,6 +556,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "연락이 잘 닿지 않음",
     hasPartner: false,
     materialPeriodMonths: 6,
+    livesWithParents: false,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "연락 어려움",
     interests: "미상",
     feedback: [
@@ -501,6 +584,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "8주 연속 결석 — 즉시 연락 필요",
     hasPartner: false,
     materialPeriodMonths: 3,
+    livesWithParents: true,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "연락 어려움",
     interests: "미상",
     feedback: [
@@ -526,6 +612,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "중단 상태 — 재등록 의사 확인 필요",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "결혼",
+    livesWithChildren: true,
     availableTime: "연락 어려움",
     interests: "미상",
     feedback: [
@@ -551,6 +640,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "중단 — 개인 사정으로 연락이 어려움",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "결혼",
+    livesWithChildren: false,
     availableTime: "연락 어려움",
     interests: "미상",
     feedback: [
@@ -576,6 +668,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "중단 — 다음 기수 재수강을 권유할 예정",
     hasPartner: false,
     materialPeriodMonths: 6,
+    livesWithParents: false,
+    maritalStatus: "미혼",
+    livesWithChildren: false,
     availableTime: "연락 어려움(이사)",
     interests: "미상",
     feedback: [
@@ -601,6 +696,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "건강상의 이유로 중단",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "사별",
+    livesWithChildren: false,
     availableTime: "-",
     interests: "-",
     feedback: [
@@ -626,6 +724,9 @@ const RAW: Record<string, Omit<StudentProfile, "studentKey">> = {
     note: "장기 미출석 — 종결 처리 검토",
     hasPartner: true,
     materialPeriodMonths: 8,
+    livesWithParents: false,
+    maritalStatus: "결혼",
+    livesWithChildren: true,
     availableTime: "연락 어려움",
     interests: "미상",
     feedback: [
@@ -653,6 +754,9 @@ const FALLBACK: Omit<StudentProfile, "studentKey"> = {
   note: "프로필 준비 중",
   hasPartner: false,
   materialPeriodMonths: 6,
+  livesWithParents: false,
+  maritalStatus: "미혼",
+  livesWithChildren: false,
   availableTime: "-",
   interests: "-",
   feedback: [],

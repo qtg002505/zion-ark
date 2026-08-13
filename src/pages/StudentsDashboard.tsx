@@ -301,7 +301,16 @@ export function StudentsDashboard() {
                       <tr className="border-b border-zion-100 text-left text-[11px] text-ink-soft">
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">이름</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">등급</th>
+                        {/*
+                          나이 · 소속 · 유월 · 신앙 — 파트 B가 더한 열이다 (2026-08-11 머지).
+                          `rows`에서 이미 계산하고 있으면서 표에는 안 내놓던 값이라,
+                          한 사람을 열어 보지 않아도 목록에서 성격이 잡힌다.
+                        */}
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">나이</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">소속</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">상태</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">유월</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">신앙</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">출석</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">최근 출석</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">특이사항</th>
@@ -309,7 +318,7 @@ export function StudentsDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(({ student: s, profile: p, grade }) => (
+                      {filtered.map(({ student: s, profile: p, grade, yuwol, fellowship }) => (
                         <tr
                           key={s.key}
                           onClick={() => setSelectedKey(s.key)}
@@ -330,9 +339,15 @@ export function StudentsDashboard() {
                           <td className="whitespace-nowrap py-2 pr-2">
                             <GradeBadge grade={grade} />
                           </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{p.age}세</td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{fellowship}</td>
                           {/* 수강 상태 — 등급과 다른 축이라 함께 보여야 판단이 갈린다 */}
                           <td className="whitespace-nowrap py-2 pr-2">
                             <StatusBadge status={s.status} />
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{yuwol}</td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
+                            {FAITH_STATUS_LABELS[p.faithStatus]}
                           </td>
                           <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
                             {s.presentCount}/{s.totalSessions}회{" "}
