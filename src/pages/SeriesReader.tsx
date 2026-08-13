@@ -7,7 +7,10 @@ import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { PageHeader, Card } from "./common";
 
-/** 자료실 시리즈 리더 — 장 목록·선택·검색·본문. 예그행은 본문/교수안 그룹 구분 */
+/**
+ * 자료실 시리즈 리더 — 장 목록·선택·검색·본문.
+ * 예그행의 교수안(마태·요한복음)은 2026-08-13에 지웠다 — 지금은 본문(마태복음)만 남는다.
+ */
 export function SeriesReader() {
   const { seriesId } = useParams();
   const [params, setParams] = useSearchParams();

@@ -9,6 +9,13 @@ type Kind = SearchHit["sourceType"];
 /** 고를 수 있는 갈래 — `search.ts`의 `sourceType`과 같은 목록이다 */
 const ALL_KINDS: Kind[] = ["교안", "시리즈", "어록", "자료실", "공지", "용어", "에니어그램"];
 
+/** 「전체」 다음으로 자주 찾는 조합 — 어록 하나만 뺀 나머지 전부 (2026-08-13 리드 지시) */
+const EXCEPT_QUOTES = new Set<Kind>(ALL_KINDS.filter((k) => k !== "어록"));
+
+function isExceptQuotes(picked: Set<Kind>): boolean {
+  return picked.size === EXCEPT_QUOTES.size && [...EXCEPT_QUOTES].every((k) => picked.has(k));
+}
+
 /**
  * Ask AI 바 — 사이트 자료 기반 답변 + 출처 표시 (확정 결정 5).
  * 현재 로컬 검색으로 동작. 실제 AI API 연결 시에도 검색 대상은 공통 교육
@@ -82,7 +89,13 @@ export function AskAiBar() {
 
   const hits = filtered?.slice(0, 20) ?? null;
   const pickedLabel =
-    picked.size === 0 ? "전체" : picked.size === 1 ? [...picked][0] : `${picked.size}개 갈래`;
+    picked.size === 0
+      ? "전체"
+      : isExceptQuotes(picked)
+        ? "어록 제외"
+        : picked.size === 1
+          ? [...picked][0]
+          : `${picked.size}개 갈래`;
 
   return (
     <div className="relative">
@@ -141,6 +154,25 @@ export function AskAiBar() {
                       <span className="flex-1 text-ink">전체</span>
                     </button>
                   </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setPicked(new Set(EXCEPT_QUOTES))}
+                      aria-pressed={isExceptQuotes(picked)}
+                      className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left text-[13px] transition hover:bg-zion-50"
+                    >
+                      <span
+                        className={
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded border " +
+                          (isExceptQuotes(picked) ? "border-zion-700 bg-zion-700 text-white" : "border-zion-300")
+                        }
+                      >
+                        {isExceptQuotes(picked) && <Check size={11} />}
+                      </span>
+                      <span className="flex-1 text-ink">어록만 제외</span>
+                    </button>
+                  </li>
+                  <li className="my-1 border-t border-zion-100" role="separator" />
                   {ALL_KINDS.map((k) => {
                     const on = picked.has(k);
                     const n = counts.get(k);

@@ -60,12 +60,6 @@ const actsMatthewRaw = import.meta.glob("./series/acts-matthew/*.md", {
   eager: true,
 }) as RawModules;
 
-const actsTeachingRaw = import.meta.glob("./series/acts-teaching/*.md", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-}) as RawModules;
-
 export const SERIES: Series[] = [
   {
     id: "revelation",
@@ -82,11 +76,12 @@ export const SERIES: Series[] = [
   {
     id: "acts",
     name: "예수그리스도의 행전",
-    desc: "본문(마태복음)과 교수안(마태·요한복음) 두 벌을 함께 제공합니다.",
-    chapters: [
-      ...toChapters(actsMatthewRaw, "m", "본문 — 마태복음"),
-      ...toChapters(actsTeachingRaw, "t", "교수안 — 마태·요한복음"),
-    ],
+    desc: "본문(마태복음)을 제공합니다.",
+    /*
+      교수안(마태·요한복음, `./series/acts-teaching/`)은 2026-08-13 리드 지시로 지웠다 —
+      원문 파일까지 삭제했다(되살릴 때는 git 이력에서 꺼낸다).
+    */
+    chapters: toChapters(actsMatthewRaw, "m", null),
   },
 ];
 
