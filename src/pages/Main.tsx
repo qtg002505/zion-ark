@@ -81,7 +81,7 @@ export function Main() {
         `main`의 좌우 패딩(px-4/sm:px-6)과 위 패딩(py-4)을 음수 여백으로 상쇄한 뒤,
         안쪽에서 같은 값을 다시 줘 글자는 본문과 세로선이 맞는다.
       */}
-      <section className="relative -mx-4 -mt-4 mb-5 overflow-hidden sm:-mx-6 lg:min-h-[600px]">
+      <section className="relative -mx-4 -mt-4 mb-5 flex overflow-hidden sm:-mx-6 lg:min-h-[660px]">
         <img
           src={heroImg}
           alt=""
@@ -104,7 +104,12 @@ export function Main() {
         */}
         <div className="absolute inset-0 bg-gradient-to-t from-zion-950/70 from-0% via-transparent via-30% to-transparent" />
 
-        <div className="relative px-4 pb-6 pt-12 sm:px-6 sm:pt-16">
+        {/*
+          세로 flex — 문구 판은 위, 카테고리 격자는 **바닥에 붙는다**(아래 `mt-auto`).
+          가운데가 비면서 그만큼 방주가 드러난다 (2026-08-13 리드 「카테고리가 아래로 내려와서
+          배가 더 잘 보이게」). 높이를 키워도 격자가 따라 내려가므로 다시 손볼 일이 없다.
+        */}
+        <div className="relative flex w-full flex-col px-4 pb-6 pt-12 sm:px-6 sm:pt-16">
           {/*
             글자 판 — 사진을 넓게 덮는 대신 **글자가 놓인 자리에만** 어둠을 준다.
             덕분에 방주는 옅은 막(20%)만 쓰고 그대로 보인다.
@@ -115,7 +120,12 @@ export function Main() {
             폭도 `max-w-xl`(576px)에서 줄여 방주 왼쪽 끝을 덜 가린다.
             흐림(`backdrop-blur`)을 한 단계 올려 옅어진 만큼을 메운다.
           */}
-          <div className="max-w-md rounded-2xl bg-zion-950/55 p-4 backdrop-blur-md sm:p-5">
+          {/*
+            `w-fit` — 판이 **글자 길이만큼만** 넓어진다. 종전에는 `max-w-md`가 곧 폭이라
+            글줄이 짧아도 448px를 차지해 오른쪽에 빈 자리가 남았다(리드 지적).
+            `max-w-md`는 이제 상한으로만 쓴다.
+          */}
+          <div className="mb-10 w-fit max-w-md rounded-2xl bg-zion-950/55 p-4 backdrop-blur-md sm:p-5">
             {/* ⚠️ 판을 옅게 한 만큼 작은 글자는 흐리게 두지 않는다 — /80·/85에서 4.18·3.76으로 미달했다 */}
             <p className="text-[11px] font-semibold tracking-wide text-white">
               {COHORT.tribe}지파 · {COHORT.church} · {COHORT.cohort}
@@ -142,7 +152,11 @@ export function Main() {
             `gap-px` + 옅은 흰 바탕이 칸 사이 실선이 된다.
             ⚠️ `bg-white/10`·`/15`는 진한 면 위 덧칠이라 다크에서 되돌리지 않는 값이다.
           */}
-          <div className="mt-6 grid grid-cols-4 gap-px overflow-hidden rounded-xl bg-white/15 max-lg:grid-cols-3 max-sm:grid-cols-2">
+          {/*
+            ⚠️ 위 간격을 이 격자에 `pt-`로 주면 안 된다 — 바탕(`bg-white/15`)이 칸 사이
+            실선 노릇을 하는 값이라 위쪽에 흰 띠로 남는다. 간격은 판의 `mb-10`이 맡는다.
+          */}
+          <div className="mt-auto grid grid-cols-4 gap-px overflow-hidden rounded-xl bg-white/15 max-lg:grid-cols-3 max-sm:grid-cols-2">
             {categories.map((g) => {
               const Icon = g.icon;
               const items = groupItems(g);
