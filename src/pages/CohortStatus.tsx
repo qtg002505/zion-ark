@@ -32,6 +32,11 @@ import { PageHeader, Card, StatTile, StatusBadge } from "./common";
 type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
 const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"];
 
+/** 실적이 있는(완료된) 주차 — 미래 주(null)는 막대 화면에 넣지 않는다 */
+type DoneWeekly = WeeklyRate & { rate: number; tribeAvg: number; allAvg: number };
+const isDone = (r: WeeklyRate): r is DoneWeekly =>
+  r.rate !== null && r.tribeAvg !== null && r.allAvg !== null;
+
 /**
  * 기수 현황 — 한 기수를 파고드는 자리.
  *
@@ -183,7 +188,7 @@ export function CohortStatus() {
 
       {tab === "attendance" && <AttendanceGrid students={students} />}
 
-      {tab === "trend" && <WeeklyTrend rows={WEEKLY_RATES} />}
+      {tab === "trend" && <WeeklyTrend rows={WEEKLY_RATES.filter(isDone)} />}
 
       {tab === "compare" && <CohortCompare />}
 
@@ -332,7 +337,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
  * 그 설명은 자동 산출이 아니라 담당자가 적는 기록이다 —
  * **해당 기수의 강사·전도사만** 적고 고칠 수 있다 (2026-08-06 확정).
  */
-function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
+function WeeklyTrend({ rows }: { rows: DoneWeekly[] }) {
   const session = useSession();
   const { weekNotes, saveWeekNote } = useStore();
   const [picked, setPicked] = useState<number | null>(null);

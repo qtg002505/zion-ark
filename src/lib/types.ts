@@ -295,6 +295,22 @@ export interface PlanEntry {
 }
 
 /**
+ * 기수 일정 수정 (2026-08-13 리드 지시 — 개강일·종강 예정일을 화면에서 고친다).
+ * 목업 `SCHEDULE`은 기본값이고, 이 수정이 있으면 그 값을 쓴다
+ * (`cohort-calendar.ts`의 `effectiveSchedule`이 병합한다).
+ * ⚠️ **새신자교육 종강 예정일은 저장하지 않는다** — 항상 「종강 예정일 + 2주」로 파생한다.
+ * 실연동 시 `cohorts` 테이블의 일정 컬럼 갱신에 대응한다.
+ */
+export interface ScheduleOverride {
+  cohortKey: string;
+  startsOn?: string;
+  endsOn?: string;
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+}
+
+/**
  * 주차별 출석 사유·극복 기록 (2026-08-06 확정) — **해당 기수의 강사·전도사가 적는다.**
  * 자동 산출이 아니라 사람이 남기는 기록이므로, 누가 적었는지 함께 남긴다.
  */
