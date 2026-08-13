@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, Users, RotateCcw } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
+import { visibleDivisions } from "../lib/permissions";
 import { STUDENTS, DIVISIONS, COHORT } from "../content/cohort-mock";
 import {
   STUDENT_PROFILES,
@@ -130,43 +130,24 @@ export function StudentsDashboard() {
 
   return (
     <div>
-      <PageHeader
-        crumb="수강생 관리 도우미"
-        title="수강생관리 도우미"
-        desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 조회 범위: ${studentScopeLabel(session)}`}
-      />
+      {/*
+        ⚠️ crumb와 title이 둘 다 "수강생 관리 도우미"라 위아래로 같은 말이 두 번 보였다
+        (2026-08-13 지적). title을 이 화면 이름("수강생 현황")으로 바꾸고, 그 아래
+        정보 한 줄(desc)은 뺐다 — 지파·교회·기수·조회범위는 아래 필터 줄에서 이미 보인다.
+      */}
+      <PageHeader crumb="수강생 관리 도우미" title="수강생 현황" />
 
       {/* 상단 필터 — 분반(전도사) 선택은 아래 목록 왼쪽 패널에서 한다 */}
+      {/*
+        ⚠️ 드롭다운(select)과 칩(분반 목록)이 섞여 있어 형식이 안 통일됐다는 지적(2026-08-13)
+        으로, 등급·수강 상태·신앙유형도 분반 필터와 같은 「클릭하는 칩」 형식으로 바꿨다 —
+        옵션을 열어 보지 않아도 한눈에 다 보인다.
+      */}
       <Card className="mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg border border-zion-100 bg-zion-50 px-3 py-1.5 text-[12px] text-ink-soft">
             기수: {COHORT.cohort}
           </span>
-          <FilterSelect
-            label="등급"
-            value={gradeFilter}
-            onChange={(v) => setGradeFilter(v as Grade | "all")}
-            options={[
-              { value: "all", label: "전체 등급" },
-              ...GRADE_ORDER.map((g) => ({ value: g, label: `${GRADE_LABELS[g]}(${g})` })),
-            ]}
-          />
-          {/* 수강 상태 — 담당자가 상세 페이지에서 직접 고르는 값(등급과 다른 축) */}
-          <FilterSelect
-            label="수강 상태"
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as EnrollmentStatus | "all")}
-            options={[
-              { value: "all", label: "전체 상태" },
-              ...ENROLLMENT_STATUSES.map((s) => ({ value: s, label: s })),
-            ]}
-          />
-          <FilterSelect
-            label="신앙유형"
-            value={faithFilter}
-            onChange={(v) => setFaithFilter(v as FaithType | "all")}
-            options={[{ value: "all", label: "전체 신앙유형" }, ...FAITH_TYPES.map((f) => ({ value: f, label: f }))]}
-          />
 
           <div className="flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-1.5">
             <Search size={13} className="text-ink-soft" />
@@ -187,6 +168,34 @@ export function StudentsDashboard() {
               <RotateCcw size={12} /> 필터 초기화
             </button>
           )}
+        </div>
+
+        <div className="mt-2.5 flex flex-col gap-2 border-t border-zion-100 pt-2.5">
+          <FilterChipGroup
+            label="등급"
+            value={gradeFilter}
+            onChange={(v) => setGradeFilter(v as Grade | "all")}
+            options={[
+              { value: "all", label: "전체 등급" },
+              ...GRADE_ORDER.map((g) => ({ value: g, label: `${GRADE_LABELS[g]}(${g})` })),
+            ]}
+          />
+          {/* 수강 상태 — 담당자가 상세 페이지에서 직접 고르는 값(등급과 다른 축) */}
+          <FilterChipGroup
+            label="수강 상태"
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as EnrollmentStatus | "all")}
+            options={[
+              { value: "all", label: "전체 상태" },
+              ...ENROLLMENT_STATUSES.map((s) => ({ value: s, label: s })),
+            ]}
+          />
+          <FilterChipGroup
+            label="신앙유형"
+            value={faithFilter}
+            onChange={(v) => setFaithFilter(v as FaithType | "all")}
+            options={[{ value: "all", label: "전체 신앙유형" }, ...FAITH_TYPES.map((f) => ({ value: f, label: f }))]}
+          />
         </div>
       </Card>
 
@@ -364,7 +373,8 @@ export function StudentsDashboard() {
   );
 }
 
-function FilterSelect({
+/** 분반 목록(DivisionListItem)과 같은 「클릭하는 칩」형식 — 옵션이 항상 다 보인다 */
+function FilterChipGroup({
   label,
   value,
   onChange,
@@ -376,18 +386,28 @@ function FilterSelect({
   options: { value: string; label: string }[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={label}
-      className="rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] outline-none focus:border-zion-500"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-0.5 shrink-0 text-[11px] font-semibold text-ink-soft">{label}</span>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            aria-pressed={active}
+            className={
+              "shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition " +
+              (active
+                ? "border-zion-700 bg-zion-700 text-white"
+                : "border-zion-100 bg-white text-ink-soft hover:border-zion-300 hover:text-ink")
+            }
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
