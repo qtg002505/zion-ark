@@ -23,7 +23,11 @@ import { PageHeader, Card } from "./common";
  */
 const HEADING = /^\d+\.\s/;
 
-function GuideItems({ items }: { items: readonly string[] }) {
+/**
+ * 다른 화면(수강생 성향 분석)도 같은 원문을 같은 모양으로 그려야 해서 내보낸다.
+ * 두 벌로 복제하면 「소제목·성구 구분」 규칙이 한쪽만 고쳐지는 일이 생긴다.
+ */
+export function GuideItems({ items }: { items: readonly string[] }) {
   return (
     <ul className="space-y-1.5">
       {items.map((item, j) => {

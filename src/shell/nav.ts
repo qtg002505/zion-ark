@@ -251,9 +251,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/students-dashboard", label: "수강생 현황", icon: Users },
       /*
-        수강생 성향 분석 (2026-08-13 리드 지시) — 관찰한 성향을 넣으면 AI가 읽어 준다.
-        ⚠️ 불변식 4 — 외부 AI에는 **동의받고 비식별화한 것만** 나간다. 화면이 아니라
-        `src/lib/privacy.ts`의 `prepareForAI`가 그 판정을 맡는다.
+        수강생 성향 분석 (2026-08-13 신설, 같은 날 개편) — 수강생을 고르면 기록된 에니어그램
+        유형의 원문(성장과정·단계향상·관리팁·보강 성구)을 그대로 보여 준다.
+        ⚠️ 종전에는 관찰문을 적어 규칙 엔진이 조언을 만들고 외부 AI 프롬프트로 잇는
+        구조였다 — 쓰는 곳이 여기뿐이라 그 구조(`advice-engine.ts` 등)째 걷어냈다.
       */
       { to: "/tendency", label: "수강생 성향 분석", icon: Sparkles },
       { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
