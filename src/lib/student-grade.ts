@@ -1,4 +1,4 @@
-import { CheckCircle2, Eye, Target, TriangleAlert, Ban, type LucideIcon } from "lucide-react";
+import { CheckCircle2, Eye, TriangleAlert, Ban, type LucideIcon } from "lucide-react";
 import type { Student } from "./types";
 import { readSignals } from "./attendance-signals";
 
@@ -13,14 +13,14 @@ import { readSignals } from "./attendance-signals";
  * 자동값과 사람이 정한 값을 함께 볼 때는 `effectiveGrade()`를 쓴다 — 세 화면이 같은
  * 규칙을 쓰도록 한 곳에 모았다.
  */
-export type Grade = "A" | "B" | "C" | "D" | "E";
+/** 2026-08-13 리드 지시로 "집중"(C)을 없애고 네 단계로 줄였다 — 정상·관심·위기·중단 */
+export type Grade = "A" | "B" | "D" | "E";
 
-export const GRADES: Grade[] = ["A", "B", "C", "D", "E"];
+export const GRADES: Grade[] = ["A", "B", "D", "E"];
 
 export const GRADE_LABELS: Record<Grade, string> = {
   A: "정상",
   B: "관심",
-  C: "집중",
   D: "위기",
   E: "중단",
 };
@@ -28,8 +28,7 @@ export const GRADE_LABELS: Record<Grade, string> = {
 /** 자동 판정 경계 — 화면에 그대로 적어 사람이 규칙을 알 수 있게 한다 */
 export const GRADE_RANGE: Record<Grade, string> = {
   A: "90% 이상",
-  B: "70~89%",
-  C: "50~69%",
+  B: "50~89%",
   D: "30~49%",
   E: "30% 미만",
 };
@@ -37,7 +36,6 @@ export const GRADE_RANGE: Record<Grade, string> = {
 export const GRADE_TONE: Record<Grade, string> = {
   A: "bg-emerald-50 text-emerald-700 border-emerald-200",
   B: "bg-amber-50 text-amber-700 border-amber-200",
-  C: "bg-violet-50 text-violet-700 border-violet-200",
   D: "bg-orange-50 text-orange-700 border-orange-200",
   E: "bg-zion-100 text-ink-soft border-zion-200",
 };
@@ -52,8 +50,7 @@ export const GRADE_TONE: Record<Grade, string> = {
 export function gradeOf(student: Student): Grade {
   const r = student.attendanceRate;
   if (r >= 90) return "A";
-  if (r >= 70) return "B";
-  if (r >= 50) return "C";
+  if (r >= 50) return "B";
   if (r >= 30) return "D";
   return "E";
 }
@@ -74,7 +71,6 @@ export function isOverridden(student: Student, overrideGrade?: Grade | null): bo
 export const GRADE_ICON: Record<Grade, LucideIcon> = {
   A: CheckCircle2,
   B: Eye,
-  C: Target,
   D: TriangleAlert,
   E: Ban,
 };
@@ -82,7 +78,6 @@ export const GRADE_ICON: Record<Grade, LucideIcon> = {
 export const GRADE_ICON_BG: Record<Grade, string> = {
   A: "bg-emerald-500",
   B: "bg-amber-500",
-  C: "bg-violet-500",
   D: "bg-orange-500",
   E: "bg-red-500",
 };
@@ -91,7 +86,6 @@ export const GRADE_ICON_BG: Record<Grade, string> = {
 export const SUGGESTIONS: Record<Grade, string[]> = {
   A: ["우수 사례 공유", "리더십 역할 제안"],
   B: ["출석 독려 연락", "관심 표현 상담"],
-  C: ["보강 일정 안내", "심방 상담 제안"],
   D: ["담당자 직접 연락", "보강 편성 재조정"],
   E: ["재등록 의사 확인", "개인 사정 파악"],
 };

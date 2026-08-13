@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { Search, Users, RotateCcw, Maximize2 } from "lucide-react";
+import { Search, Users, RotateCcw, Lock, Unlock } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
-import { STUDENTS, DIVISIONS, COHORT, STATUS_LABELS } from "../content/cohort-mock";
+import { visibleDivisions } from "../lib/permissions";
+import { STUDENTS, DIVISIONS, COHORT } from "../content/cohort-mock";
 import {
   STUDENT_PROFILES,
   DIVISION_EVANGELISTS,
   FAITH_STATUS_LABELS,
+  FELLOWSHIP_LABELS,
+  ENROLLMENT_STATUS_DEFAULT,
   fellowshipOf,
   type FaithType,
   type Fellowship,
@@ -23,10 +25,9 @@ import {
 import { enneagramGuides } from "../content/enneagram-guides";
 import type { Student } from "../lib/types";
 import { StudentDetailModal } from "../components/StudentDetailModal";
-import { PageHeader, Card, StatusBadge } from "./common";
+import { PageHeader, Card, EnrollmentStatusBadge } from "./common";
 
-const GRADE_ORDER: Grade[] = ["A", "B", "C", "D"];
-const FAITH_TYPES: FaithType[] = ["비오픈", "오픈", "신앙전환"];
+const GRADE_ORDER: Grade[] = ["A", "B", "D", "E"];
 
 /**
  * 수강생관리 도우미 — 상세 운영 화면 (2026-08-09 개편).
@@ -48,13 +49,6 @@ export function StudentsDashboard() {
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<Grade | "all">("all");
   const [faithFilter, setFaithFilter] = useState<FaithType | "all">("all");
-  /**
-   * 수강 상태 — 종전 「수강생 목록」에서 옮겨 왔다 (2026-08-10 병합).
-   * ⚠️ 등급과 **다른 축**이다. 등급은 출석률 구간이고, 상태는 출결 원본이 주는
-   * 수강 중·중단 위기·중단 구분이다. 둘 다 있어야 "출석률은 낮지만 아직 수강 중"
-   * 같은 경우를 가려낼 수 있다.
-   */
-  const [statusFilter, setStatusFilter] = useState<Student["status"] | "all">("all");
   const [query, setQuery] = useState("");
   /** 상세는 팝업으로 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 (2026-08-10 리드 지시) */
   const [modalKey, setModalKey] = useState<string | null>(null);
@@ -74,6 +68,8 @@ export function StudentsDashboard() {
         student: s,
         profile,
         grade: ov?.grade ?? gradeOf(s),
+        enrollmentStatus: ov?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT,
+        registrationType: ov?.registrationType ?? base.registrationType,
         fellowship: ov?.fellowship ?? fellowshipOf(base.age, base.gender),
         yuwol: ov?.faithType ?? ((base.faithType === "비오픈" ? "비오픈" : "오픈") as "오픈" | "비오픈"),
       };
@@ -85,14 +81,13 @@ export function StudentsDashboard() {
       rows
         .filter((r) => divisionFilter === "all" || r.student.division === divisionFilter)
         .filter((r) => gradeFilter === "all" || r.grade === gradeFilter)
-        .filter((r) => statusFilter === "all" || r.student.status === statusFilter)
         .filter((r) => faithFilter === "all" || r.profile.faithType === faithFilter)
         .filter((r) => !query.trim() || r.student.name.includes(query.trim())),
-    [rows, divisionFilter, gradeFilter, statusFilter, faithFilter, query],
+    [rows, divisionFilter, gradeFilter, faithFilter, query],
   );
 
   const gradeCounts = useMemo(() => {
-    const c: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    const c: Record<Grade, number> = { A: 0, B: 0, D: 0, E: 0 };
     rows.forEach((r) => c[r.grade]++);
     return c;
   }, [rows]);
@@ -103,32 +98,28 @@ export function StudentsDashboard() {
     [rows, divisionFilter],
   );
   const divisionGradeCounts = useMemo(() => {
-    const c: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    const c: Record<Grade, number> = { A: 0, B: 0, D: 0, E: 0 };
     divisionScoped.forEach((r) => c[r.grade]++);
     return c;
   }, [divisionScoped]);
 
   const hasFilter =
-    divisionFilter !== "all" ||
-    gradeFilter !== "all" ||
-    statusFilter !== "all" ||
-    faithFilter !== "all" ||
-    query.trim() !== "";
+    divisionFilter !== "all" || gradeFilter !== "all" || faithFilter !== "all" || query.trim() !== "";
   function resetFilters() {
     setDivisionFilter("all");
     setGradeFilter("all");
-    setStatusFilter("all");
     setFaithFilter("all");
     setQuery("");
   }
 
   return (
     <div>
-      <PageHeader
-        crumb="수강생 관리 도우미"
-        title="수강생관리 도우미"
-        desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 조회 범위: ${studentScopeLabel(session)}`}
-      />
+      {/*
+        ⚠️ crumb와 title이 둘 다 "수강생 관리 도우미"라 위아래로 같은 말이 두 번 보였다
+        (2026-08-13 지적). title을 이 화면 이름("수강생 현황")으로 바꾸고, 그 아래
+        정보 한 줄(desc)은 뺐다 — 지파·교회·기수·조회범위는 아래 필터 줄에서 이미 보인다.
+      */}
+      <PageHeader crumb="수강생 관리 도우미" title="수강생 현황" />
 
       {/* 상단 필터 — 분반(전도사) 선택은 아래 목록 왼쪽 패널에서 한다 */}
       <Card className="mb-4">
@@ -136,34 +127,6 @@ export function StudentsDashboard() {
           <span className="rounded-lg border border-zion-100 bg-zion-50 px-3 py-1.5 text-[12px] text-ink-soft">
             기수: {COHORT.cohort}
           </span>
-          <FilterSelect
-            label="등급"
-            value={gradeFilter}
-            onChange={(v) => setGradeFilter(v as Grade | "all")}
-            options={[
-              { value: "all", label: "전체 등급" },
-              ...GRADE_ORDER.map((g) => ({ value: g, label: `${GRADE_LABELS[g]}(${g})` })),
-            ]}
-          />
-          {/* 수강 상태 — 종전 「수강생 목록」에서 옮겨 왔다 (등급과 다른 축) */}
-          <FilterSelect
-            label="수강 상태"
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as Student["status"] | "all")}
-            options={[
-              { value: "all", label: "전체 상태" },
-              ...(["active", "atRisk", "paused"] as const).map((s) => ({
-                value: s,
-                label: STATUS_LABELS[s],
-              })),
-            ]}
-          />
-          <FilterSelect
-            label="신앙유형"
-            value={faithFilter}
-            onChange={(v) => setFaithFilter(v as FaithType | "all")}
-            options={[{ value: "all", label: "전체 신앙유형" }, ...FAITH_TYPES.map((f) => ({ value: f, label: f }))]}
-          />
 
           <div className="flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-1.5">
             <Search size={13} className="text-ink-soft" />
@@ -187,8 +150,12 @@ export function StudentsDashboard() {
         </div>
       </Card>
 
-      {/* 통계 카드 — 흰 배경 + 색깔 아이콘 원형으로 통일 */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      {/*
+        통계 카드 — 등급(전체·정상·관심·위기·중단)에 신앙유형(오픈·비오픈)까지 한 줄에
+        더해 클릭으로 거르게 했다(2026-08-13 지적) — 칸이 늘어난 만큼 폭은 줄여 7칸에 맞춘다.
+        ⚠️ 신앙전환은 이 빠른 필터에 넣지 않는다 — 오픈/비오픈 두 값만 요청받았다.
+      */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <StatCard
           icon={Users}
           label="전체 수강생"
@@ -210,6 +177,24 @@ export function StudentsDashboard() {
             iconBg={GRADE_ICON_BG[g]}
           />
         ))}
+        <StatCard
+          icon={Unlock}
+          label="오픈"
+          count={rows.filter((r) => r.profile.faithType === "오픈").length}
+          total={rows.length}
+          active={faithFilter === "오픈"}
+          onClick={() => setFaithFilter(faithFilter === "오픈" ? "all" : "오픈")}
+          iconBg="bg-sky-500"
+        />
+        <StatCard
+          icon={Lock}
+          label="비오픈"
+          count={rows.filter((r) => r.profile.faithType === "비오픈").length}
+          total={rows.length}
+          active={faithFilter === "비오픈"}
+          onClick={() => setFaithFilter(faithFilter === "비오픈" ? "all" : "비오픈")}
+          iconBg="bg-slate-500"
+        />
       </div>
 
       {/*
@@ -287,76 +272,56 @@ export function StudentsDashboard() {
                     <thead>
                       <tr className="border-b border-zion-100 text-left text-[11px] text-ink-soft">
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">이름</th>
-                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">등급</th>
                         {/*
-                          나이 · 소속 · 유월 · 신앙 — 파트 B가 더한 열이다 (2026-08-11 머지).
-                          `rows`에서 이미 계산하고 있으면서 표에는 안 내놓던 값이라,
-                          한 사람을 열어 보지 않아도 목록에서 성격이 잡힌다.
+                          나이 · 소속 · 등록 · 상태 · 등급 · 신앙 · 유월 · 특이사항 순 —
+                          리드 지시로 순서를 고정했다(2026-08-13). 분반·출석은 뺐다.
                         */}
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">나이</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">소속</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">등록</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">상태</th>
-                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">유월</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">등급</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">신앙</th>
-                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">출석</th>
-                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">최근 출석</th>
+                        <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">유월</th>
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">특이사항</th>
-                        <th className="whitespace-nowrap pb-1.5 text-right font-medium">상세</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(({ student: s, profile: p, grade, yuwol, fellowship }) => (
+                      {filtered.map(({ student: s, profile: p, grade, yuwol, fellowship, enrollmentStatus, registrationType }) => (
                         <tr
                           key={s.key}
                           // 줄을 누르면 바로 상세가 열린다 — 요약 패널을 걷어냈으므로 한 단계로 간다
                           onClick={() => setModalKey(s.key)}
                           className="cursor-pointer border-b border-zion-100 transition last:border-0 hover:bg-zion-50"
                         >
+                          {/* 이름 옆 사진(이니셜 원)은 뺐다(2026-08-13 요청) */}
                           <td className="whitespace-nowrap py-2 pr-2">
-                            <span className="flex items-center gap-1.5">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zion-100 text-[11px] font-bold text-zion-700">
-                                {s.name[0]}
-                              </span>
-                              <span className="font-semibold text-ink">{s.name}</span>
-                              <span className="text-[11px] text-ink-soft">{s.division}</span>
-                            </span>
+                            <span className="font-semibold text-ink">{s.name}</span>
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{p.age}세</td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{FELLOWSHIP_LABELS[fellowship]}</td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{registrationType}</td>
+                          {/*
+                            수강 상태 — 등급과 다른 축이라 함께 보여야 판단이 갈린다.
+                            ⚠️ "수강"(정상적으로 다니는 중)은 색 배지를 안 쓴다 — 왼쪽 열들처럼
+                            평범한 글씨로 둬서, 눈에 띄어야 할 탈락·유급만 배지로 두드러지게 한다(2026-08-13).
+                          */}
+                          <td className="whitespace-nowrap py-2 pr-2">
+                            {enrollmentStatus === "수강" ? (
+                              <span className="text-ink-soft">수강</span>
+                            ) : (
+                              <EnrollmentStatusBadge status={enrollmentStatus} />
+                            )}
                           </td>
                           <td className="whitespace-nowrap py-2 pr-2">
                             <GradeBadge grade={grade} />
                           </td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{p.age}세</td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{fellowship}</td>
-                          {/* 수강 상태 — 등급과 다른 축이라 함께 보여야 판단이 갈린다 */}
-                          <td className="whitespace-nowrap py-2 pr-2">
-                            <StatusBadge status={s.status} />
-                          </td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{yuwol}</td>
                           <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
                             {FAITH_STATUS_LABELS[p.faithStatus]}
                           </td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
-                            {s.presentCount}/{s.totalSessions}회{" "}
-                            <span className="font-semibold text-zion-800">({s.attendanceRate}%)</span>
-                          </td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">
-                            {s.lastAttended ?? "기록 없음"}
-                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-ink-soft">{yuwol}</td>
                           <td className="max-w-[260px] truncate py-2 pr-2 text-ink-soft" title={p.note}>
                             {p.note}
-                          </td>
-                          {/* 표에서 곧장 상세로 — 오른쪽 요약을 거치지 않아도 되게 (2026-08-10) */}
-                          <td className="whitespace-nowrap py-2 text-right">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation(); // 행 클릭(요약 선택)과 겹치지 않게
-                                setModalKey(s.key);
-                              }}
-                              aria-haspopup="dialog"
-                              aria-label={`${s.name} 상세 보기`}
-                              className="inline-flex items-center gap-1 rounded-lg bg-zion-800 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-zion-700"
-                            >
-                              <Maximize2 size={11} /> 상세
-                            </button>
                           </td>
                         </tr>
                       ))}
@@ -381,32 +346,6 @@ export function StudentsDashboard() {
   );
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={label}
-      className="rounded-lg border border-zion-100 bg-white px-3 py-1.5 text-[12px] outline-none focus:border-zion-500"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 /** 통계 카드 — 흰 배경 + 색깔 아이콘 원형(참고 화면 스타일 통일) */
 function StatCard({

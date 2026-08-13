@@ -578,16 +578,33 @@ interface StoreValue {
         StudentStatusOverride,
         | "fellowship"
         | "grade"
+        | "enrollmentStatus"
+        | "division"
+        | "registrationType"
         | "faithType"
         | "faithStatus"
         | "note"
         | "availableTime"
         | "interests"
+        | "guideMemo"
         | "maritalStatus"
         | "livesWithChildren"
         | "hasPartner"
         | "materialPeriod"
         | "livesWithParents"
+        | "mbti"
+        | "enneagramType"
+        | "shapeType"
+        | "ilju"
+        | "ohaeng"
+        | "guideName"
+        | "teacherName"
+        | "helperName"
+        | "age"
+        | "birthDate"
+        | "phone"
+        | "address"
+        | "photoUrl"
       >
     >,
     updatedBy: string,
@@ -614,13 +631,17 @@ interface StoreValue {
   ) => void;
   /** 기록 삭제 — store 기록은 배열에서 지우고, 씨앗 기록은 `deletedFeedbackIds`에 넣어 숨긴다 */
   deleteStudentFeedback: (id: string) => void;
-  /** 단계 세부 질문 체크 토글 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다).
-   * `week`는 중등처럼 주차 칸이 있는 레벨에서만 넘긴다 */
-  toggleChecklistItem: (
+  /**
+   * 단계 세부 질문 점수 매기기 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다).
+   * 체크(예/아니오) 대신 0~5점으로 매긴다(2026-08-13 리드 지시 — "매번 완전하게 되는 건
+   * 아니니까"). `week`는 중등처럼 주차 칸이 있는 레벨에서만 넘긴다
+   */
+  setChecklistItemScore: (
     studentKey: string,
     level: CourseLevel,
     groupNo: number,
     qIndex: number,
+    score: number,
     updatedBy: string,
     updatedByRole: RoleCode,
     week?: number,
@@ -1125,21 +1146,53 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               ...(existing?.noteHistory ?? []),
             ].slice(0, 20)
           : existing?.noteHistory;
+        // 인교섬 메모(guideMemo)도 note와 같은 방식으로 이력을 쌓는다(2026-08-13 추가)
+        const guideMemoChanged =
+          patch.guideMemo !== undefined && existing?.guideMemo !== undefined && patch.guideMemo !== existing.guideMemo;
+        const guideMemoHistory = guideMemoChanged
+          ? [
+              {
+                text: existing!.guideMemo!,
+                editedBy: existing!.updatedBy,
+                editedByRole: existing!.updatedByRole,
+                editedAt: existing!.updatedAt,
+              },
+              ...(existing?.guideMemoHistory ?? []),
+            ].slice(0, 20)
+          : existing?.guideMemoHistory;
         const merged: StudentStatusOverride = {
           studentKey,
           fellowship: patch.fellowship ?? existing?.fellowship,
           grade: patch.grade ?? existing?.grade,
+          enrollmentStatus: patch.enrollmentStatus ?? existing?.enrollmentStatus,
+          division: patch.division ?? existing?.division,
+          registrationType: patch.registrationType ?? existing?.registrationType,
           faithType: patch.faithType ?? existing?.faithType,
           faithStatus: patch.faithStatus ?? existing?.faithStatus,
           note: patch.note ?? existing?.note,
           noteHistory,
           availableTime: patch.availableTime ?? existing?.availableTime,
           interests: patch.interests ?? existing?.interests,
+          guideMemo: patch.guideMemo ?? existing?.guideMemo,
+          guideMemoHistory,
           maritalStatus: patch.maritalStatus ?? existing?.maritalStatus,
           livesWithChildren: patch.livesWithChildren ?? existing?.livesWithChildren,
           hasPartner: patch.hasPartner ?? existing?.hasPartner,
           materialPeriod: patch.materialPeriod ?? existing?.materialPeriod,
           livesWithParents: patch.livesWithParents ?? existing?.livesWithParents,
+          mbti: patch.mbti ?? existing?.mbti,
+          enneagramType: patch.enneagramType ?? existing?.enneagramType,
+          shapeType: patch.shapeType ?? existing?.shapeType,
+          ilju: patch.ilju ?? existing?.ilju,
+          ohaeng: patch.ohaeng ?? existing?.ohaeng,
+          guideName: patch.guideName ?? existing?.guideName,
+          teacherName: patch.teacherName ?? existing?.teacherName,
+          helperName: patch.helperName ?? existing?.helperName,
+          age: patch.age ?? existing?.age,
+          birthDate: patch.birthDate ?? existing?.birthDate,
+          phone: patch.phone ?? existing?.phone,
+          address: patch.address ?? existing?.address,
+          photoUrl: patch.photoUrl ?? existing?.photoUrl,
           updatedBy,
           updatedByRole,
           updatedAt: nowIso(),
@@ -1175,7 +1228,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         persistStudentFeedback(studentFeedback.filter((f) => f.id !== id));
       },
       checklistProgress,
-      toggleChecklistItem: (studentKey, level, groupNo, qIndex, updatedBy, updatedByRole, week) => {
+      setChecklistItemScore: (studentKey, level, groupNo, qIndex, score, updatedBy, updatedByRole, week) => {
         const existing = checklistProgress.find(
           (c) =>
             c.studentKey === studentKey &&
@@ -1198,7 +1251,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             level,
             groupNo,
             qIndex,
-            checked: !existing?.checked,
+            score,
             week: week ?? existing?.week,
             updatedBy,
             updatedByRole,
