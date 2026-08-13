@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { ROLE_LABELS, type RoleCode } from "../lib/types";
 import { DIVISIONS } from "../content/cohort-mock";
@@ -20,6 +21,14 @@ const ROLE_ORDER: RoleCode[] = [
  */
 export function Login() {
   const { login } = useAuth();
+  /*
+    ⚠️ 로그인 뒤에는 **항상 메인으로 들어온다** (2026-08-13 리드 지시).
+    이 화면은 `Routes` 밖에서 그려지므로, 로그인 전에 보던 주소가 `/cohort` 같은 곳이면
+    세션이 생기는 순간 그 화면이 그대로 떠 버린다 — 들어올 때는 히어로가 있는 메인을
+    먼저 보여 준다. `replace`로 바꿔 뒤로 가기가 로그인 화면으로 돌아가지 않게 한다.
+    ⚠️ 이미 로그인한 사람의 북마크·깊은 링크는 건드리지 않는다 (여기는 로그인 순간만 탄다).
+  */
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [role, setRole] = useState<RoleCode>("instructor");
   const [division, setDivision] = useState(DIVISIONS[0]);
@@ -33,6 +42,7 @@ export function Login() {
       return;
     }
     login(trimmed, role, role === "evangelist" ? division : null);
+    navigate("/", { replace: true });
   }
 
   return (

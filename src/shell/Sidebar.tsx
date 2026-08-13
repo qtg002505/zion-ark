@@ -158,7 +158,8 @@ export function Sidebar({
         /* ── 접힌 레일 — 아이콘만. 마우스를 대면 전체 메뉴가 이 위로 펼쳐진다 ── */
         <>
           <div className="flex justify-center py-5">
-            <NavLink viewTransition to="/overview" aria-label="홈으로" title="홈으로">
+            {/* 로고는 **메인**으로 간다 — 전체 현황이 아니다 (2026-08-13 리드 지시) */}
+            <NavLink viewTransition to="/" aria-label="메인으로" title="메인으로">
               <ZionLogo size={30} />
             </NavLink>
           </div>
@@ -195,12 +196,12 @@ export function Sidebar({
         /* ── 전체 메뉴 — 고정 상태·호버 펼침·좁은 화면 드로어가 모두 이 모습이다 ── */
         <>
           <div className="flex items-center gap-3 px-5 py-5">
-            {/* 마크·이름을 누르면 홈으로 (2026-08-13 리드 지시) */}
+            {/* 마크·이름을 누르면 **메인**으로 (2026-08-13 리드 지시 — 전체 현황이 아니다) */}
             <NavLink
               viewTransition
-              to="/overview"
+              to="/"
               onClick={onClose}
-              aria-label="홈으로"
+              aria-label="메인으로"
               className="flex min-w-0 flex-1 items-center gap-3"
             >
               <ZionLogo />

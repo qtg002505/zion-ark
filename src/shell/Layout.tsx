@@ -130,8 +130,8 @@ export function Layout() {
             >
               <Menu size={18} />
             </button>
-            {/* 마크를 누르면 홈으로 (2026-08-13 리드 지시) */}
-            <Link viewTransition to="/overview" aria-label="홈으로" className="shrink-0 lg:hidden">
+            {/* 마크를 누르면 **메인**으로 (2026-08-13 리드 지시 — 전체 현황이 아니다) */}
+            <Link viewTransition to="/" aria-label="메인으로" className="shrink-0 lg:hidden">
               <ZionLogo size={28} />
             </Link>
             <div className="min-w-0 flex-1">
