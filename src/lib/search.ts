@@ -227,10 +227,16 @@ function buildStaticDocs(): Doc[] {
 /** 결과 수 — 점수순으로 정렬한 뒤 자르므로 종전(8건, 순서 없음)보다 손해가 없다 */
 const LIMIT = 10;
 
+/**
+ * `limit` 인자 (2026-08-13 카테고리 필터) — 호출 쪽이 전체 결과를 받아 **거른 뒤에**
+ * 자를 수 있게 한다. 여기서 10건으로 잘라 버리면 「교안만 보기」가 0건이 되는 함정이
+ * 생긴다(상위 10건이 전부 다른 갈래일 때). 기본값은 종전과 같아 하위 호환이다.
+ */
 export function searchSite(
   rawQuery: string,
   materials: LibraryMaterial[],
   entries: WorkspaceEntry[],
+  limit: number = LIMIT,
 ): SearchHit[] {
   const tokens = tokenize(rawQuery);
   if (tokens.length === 0) return [];
@@ -279,5 +285,5 @@ export function searchSite(
    * 스친 에니어그램 유형이 맨 위로 올라온 것이 그 경우였다.
    */
   scored.sort((a, b) => b.matched - a.matched || b.score - a.score);
-  return scored.map(({ matched: _matched, ...hit }) => hit).slice(0, LIMIT);
+  return scored.map(({ matched: _matched, ...hit }) => hit).slice(0, limit);
 }
