@@ -44,19 +44,25 @@ export type LibraryCategory =
   | "excellent_plan";
 
 /**
- * 자료실 구획 (2026-08-06 확정) — 자료실은 **독립 대메뉴**이고 둘로 갈린다.
- * 가르칠 때 쓰는 교안이냐, 그 밖의 지식·전달 자료냐로 나눈다.
- * 둘 다 로그인해야 볼 수 있다 — 공개 영역이 아니므로 무세션 401 원칙은 그대로다.
+ * 자료실 구획 — **2026-08-13 리드 지시로 폐지됐다.**
+ *
+ * 종전에는 자료실이 「강사 도우미 자료실」·「외부 자료실」 둘로 갈렸다. 그런데 리드 확인
+ * 결과 **「외부 자료실」이라는 것은 없다** — 외부 매체(비메오·위플 등)는 자료에 붙는
+ * **참고 링크**(`videoUrl`·`externalUrl`)이지 별도 구획이 아니었다. 구획이 사라지면서
+ * 자료실은 **폴더 한 줄기**가 됐다.
+ *
+ * ⚠️ **타입과 필드는 남긴다.** 이미 저장된 자료(localStorage·실연동 시 DB 행)가 이 값을
+ * 갖고 있어 지우면 후방 마이그레이션이 된다(불변식 10) — `division`을 남겨 둔 것과 같은
+ * 취급이다. **화면·내비는 이 값을 읽지 않는다.** 폴더(`folderPath`)만 본다.
  */
 export type LibrarySection = "instructor" | "external";
 
-export const LIBRARY_SECTION_LABELS: Record<LibrarySection, string> = {
-  instructor: "강사 도우미 자료실",
-  external: "외부 자료실",
-};
-
 /**
- * 강사 도우미 「밭갈이」 묶음 (2026-08-07 팀 5차 회의 — 종전 「개강 초반」에서 갈라냄).
+ * 강의 도우미 「밭갈이」 묶음 (2026-08-07 팀 5차 회의 — 종전 「개강 초반」에서 갈라냄).
+ *
+ * **2026-08-13 리드 지시 — 각 파트가 강의 도우미 안에서 자체 자료실 노릇을 한다.**
+ * 종전에는 파트를 누르면 자료실 화면으로 나갔는데, 초·중·고처럼 **그 카테고리 안에서**
+ * 자료를 바로 열어야 한다. 화면은 `/teaching?folder=…`(`TeachingLibrary`)이 맡는다.
  *
  * `밭갈이`의 정의는 2026-08-08에 받았다 (`src/content/glossary.ts`). 그래도 **화면 이름
  * 문자열로만 쓰고 코드 값(enum·DB 코드·역할/스코프 코드)으로 굳히지 않는다** — 굳혀서 얻는
@@ -71,12 +77,15 @@ export const INSTRUCTOR_BATGARI_FOLDERS = [
   "영적 전환을 돕는 육적 예시",
 ];
 
-/** 밭갈이 묶음에 들지 않는 강사 도우미 폴더 — 회의 합의 구조 밖이라 따로 둔다 */
+/**
+ * 밭갈이 묶음에 들지 않는 강의 도우미 폴더 — 회의 합의 구조 밖이라 따로 둔다.
+ * 밭갈이와 마찬가지로 **강의 도우미 안에서** 바로 자료를 연다 (2026-08-13 리드 지시).
+ */
 export const INSTRUCTOR_OTHER_FOLDERS = ["예배설교"];
 
 /**
- * 강사 도우미 「개강 초반」 폴더 — 기수를 열 때 순서대로 쓰는 자료.
- * 자료실 화면은 이 목록 하나로 폴더를 그린다. 내비만 위 두 묶음으로 갈라 보여 준다.
+ * **강의 도우미가 품는 폴더 전부** — 밭갈이 네 파트 + 예배설교.
+ * `/teaching` 화면이 이 목록 안의 폴더만 연다 (그 밖의 폴더 이름이 오면 첫 폴더로 되돌린다).
  */
 export const INSTRUCTOR_EARLY_FOLDERS = [
   ...INSTRUCTOR_BATGARI_FOLDERS,
@@ -100,30 +109,34 @@ export const EVANGELIST_MAKEUP_FOLDERS = [
   "사명자 양성",
 ];
 
-/**
- * 구획별 최상위 폴더 — **폴더 정의는 여기 한 곳뿐이고 내비는 여기서 읽어 만든다.**
- *
- * `instructor` 구획은 두 묶음을 함께 담는다 (강사 개강 초반 + 전도사 보강).
- * 둘 다 "가르칠 때 쓰는 자료"라 구획이 같고, 내비에서만 갈라 보여 준다.
- * 폴더 이름의 뜻은 `src/content/glossary.ts`에 있다 — 정의는 받았지만 문자열로 둔다.
- */
 /** 분반·보강 도우미로 이관된 실무 교육 콘텐츠 3종 — 자료실이 아니라 보강 파트에서 연다 */
 export const EVANGELIST_CONTENT_FOLDERS = ["영인지", "성경기초상식", "하나님에 대한 필요성"];
 
 /**
- * 자료실 아카이브 폴더 (2026-08-10 리드 지시) — 자료실은 **대용량 장기 보관 아카이브**
- * 위주로 축소한다. 실무 교육 자료는 강의·분반보강 도우미가 가져갔다.
+ * 자료실 아카이브 폴더 (2026-08-10 리드 지시 · **2026-08-13 두 개로 줄임**) —
+ * 자료실은 **대용량 장기 보관 아카이브** 위주다. 실무 교육 자료는 강의·분반보강 도우미가
+ * 가져갔고, 「지파별 취합 도서」는 리드 지시로 뺐다.
  *
- * ⚠️ 파일 원본(도서 스캔·영상)은 R2가 붙어야 올라간다 — 지금은 폴더 자리와 외부 링크만.
- * ⚠️ `계시록 사파`는 **정의를 못 받은 어휘**다 — 화면 문자열로만 두고 코드 값으로 굳히지
- * 않는다 (`docs/decisions/OPEN_QUESTIONS.md` §C).
+ * 남은 둘은 **여기서 내려받아 확인하는 자료**다 — 자료마다 붙는 내려받기 링크
+ * (`externalUrl`)로 연다.
+ * ⚠️ 파일 원본(영상·삽화)은 R2가 붙어야 올라간다 — 지금은 폴더 자리와 외부 링크만.
  */
-export const ARCHIVE_FOLDERS = ["지파별 취합 도서", "실상 뮤지컬 영상", "계시록 삽화"];
+export const ARCHIVE_FOLDERS = ["실상 뮤지컬 영상", "계시록 삽화"];
 
-export const LIBRARY_FOLDERS: Record<LibrarySection, string[]> = {
-  instructor: [...INSTRUCTOR_EARLY_FOLDERS, ...EVANGELIST_MAKEUP_FOLDERS],
-  external: [...EVANGELIST_CONTENT_FOLDERS, ...ARCHIVE_FOLDERS],
-};
+/**
+ * **최상위 폴더 전부 — 폴더 정의는 여기 한 곳뿐이고 내비는 여기서 읽어 만든다.**
+ *
+ * 2026-08-13 구획(`LibrarySection`)이 폐지되면서 `Record<구획, 폴더[]>`에서 **한 줄기 배열**로
+ * 폈다. 폴더가 어느 화면에 걸리는지는 내비(`src/shell/nav.ts`)가 정한다 —
+ * 밭갈이·예배설교는 강의 도우미, 보강 폴더는 분반·보강 도우미, 아카이브는 자료실.
+ * 폴더 이름의 뜻은 `src/content/glossary.ts`에 있다 — 정의는 받았지만 문자열로 둔다.
+ */
+export const LIBRARY_FOLDERS: string[] = [
+  ...INSTRUCTOR_EARLY_FOLDERS,
+  ...EVANGELIST_MAKEUP_FOLDERS,
+  ...EVANGELIST_CONTENT_FOLDERS,
+  ...ARCHIVE_FOLDERS,
+];
 
 export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
   standard_lecture: "표준 강의 자료",
@@ -146,7 +159,10 @@ export interface LibraryMaterial {
   videoUrl?: string | null;
   /** 우수 지정 — headquarters_admin만 토글 (확정 결정 4) */
   isFeatured: boolean;
-  /** 어느 구획인지 (2026-08-06 추가) */
+  /**
+   * 어느 구획인지 (2026-08-06 추가 · **2026-08-13 폐지**).
+   * 저장된 값을 지우지 않으려고 남겨 둔 자리다 — **읽는 곳이 없다.** `LibrarySection` 주석 참고.
+   */
   section: LibrarySection;
   /**
    * 폴더 경로 — 최상위부터 순서대로. 예: ["개강 세미나", "1차시"]

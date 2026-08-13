@@ -64,16 +64,22 @@ iOS 입력 확대·`vh`·노치 대응 등. 화면 파일에서 되풀이하지 
 | --- | --- | --- |
 | 홈 · 전체 현황 | 요약 + 등급별 명단 | `/overview` |
 | 기수 현황 | 기수 현황(5탭) / 기수 주간계획 | `/cohort` `/plan` |
-| 강의 도우미 | 밭갈이 → **초등 · 중등 · 고등** + 자료 모으기 | `/lessons?course=` `/compose` |
-| 분반 · 보강 도우미 | 분반 자료 / 보강 자료 / 보강 콘텐츠 | `/library?section=instructor&tab=class_material` |
-| 수강생 관리 도우미 | 수강생 현황(목록 1단 → 팝업) / 관찰 필요 / 성향 참고 | `/students-dashboard` `/students/:key` `/signals` `/enneagram` |
+| 강의 도우미 | 밭갈이(4파트) → **초등 · 중등 · 고등** → 예배설교 + 자료 모으기. **파트 자료를 도우미 안에서 연다** | `/teaching?folder=` `/lessons?course=` `/compose` |
+| 분반 · 보강 도우미 | 분반 자료 / 보강 자료 / 보강 콘텐츠 | `/library?tab=class_material` `/library?folder=` |
+| 수강생 관리 도우미 | 수강생 현황(목록 1단 → 팝업) / 관찰 필요 / **성향 분석** / 성향 참고 | `/students-dashboard` `/students/:key` `/signals` `/tendency` `/enneagram` |
 | 상담 도우미 | 테마 12종 / 상담 사례 | `/counseling` `/cases` |
-| 자료실 | 신천지도서(시리즈) / 외부 매체 / 구획 전체 보기 | `/library` `/series/:id` |
+| 자료실 | 신천지도서(시리즈) / 아카이브 / **말씀광장** / **천지일보** / 전체 보기 | `/library` `/library?folder=` `/series/:id` |
 | 공지 · 어록 | 공지사항 / 총회장님 어록 | `/notices` `/quotes` |
 | 사명자 심방 도우미 | 프롬프트 생성기 | `/care` |
 | **12지파 선교센터** | 지도 + 센터별 기수·진도 (2026-08-11 신설, **맨 뒤**) | `/centers` |
 
 그 밖에 마이페이지(`/my`)가 헤더에 있다. 외부 매체(말씀광장·천지일보)는 새 탭으로 연다.
+
+⚠️ **자료실 구획은 2026-08-13에 폐지됐다.** 「강사 도우미 자료실 / 외부 자료실」 두 갈래가
+없어지고 **폴더 한 줄기**가 됐다 — 「외부 자료실」은 없던 개념이고, 외부 매체는 자료에 붙는
+참고 링크였다. `LibrarySection` 타입과 `section` 필드는 **저장된 값 때문에 남겨 두었을 뿐
+읽는 곳이 없다**(불변식 10). 자료 목록·상세·등록 몸통은 `src/components/FolderLibrary.tsx`
+한 벌을 자료실(`Library`)과 강의 도우미(`TeachingLibrary`)가 나눠 쓴다.
 
 ⚠️ **외부 매체는 사이트 안에 띄울 수 없다 — 새 탭으로 연다.** 두 사이트가 `X-Frame-Options`로
 다른 사이트 안에서의 표시를 막아 두어, iframe을 쓰면 실제 브라우저에서 "이 콘텐츠는 차단되어

@@ -24,7 +24,7 @@ import {
   Library,
   Sprout,
   Church,
-  Rss,
+  Sparkles,
   Baby,
   Leaf,
   TreeDeciduous,
@@ -57,11 +57,18 @@ import {
  * **2026-08-09 리드 지시 — 공지 · 어록을 자료실 밖 독립 대주제로 되돌렸다.**
  * 자료실은 가르칠 때 찾아 쓰는 자료이고 공지·어록은 때가 되면 읽는 글이라 성격이 다르다.
  *
+ * **2026-08-13 리드 지시 — 셋을 고쳤다.**
+ * - **자료실 구획을 없앴다** (강사 도우미 자료실 · 외부 자료실). 「외부 자료실」은 없던
+ *   개념이고, 외부 매체는 자료에 붙는 참고 링크였다. 외부 매체 묶음은 **말씀광장 ·
+ *   천지일보**로 갈랐고 자료실 안에 그대로 둔다. 아카이브에서 「지파별 취합 도서」를 뺐다
+ * - **밭갈이 각 파트와 예배설교가 강의 도우미 안에서 자료를 연다** (`/teaching`) —
+ *   초·중·고처럼 제 카테고리 안에서 끝난다
+ * - **수강생 관리 도우미에 「수강생 성향 분석」**을 더했다 (`/tendency`)
+ *
  * ⚠️ **폴더 목록은 여기(사이드바)에만 둔다.** 자료실 화면이 자체 폴더 패널을 갖고 있어
  * 같은 목록이 두 군데 뜨던 것을 2026-08-09에 없앴다 — 폴더를 늘릴 때 여기만 보면 된다.
  * - 영인지 · 성경기초상식 · 하나님에 대한 필요성을 자료실 → **분반 · 보강**으로 옮겼다.
- *   자료실 화면(`/library?section=external`)으로는 그대로 열리므로 "링크만 남긴다"는
- *   조건은 충족된다
+ *   자료실 화면(`/library?folder=…`)으로는 그대로 열리므로 "링크만 남긴다"는 조건은 충족된다
  *
  * 폴더 이름은 `LIBRARY_FOLDERS`(`src/lib/types.ts`)에서 읽어 만든다 —
  * 여기에 다시 적으면 두 곳이 어긋난다.
@@ -94,10 +101,16 @@ export interface NavGroup {
   subGroups?: NavSubGroup[];
 }
 
-/** 자료실 폴더로 가는 링크 — 폴더 이름이 곧 메뉴 이름이다 */
-function folderItems(section: "instructor" | "external", folders: string[]): NavItem[] {
+/**
+ * 폴더로 가는 링크 — 폴더 이름이 곧 메뉴 이름이다.
+ *
+ * `basePath`로 **어느 화면에서 열지**를 정한다 (2026-08-13). 밭갈이·예배설교는 강의 도우미
+ * 안에서(`/teaching`), 그 밖의 폴더는 자료실에서(`/library`) 연다. 종전에는 구획
+ * (`?section=`)을 함께 넘겼으나 구획이 폐지되면서 폴더 이름 하나로 충분해졌다.
+ */
+function folderItems(basePath: string, folders: string[]): NavItem[] {
   return folders.map((f) => ({
-    to: `/library?section=${section}&folder=${encodeURIComponent(f)}`,
+    to: `${basePath}?folder=${encodeURIComponent(f)}`,
     label: f,
     icon: FolderClosed,
   }));
@@ -126,6 +139,10 @@ const NAV_GROUPS: NavGroup[] = [
    * 지시문은 초·중·고 각 급 안에서 **강 선택 → 4항목**(시기 따른 관리 방향 ·
    * 진도에 따른 질문 · 무신앙 예상 질문 · 신앙인 예상 질문) 구조를 요구한다.
    * 4항목 화면은 4단계 작업이라 아직 없고, 지금은 기존 교안 화면으로 연결한다.
+   *
+   * **2026-08-13 리드 지시 — 밭갈이 각 파트와 예배설교가 여기 안에서 자료실 노릇을 한다.**
+   * 종전에는 파트를 누르면 자료실(`/library`)로 나가 초·중·고와 동선이 어긋났다.
+   * 이제 `/teaching?folder=…`(`TeachingLibrary`)이 강의 도우미 안에서 자료를 연다.
    */
   {
     label: "강의 도우미",
@@ -134,14 +151,14 @@ const NAV_GROUPS: NavGroup[] = [
       {
         label: "밭갈이",
         icon: Shovel,
-        items: folderItems("instructor", INSTRUCTOR_BATGARI_FOLDERS),
+        items: folderItems("/teaching", INSTRUCTOR_BATGARI_FOLDERS),
       },
       {
         label: "초등",
         icon: Baby,
         items: [
           { to: "/lessons", label: "초등 강의자료", icon: BookText },
-          { to: "/library?section=instructor&tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: "/teaching?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
         ],
       },
       {
@@ -149,7 +166,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Leaf,
         items: [
           { to: "/lessons?course=middle", label: "중등 강의자료", icon: BookText, badge: "준비 중" },
-          { to: "/library?section=instructor&tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: "/teaching?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
         ],
       },
       {
@@ -157,14 +174,17 @@ const NAV_GROUPS: NavGroup[] = [
         icon: TreeDeciduous,
         items: [
           { to: "/lessons?course=high", label: "고등 강의자료", icon: BookText },
-          { to: "/library?section=instructor&tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: "/teaching?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
         ],
       },
+      {
+        /** 예배설교도 제 파트 안에서 바로 자료를 연다 (2026-08-13) */
+        label: "예배설교",
+        icon: Church,
+        items: folderItems("/teaching", INSTRUCTOR_OTHER_FOLDERS),
+      },
     ],
-    items: [
-      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
-      ...folderItems("instructor", INSTRUCTOR_OTHER_FOLDERS),
-    ],
+    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
   },
 
   /**
@@ -179,21 +199,19 @@ const NAV_GROUPS: NavGroup[] = [
       {
         label: "분반 자료",
         icon: ClipboardList,
-        items: [
-          { to: "/library?section=instructor&tab=class_material", label: "분반·보강 자료", icon: BookOpen },
-        ],
+        items: [{ to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen }],
       },
       {
         label: "보강 자료",
         icon: RefreshCw,
-        items: folderItems("instructor", EVANGELIST_MAKEUP_FOLDERS),
+        items: folderItems("/library", EVANGELIST_MAKEUP_FOLDERS),
       },
       {
         // 2026-08-08 자료실에서 이관 — 실제 열람 동선을 보강 쪽으로 모은다.
         // 2026-08-10 자료실이 아카이브 위주로 축소되면서 이관 3종만 여기 남는다
         label: "보강 콘텐츠",
         icon: BookOpenText,
-        items: folderItems("external", EVANGELIST_CONTENT_FOLDERS),
+        items: folderItems("/library", EVANGELIST_CONTENT_FOLDERS),
       },
     ],
   },
@@ -217,6 +235,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/students-dashboard", label: "수강생 현황", icon: Users },
       { to: "/signals", label: "관찰 필요", icon: BellRing },
+      /*
+        수강생 성향 분석 (2026-08-13 리드 지시) — 관찰한 성향을 넣으면 AI가 읽어 준다.
+        ⚠️ 불변식 4 — 외부 AI에는 **동의받고 비식별화한 것만** 나간다. 화면이 아니라
+        `src/lib/privacy.ts`의 `prepareForAI`가 그 판정을 맡는다.
+      */
+      { to: "/tendency", label: "수강생 성향 분석", icon: Sparkles },
       { to: "/enneagram", label: "성향 참고 (에니어그램)", icon: HeartHandshake },
     ],
   },
@@ -236,7 +260,12 @@ const NAV_GROUPS: NavGroup[] = [
 
   /**
    * 6. 자료실 — 전국 공통 자료.
-   * 2026-08-08 개편으로 공지 · 어록 · 외부 매체를 이 안으로 넣었다.
+   *
+   * **2026-08-13 리드 지시 — 구획(강사 도우미 자료실 · 외부 자료실)을 없앴다.**
+   * 「외부 자료실」이라는 것은 애초에 없었다. 외부 매체(비메오·위플)는 **자료에 붙는 참고
+   * 링크**를 뜻한 것이지 보관 구획이 아니다. 그래서 구획을 걷어내고 폴더 한 줄기로 폈다.
+   * 외부 매체 묶음도 **말씀광장 · 천지일보**로 갈랐다 — 둘은 성격이 다른 매체다.
+   *
    * ⚠️ 여기 있는 자료도 **로그인해야 열린다.** 무세션 401 원칙에 예외를 만들지 않는다.
    */
   {
@@ -254,29 +283,35 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         /**
-         * 아카이브 (2026-08-10 리드 지시) — 자료실은 대용량 장기 보관 위주로 축소한다.
-         * 실무 교육 자료는 강의·분반보강 도우미가 가져갔다.
-         * ⚠️ 파일 원본(도서 스캔·영상)은 R2 대기 — 지금은 폴더 자리와 외부 링크만 담긴다.
+         * 아카이브 (2026-08-10 리드 지시 · 2026-08-13 「지파별 취합 도서」를 뺐다) —
+         * 자료실은 대용량 장기 보관 위주다. 실무 교육 자료는 강의·분반보강 도우미가 가져갔다.
+         * **여기서 내려받아 확인하는 자료**이며, 파일 원본은 R2 대기 — 지금은 폴더와 링크만.
          */
         label: "아카이브",
         icon: FolderClosed,
-        items: folderItems("external", ARCHIVE_FOLDERS),
+        items: folderItems("/library", ARCHIVE_FOLDERS),
       },
       {
         /**
-         * 외부 매체는 새 탭으로 바로 연다.
+         * 말씀광장 · 천지일보는 **새 탭으로 바로 연다.**
          * 사이트 안(iframe) 표시는 두 매체가 `X-Frame-Options`로 막아 두어 불가능하다 —
          * 백엔드 프록시가 생기면 그때 내부 표시로 바꾼다 (docs/HANDOFF.md 참고).
          */
-        label: "외부 매체",
-        icon: Rss,
+        label: "말씀광장",
+        icon: Church,
         items: [
-          { to: "https://www.wordsquare.org/bible-forest/bible", label: "말씀광장 · 온라인 성경", icon: Church, external: true },
-          { to: "https://www.wordsquare.org/bible-forest/dictionary", label: "말씀광장 · 성경사전", icon: Church, external: true },
-          { to: "https://www.newscj.com/", label: "천지일보 · 최근 이슈", icon: Newspaper, external: true },
+          { to: "https://www.wordsquare.org/bible-forest/bible", label: "온라인 성경", icon: Church, external: true },
+          { to: "https://www.wordsquare.org/bible-forest/dictionary", label: "성경사전", icon: Church, external: true },
+        ],
+      },
+      {
+        label: "천지일보",
+        icon: Newspaper,
+        items: [
+          { to: "https://www.newscj.com/", label: "최근 이슈", icon: Newspaper, external: true },
           {
             to: "https://www.newscj.com/news/articleList.html?sc_sub_section_code=S2N53&sc_section_code=S1N7&view_type=sm",
-            label: "천지일보 · 종교·개신교",
+            label: "종교 · 개신교",
             icon: Newspaper,
             external: true,
           },
@@ -284,14 +319,11 @@ const NAV_GROUPS: NavGroup[] = [
       },
     ],
     /*
-      구획 전체를 보는 자리. **폴더 목록은 여기에 늘어놓지 않는다** — 폴더는 그 자료를 쓰는
+      자료실 전체를 보는 자리. **폴더 목록은 여기에 늘어놓지 않는다** — 폴더는 그 자료를 쓰는
       카테고리(강의 도우미 › 밭갈이 · 분반·보강 도우미 › 보강 자료·보강 콘텐츠)에 있다.
       여기에 또 두면 같은 목록이 사이드바 안에서 두 번 나온다.
     */
-    items: [
-      { to: "/library?section=instructor", label: "강사 도우미 자료실 (전체)", icon: BookOpen },
-      { to: "/library?section=external", label: "외부 자료실 (전체)", icon: BookOpenText },
-    ],
+    items: [{ to: "/library", label: "자료실 전체 보기", icon: BookOpenText }],
   },
 
   /**
