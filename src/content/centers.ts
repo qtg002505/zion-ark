@@ -128,6 +128,24 @@ export const MAP_DEFAULT_CENTER = {
   level: 6,
 };
 
+/**
+ * 위치 표기용 '구' 단위 주소 (2026-08-14 피드백 FB-10 — 기존 회의 결정).
+ *
+ * 화면에 보이는 위치는 **어디까지나 '구'까지다** — 「대전광역시 서구 월평로 65」가 아니라
+ * 「대전 서구」로 적는다. 도로명·번지·층은 데이터에 남기되(불변식 10 — 좌표 검색·실연동
+ * 대비) **화면에서는 읽지 않는다.** `division`·`section`과 같은 취급이다.
+ */
+export function districtOf(address: string): string {
+  const [city = "", district = ""] = address.trim().split(/\s+/);
+  const shortCity = city.replace(/(광역시|특별시|특별자치시|특별자치도)$/, "");
+  return [shortCity, district].filter(Boolean).join(" ");
+}
+
+/** 지도 좌표 검색용 — 시·도를 줄이지 않은 「대전광역시 서구」 형태 (검색 적중률이 높다) */
+export function districtQueryOf(address: string): string {
+  return address.trim().split(/\s+/).slice(0, 2).join(" ");
+}
+
 /** 진도 몇 %까지 왔나 */
 export function progressPercent(c: CenterCohort): number {
   return Math.round((c.session / c.totalSessions) * 100);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, CalendarDays, ExternalLink, Info, MapPin, Users } from "lucide-react";
+import { Building2, CalendarDays, Info, MapPin, Users } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { Link } from "../components/TransitionLink";
 import {
@@ -7,6 +7,8 @@ import {
   MISSION_CENTERS,
   TRIBES,
   daysLeft,
+  districtOf,
+  districtQueryOf,
   progressPercent,
   type CenterCohort,
   type MissionCenter,
@@ -19,10 +21,15 @@ import { PageHeader, Card } from "./common";
  *
  * 지도가 이 화면의 본체지만 **지도가 없어도 화면은 제 몫을 해야 한다.** 키를 아직 못
  * 받았거나 팀 공유 프리뷰(외부 요청 차단)에서 열면 지도 자리에 안내가 뜨고 아래 목록은
- * 그대로 보인다 — 센터 주소와 기수·진도는 지도 없이도 필요한 정보다.
+ * 그대로 보인다.
  *
- * 지도를 켤 때 주소는 **카카오 쪽에 다시 물어 좌표를 받는다.** 데이터에 적어 둔 좌표는
- * 어림값이라 건물을 정확히 짚지 못한다.
+ * **2026-08-14 FB-10 — 위치는 '구' 단위까지만 낸다** (기존 회의 결정).
+ * - 이 화면 자체가 지파 신학부장 이상 전용이 됐다 (nav 숨김 + 라우트 가드)
+ * - 주소·핀·길찾기 어디에도 도로명·번지·층을 내지 않는다. 좌표 검색도 **구 단위로**
+ *   묻는다 — 정확 주소로 찍으면 핀 자체가 상세 주소 노출이 되기 때문이다
+ * - 같은 구에 센터가 여럿이면 핀이 겹치므로 옆으로 조금씩 벌린다 (자리는 어차피 구 대표점)
+ * - `address`(전체 주소)·`floor`는 데이터에 남긴다 — 실연동·보안 정책 확정 대비
+ *   (불변식 10). **화면에서 읽지만 않는다**
  */
 export function Centers() {
   const session = useSession();
@@ -87,9 +94,20 @@ export function Centers() {
         setLevel(map.getLevel());
       };
 
+      /*
+        같은 구의 센터들은 좌표 검색 결과가 같은 점으로 나온다 (구 단위로 묻기 때문 —
+        FB-10). 겹친 핀은 누를 수 없으므로 두 번째부터 경도를 조금씩 벌린다.
+        벌린 자리는 실제 위치가 아니다 — 애초에 구 대표점이라 정확성을 주장하지 않는다.
+      */
+      const placedCoords: { lat: number; lng: number }[] = [];
       for (const center of MISSION_CENTERS) {
-        const place = (pos: KakaoLatLng) => {
+        const place = (lat: number, lng: number) => {
           if (cancelled) return;
+          const clash = placedCoords.filter(
+            (p) => Math.abs(p.lat - lat) < 0.0005 && Math.abs(p.lng - lng) < 0.0005,
+          ).length;
+          placedCoords.push({ lat, lng });
+          const pos = new maps.LatLng(lat, lng + clash * 0.006);
           const el = buildPin(center, () => setPickedId(center.id));
           new maps.CustomOverlay({
             position: pos,
@@ -105,16 +123,17 @@ export function Centers() {
         };
 
         if (geocoder) {
-          geocoder.addressSearch(center.address, (result, status) => {
+          // ⚠️ 정확 주소가 아니라 **구 단위**로 묻는다 (FB-10) — 핀도 표기의 일부다
+          geocoder.addressSearch(districtQueryOf(center.address), (result, status) => {
             if (status === maps.services!.Status.OK && result[0]) {
-              place(new maps.LatLng(Number(result[0].y), Number(result[0].x)));
+              place(Number(result[0].y), Number(result[0].x));
             } else {
-              // 주소를 못 찾으면 적어 둔 어림값으로라도 찍는다 — 핀이 사라지면 안 된다
-              place(new maps.LatLng(center.fallbackLat, center.fallbackLng));
+              // 구를 못 찾으면 적어 둔 어림값으로라도 찍는다 — 핀이 사라지면 안 된다
+              place(center.fallbackLat, center.fallbackLng);
             }
           });
         } else {
-          place(new maps.LatLng(center.fallbackLat, center.fallbackLng));
+          place(center.fallbackLat, center.fallbackLng);
         }
       }
     });
@@ -159,7 +178,8 @@ export function Centers() {
           </div>
           {!failure && (
             <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-ink-soft">
-              금색 표시가 선교센터입니다. 확대하면 층과 기수까지 보이고, 누르면 오른쪽에 진도가 뜹니다.
+              금색 표시가 선교센터입니다. 확대하면 기수까지 보이고, 누르면 오른쪽에 진도가 뜹니다.
+              위치는 <strong className="font-semibold">'구' 단위</strong>로만 표시합니다.
             </p>
           )}
         </div>
@@ -192,10 +212,9 @@ export function Centers() {
                     <MapPin size={13} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] font-semibold text-zion-900">
-                      {c.name} <span className="font-normal text-ink-soft">{c.floor}</span>
-                    </span>
-                    <span className="block truncate text-[11.5px] text-ink-soft">{c.address}</span>
+                    <span className="block text-[13.5px] font-semibold text-zion-900">{c.name}</span>
+                    {/* 도로명·번지·층은 내지 않는다 — '구'까지만 (FB-10) */}
+                    <span className="block truncate text-[11.5px] text-ink-soft">{districtOf(c.address)}</span>
                   </span>
                   <span className="shrink-0 text-[11px] text-ink-soft">
                     {c.tribe ? `${c.tribe} 지파` : "지파 확인 필요"}
@@ -223,7 +242,7 @@ export function Centers() {
 function buildPin(center: MissionCenter, onPick: () => void): HTMLElement {
   const el = document.createElement("button");
   el.type = "button";
-  el.setAttribute("aria-label", `${center.name} ${center.floor}`);
+  el.setAttribute("aria-label", center.name);
   el.addEventListener("click", onPick);
 
   const label = document.createElement("span");
@@ -256,13 +275,14 @@ function paintPin(el: HTMLElement, center: MissionCenter, detailed: boolean, act
   label.className = "block text-[11.5px] font-black leading-tight whitespace-nowrap";
   label.textContent = center.name;
 
-  // 가까이 가면 층과 기수까지 — 멀리서는 이름만 보여야 핀끼리 겹치지 않는다
+  // 가까이 가면 기수까지 — 멀리서는 이름만 보여야 핀끼리 겹치지 않는다.
+  // ⚠️ 층은 내지 않는다 — 위치 표기는 '구'까지다 (FB-10)
   detail.className = detailed
     ? "block text-[10px] font-semibold leading-tight whitespace-nowrap opacity-80"
     : "hidden";
-  detail.textContent = `${center.floor} · ${center.cohorts.map((c) => c.name).join(" · ")}`;
+  detail.textContent = center.cohorts.map((c) => c.name).join(" · ");
 
-  // 핀 아래 꼬리 — 건물 자리를 정확히 가리킨다
+  // 핀 아래 꼬리 — 구 대표점을 가리킨다 (정확한 건물 자리가 아니다, FB-10)
   tail.className =
     "absolute -bottom-[7px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[6px] border-t-[7px] border-x-transparent " +
     (active ? "border-t-zion-900" : "border-t-gold-600");
@@ -280,9 +300,8 @@ function CenterDetail({ center, myCohort }: { center: MissionCenter; myCohort: s
         </span>
         <div className="min-w-0">
           <h2 className="text-[15px] font-bold text-zion-900">{center.name}</h2>
-          <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
-            {center.address} {center.floor}
-          </p>
+          {/* 도로명·번지·층은 내지 않는다 — '구'까지만 (FB-10 · 기존 회의 결정) */}
+          <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">{districtOf(center.address)}</p>
           <p className="mt-0.5 text-[11px] text-ink-soft">
             {center.tribe ? `${center.tribe} 지파` : "지파 배정 확인 필요"} · {center.region}
           </p>
@@ -295,14 +314,11 @@ function CenterDetail({ center, myCohort }: { center: MissionCenter; myCohort: s
         ))}
       </div>
 
-      <a
-        href={`https://map.kakao.com/link/search/${encodeURIComponent(center.address)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-3 flex items-center justify-center gap-1 rounded-lg border border-zion-200 py-2 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
-      >
-        카카오맵에서 길찾기 <ExternalLink size={12} />
-      </a>
+      {/*
+        「카카오맵에서 길찾기」는 뺐다 (2026-08-14 FB-10) — 링크 주소에 도로명·번지가
+        통째로 실려, 표기만 '구'로 줄이고 링크를 남기면 한 번 눌러 다 보이는 구멍이 된다.
+        되살릴 때는 git 이력에서 꺼내되 상세 주소 노출 정책부터 확정한다.
+      */}
     </Card>
   );
 }

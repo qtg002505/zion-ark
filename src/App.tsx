@@ -1,5 +1,6 @@
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { canViewMissionCenters } from "./lib/permissions";
 import { StoreProvider } from "./lib/store";
 import { PlayerProvider } from "./shell/player";
 import { Layout } from "./shell/Layout";
@@ -49,7 +50,15 @@ function Routed() {
           메인으로 넘긴다(북마크가 죽지 않게). 화면은 git 이력에 있다.
         */}
         <Route path="/care" element={<Navigate to="/" replace />} />
-        <Route path="/centers" element={<Centers />} />
+        {/*
+          12지파 선교센터 — **지파 신학부장 이상만** (2026-08-14 FB-10, P0).
+          메뉴 숨김(nav.ts)만으로는 URL 직접 접근에 뚫리므로 라우트에서 한 번 더 막는다.
+          서버 연동 시에는 API가 같은 목록으로 403을 준다 — 그쪽이 최종이다(불변식 1).
+        */}
+        <Route
+          path="/centers"
+          element={canViewMissionCenters(session) ? <Centers /> : <Navigate to="/" replace />}
+        />
         {/*
           종전 「수강생 목록」은 2026-08-10에 「수강생 현황」으로 **병합**됐다 (리드 지시).
           경로는 지우지 않고 넘긴다 — 북마크·옛 링크가 죽지 않게 한다

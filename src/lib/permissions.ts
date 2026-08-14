@@ -1,4 +1,4 @@
-import type { CounselingTip, Session, WorkspaceKind } from "./types";
+import type { CounselingTip, RoleCode, Session, WorkspaceKind } from "./types";
 
 /**
  * 권한 판정 — 옵시디언 금고 「권한-결정사항」 확정값 (2026-08-05 리드).
@@ -118,6 +118,30 @@ export function canEditCounselingTip(s: Session, tip: CounselingTip): boolean {
  */
 export function canModerateCounselingTips(s: Session): boolean {
   return s.roleCode === "content_admin" || s.roleCode === "headquarters_admin";
+}
+
+/**
+ * 12지파 선교센터 열람 (2026-08-14 피드백 FB-10 — P0 권한).
+ *
+ * **지파 신학부장(tribe_admin) 이상만** 본다 — 강사 계정에 센터 위치·기수·진도 전체가
+ * 보이던 것이 결함으로 접수됐다. 조직 범위 기준으로 지파(tribe)·총회(national) 스코프만
+ * 허용한다. `church_admin`(교회)·강사·전도사(기수)는 지파보다 좁으므로 제외.
+ * ⚠️ national 스코프의 `content_admin`·`security_auditor`를 포함한 것은 「지파 이상 =
+ * 조직 범위가 지파보다 넓은 역할 전부」로 읽은 판단이다 — 리드가 달리 정하면 이 목록만 고친다.
+ *
+ * 서버 연동 시 **같은 판정을 서버가 memberships로 다시 한다**(불변식 1). 여기(메뉴 숨김·
+ * 라우트 가드)는 UI 편의일 뿐이고, API 403이 최종 방어선이다 — 메뉴만 숨기면 URL 직접
+ * 접근에 뚫린다.
+ */
+export const MISSION_CENTER_VIEW_ROLES: RoleCode[] = [
+  "tribe_admin",
+  "headquarters_admin",
+  "content_admin",
+  "security_auditor",
+];
+
+export function canViewMissionCenters(s: Session): boolean {
+  return MISSION_CENTER_VIEW_ROLES.includes(s.roleCode);
 }
 
 /**

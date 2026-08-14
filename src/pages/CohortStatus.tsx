@@ -78,22 +78,10 @@ export function CohortStatus() {
     { id: "divisions", label: "분반별 현황" },
   ];
 
-  // 출석률 10%p 구간 분포 — 전체현황에서 옮겨 온 것
-  const buckets = useMemo(() => {
-    const b = Array.from({ length: 10 }, (_, i) => ({
-      label: `${i * 10}–${i * 10 + 9}`,
-      count: students.filter((s) => s.attendanceRate >= i * 10 && s.attendanceRate < i * 10 + 10).length,
-    }));
-    b[9].count += students.filter((s) => s.attendanceRate === 100).length;
-    b[9].label = "90–100";
-    return b;
-  }, [students]);
-  const maxBucket = Math.max(1, ...buckets.map((b) => b.count));
-
-  const cumRate =
-    students.length === 0
-      ? 0
-      : Math.round(students.reduce((a, s) => a + s.attendanceRate, 0) / students.length);
+  /*
+    「출석률 분포」 히스토그램은 2026-08-14 피드백 CHG-01(담당자 확정 지시)로 뺐다 —
+    구간 계산(buckets)도 이 화면만 쓰던 것이라 함께 지웠다. 되살릴 때는 git 이력에서 꺼낸다.
+  */
 
   /**
    * 보강 포함 출석률 — 보강까지 마친 것을 출석으로 함께 센 실제 출석률.
@@ -142,35 +130,14 @@ export function CohortStatus() {
             />
           </div>
 
-          <div className="mt-5 grid grid-cols-5 gap-4 max-md:grid-cols-1">
-            <Card className="col-span-3 max-md:col-span-1">
-              <div className="mb-1 text-[14px] font-bold text-zion-900">출석률 분포</div>
-              <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-                수강생이 상·하위 두 그룹으로 갈리고{" "}
-                <strong className="text-zion-800">50~96% 구간이 비어 있습니다</strong>. 초반에 이탈하면
-                돌아오지 않는 구조 — 평균({cumRate}%)만 보면 이 사실이 가려집니다.
-              </p>
-              <div className="flex items-end gap-1 sm:gap-1.5" role="img" aria-label="출석률 구간별 수강생 수 분포">
-                {buckets.map((b) => (
-                  <div key={b.label} className="group flex min-w-0 flex-1 flex-col items-center gap-1" title={`${b.label}% — ${b.count}명`}>
-                    <span className="text-[11px] font-semibold text-zion-800">{b.count > 0 ? b.count : ""}</span>
-                    <div
-                      className="w-full rounded-t bg-zion-700 transition group-hover:bg-zion-500"
-                      style={{ height: `${(b.count / maxBucket) * 120 + (b.count > 0 ? 4 : 1)}px` }}
-                    />
-                    <span className="text-[8px] leading-tight text-ink-soft sm:text-[9px]">{b.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 text-right text-[11px] text-ink-soft">구간: 출석률(%) · 막대: 수강생 수</div>
-            </Card>
-
-            {/*
-              2026-08-10 리드 지시로 「대면 시간대」 그래프를 걷어내고 이 자리에 보강 포함 출석률을 놓았다.
-              시간대 집계(`slotCounts`)는 데이터에 그대로 남아 있다 — 보강 편성 때 다시
-              필요해질 수 있어 지우지 않았다(불변식 10). 화면에서만 뺀 것이다.
-            */}
-            <Card className="col-span-2 max-md:col-span-1">
+          {/*
+            왼쪽에 있던 「출석률 분포」 히스토그램은 CHG-01(2026-08-14 담당자 확정)로 뺐고,
+            「보강 포함 출석률」 카드만 남아 전폭을 쓴다. 종전 이 자리의 「대면 시간대」
+            그래프도 2026-08-10에 같은 방식으로 뺐다 — 시간대 집계(`slotCounts`)는 데이터에
+            남아 있다(불변식 10).
+          */}
+          <div className="mt-5">
+            <Card>
               <div className="mb-1 text-[14px] font-bold text-zion-900">보강 포함 출석률</div>
               <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
                 최근 8주 기준 <strong className="text-zion-800">{rates.withMakeup}%</strong> — 대면만 세면{" "}

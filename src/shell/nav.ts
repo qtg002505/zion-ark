@@ -6,6 +6,7 @@ import {
   INSTRUCTOR_BATGARI_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
 } from "../lib/types";
+import { MISSION_CENTER_VIEW_ROLES } from "../lib/permissions";
 import {
   Home,
   LayoutDashboard,
@@ -99,6 +100,12 @@ export interface NavGroup {
   to?: string;
   items?: NavItem[];
   subGroups?: NavSubGroup[];
+  /**
+   * 대주제 전체를 이 역할만 보게 제한한다 (2026-08-14 FB-10 — 12지파 선교센터).
+   * ⚠️ 메뉴 숨김은 UI 편의일 뿐이다 — 같은 역할 목록으로 App.tsx의 라우트 가드가
+   * URL 직접 접근을 막고, 서버 연동 시 API 403이 최종이다. 세 겹이 한 목록을 쓴다.
+   */
+  restrictTo?: RoleCode[];
 }
 
 /**
@@ -369,8 +376,9 @@ const NAV_GROUPS: NavGroup[] = [
   /**
    * 12지파 선교센터 — 어디에 있고 지금 어느 기수가 도는지 (2026-08-11 리드 지시).
    * **기존 카테고리 순서(2026-08-09 기준)는 건드리지 않고 뒤에 붙였다.**
+   * 2026-08-14 FB-10 — **지파 신학부장 이상만** 본다. 역할 목록은 permissions.ts가 정본.
    */
-  { label: "12지파 선교센터", icon: MapPin, to: "/centers" },
+  { label: "12지파 선교센터", icon: MapPin, to: "/centers", restrictTo: MISSION_CENTER_VIEW_ROLES },
 ];
 
 /** 대주제가 품은 모든 항목 (직속 + 하위 묶음) */
@@ -380,12 +388,15 @@ export function groupItems(group: NavGroup): NavItem[] {
 
 /** 권한 필터 — 열람은 로그인 전체가 기본, restrictTo만 제한 */
 export function visibleNavGroups(session: Session): NavGroup[] {
-  const allow = (i: NavItem) => !i.restrictTo || i.restrictTo.includes(session.roleCode);
-  return NAV_GROUPS.map((g) => ({
-    ...g,
-    items: g.items?.filter(allow),
-    subGroups: g.subGroups
-      ?.map((s) => ({ ...s, items: s.items.filter(allow) }))
-      .filter((s) => s.items.length > 0),
-  })).filter((g) => g.to || groupItems(g).length > 0);
+  const allow = (i: { restrictTo?: RoleCode[] }) =>
+    !i.restrictTo || i.restrictTo.includes(session.roleCode);
+  return NAV_GROUPS.filter(allow) // 대주제 단위 제한 (FB-10) — 메인 카테고리 타일도 이걸 따라온다
+    .map((g) => ({
+      ...g,
+      items: g.items?.filter(allow),
+      subGroups: g.subGroups
+        ?.map((s) => ({ ...s, items: s.items.filter(allow) }))
+        .filter((s) => s.items.length > 0),
+    }))
+    .filter((g) => g.to || groupItems(g).length > 0);
 }
