@@ -84,12 +84,23 @@ export const INSTRUCTOR_BATGARI_FOLDERS = [
 export const INSTRUCTOR_OTHER_FOLDERS = ["예배설교"];
 
 /**
- * **강의 도우미가 품는 폴더 전부** — 밭갈이 네 파트 + 예배설교.
+ * 교분기 폴더 — 초·중·고 각 단계에 하나씩 (2026-08-14 피드백 FB-06, 추가 확정).
+ *
+ * 콘텐츠는 **「총회 표준본 + 지파 보충본」 2계층**이다 (Q-03 리드 확정 — 2026-08-14).
+ * 계층은 폴더가 아니라 자료의 `scope` 필드가 가른다: 공통(`common`)은 총회·콘텐츠
+ * 관리자가 등록해 12지파가 같은 것을 보고, 지파 보충(`tribe:{지파}`)은 그 지파
+ * 신학부장이 등록해 **자기 지파에만** 보인다. 공지의 총회/지파 구조와 같은 패턴이다.
+ */
+export const GYOBUNGI_FOLDERS = ["교분기 초등", "교분기 중등", "교분기 고등"];
+
+/**
+ * **강의 도우미가 품는 폴더 전부** — 밭갈이 네 파트 + 예배설교 + 교분기 셋.
  * `/teaching` 화면이 이 목록 안의 폴더만 연다 (그 밖의 폴더 이름이 오면 첫 폴더로 되돌린다).
  */
 export const INSTRUCTOR_EARLY_FOLDERS = [
   ...INSTRUCTOR_BATGARI_FOLDERS,
   ...INSTRUCTOR_OTHER_FOLDERS,
+  ...GYOBUNGI_FOLDERS,
 ];
 
 /**
@@ -144,6 +155,24 @@ export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
   excellent_plan: "우수 교안",
 };
 
+/**
+ * 자료가 속한 단계 (2026-08-14 피드백 FB-05②).
+ * 초·중·고 메뉴에서 우수 교안·특강에 들어가면 **그 단계 자료만** 보여야 한다 —
+ * 종전에는 어느 단계에서 들어가도 같은 목록이 나왔다. 값이 없으면 「공통」으로 치고
+ * 모든 단계에 보인다(옛 자료·전 단계 공용 특강이 여기 해당한다). 전방 추가 필드.
+ */
+export type MaterialLevel = "초등" | "중등" | "고등";
+export const MATERIAL_LEVELS: MaterialLevel[] = ["초등", "중등", "고등"];
+
+/**
+ * 자료의 공유 범위 (2026-08-14 FB-06 · Q-03 리드 확정 — 「총회 표준본 + 지파 보충본」).
+ * - `common` — 12지파 공통. 총회·콘텐츠 관리자가 등록하고 화면 상단에 고정된다
+ * - `tribe:{지파}` — 그 지파의 보충 자료. 지파 신학부장이 등록하고 **자기 지파에만** 보인다
+ * 값이 없으면 `common`으로 친다(교분기 이전의 모든 자료). 전방 추가 필드 —
+ * 실연동 시 `library_materials.scope` 컬럼에 대응한다. 서버가 같은 규칙으로 다시 거른다.
+ */
+export type MaterialScope = "common" | `tribe:${string}`;
+
 export interface LibraryMaterial {
   id: string;
   category: LibraryCategory;
@@ -177,6 +206,10 @@ export interface LibraryMaterial {
    * 실연동 시 `library_materials`의 계층 컬럼(`path`)에 대응한다.
    */
   folderPath: string[];
+  /** 단계 (FB-05②) — 없으면 공통. 우수 교안·특강의 초/중/고 필터가 본다 */
+  level?: MaterialLevel | null;
+  /** 공유 범위 (FB-06 · Q-03) — 없으면 `common`. 교분기의 지파 보충본 판별에 쓴다 */
+  scope?: MaterialScope;
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;

@@ -3,12 +3,16 @@ import { Download, ExternalLink, FolderOpen, Plus, Search, Star, ThumbsUp, X } f
 import { Portal } from "./Portal";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { canToggleFeatured, canWriteLibrary } from "../lib/permissions";
+import { canToggleFeatured, canWriteGyobungiSupplement, canWriteLibrary } from "../lib/permissions";
 import {
+  GYOBUNGI_FOLDERS,
   LIBRARY_CATEGORY_LABELS,
+  MATERIAL_LEVELS,
   ROLE_LABELS,
   type LibraryCategory,
   type LibraryMaterial,
+  type MaterialLevel,
+  type MaterialScope,
 } from "../lib/types";
 import { looseIncludes } from "../lib/text-match";
 import { MediaLinks } from "./MediaLinks";
@@ -52,6 +56,7 @@ export function FolderLibrary({
   onSelectFolder,
   scopeAll = false,
   categoryFilter = null,
+  levelFilter = null,
   emptyNote,
   children,
 }: {
@@ -71,6 +76,12 @@ export function FolderLibrary({
    * 우수 교안(`excellent_plan`)은 분류가 그것이거나 우수 지정(`isFeatured`)된 자료를 함께 담는다.
    */
   categoryFilter?: LibraryCategory | null;
+  /**
+   * 단계 필터 (2026-08-14 FB-05②) — 초/중/고 메뉴에서 들어오면 그 단계 자료만 남긴다.
+   * ⚠️ 단계 표시가 없는 자료는 **공통으로 쳐서 남긴다** — 필드가 없던 옛 자료를 숨기면
+   * 어느 단계에서도 안 보여 영영 못 찾는다.
+   */
+  levelFilter?: MaterialLevel | null;
   /** 자료가 없을 때 덧붙일 안내 (폴더 성격에 따라 다르다) */
   emptyNote?: string;
   /** 목록 위에 끼울 화면별 안내 */
@@ -85,8 +96,26 @@ export function FolderLibrary({
   const [selected, setSelected] = useState<LibraryMaterial | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
-  const writable = canWriteLibrary(session);
+  /** 지금 화면이 교분기 폴더인가 — 2계층(표준본/지파 보충본) 표시·권한이 여기서 갈린다 */
+  const inGyobungi = folder !== null && GYOBUNGI_FOLDERS.includes(folder);
+  /**
+   * 등록 권한 — 기본은 총회·콘텐츠 관리자. **교분기 화면에서는 지파 신학부장도**
+   * 자기 지파 보충본을 올릴 수 있다 (FB-06 · Q-03). 어느 범위로 저장되는지는 화면이
+   * 아니라 역할이 정한다 — 제출부(onSubmit)에서 못박는다.
+   */
+  const supplementWriter = inGyobungi && canWriteGyobungiSupplement(session);
+  const writable = canWriteLibrary(session) || supplementWriter;
   const featureAdmin = canToggleFeatured(session);
+
+  /**
+   * 지파 보충본이 보이는가 — 자기 지파 것과, 총회(national) 스코프 역할의 전체 열람.
+   * ⚠️ 이 거름은 UI 편의다 — 실연동 시 서버가 같은 규칙으로 응답에서 걸러 준다.
+   */
+  const scopeVisible = (m: LibraryMaterial) => {
+    if (!m.scope || m.scope === "common") return true;
+    const tribe = m.scope.slice("tribe:".length);
+    return tribe === session.tribe || session.scopeType === "national";
+  };
 
   /** 자료별 즐겨찾기 수 — 인기순의 근거. O(자료×즐겨찾기)가 되지 않게 한 번 세어 둔다 */
   const favCount = useMemo(() => {
@@ -114,26 +143,37 @@ export function FolderLibrary({
         // 화면 범위 전체 — 자료실은 폴더가 없는 옛 자료까지 맡는다(어디에도 안 뜨면 영영 못 찾는다)
         return scopeAll ? true : scope.includes(top ?? "");
       })
+      // 지파 보충본은 자기 지파(또는 총회 스코프)에만 보인다 (FB-06)
+      .filter(scopeVisible)
+      // 단계 필터 (FB-05②) — 단계 없는 자료는 공통으로 쳐서 남긴다
+      .filter((m) => !levelFilter || !m.level || m.level === levelFilter)
       // 띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙)
       .filter((m) => !q || looseIncludes(m.title, q) || looseIncludes(m.body, q));
 
     // 동점은 전부 최신순 2차 키 — 정렬을 넣으면서 시드가 끝에 붙던 어정쩡한 순서도 사라진다
     const recent = (a: LibraryMaterial, b: LibraryMaterial) => b.createdAt.localeCompare(a.createdAt);
+    /**
+     * 교분기 화면에서는 어떤 정렬이든 **총회 표준본이 위에 고정**된다 (Q-03 확정 —
+     * 「공통 자료가 상단 고정, 그 아래 내 지파 보충 자료」). 그 안에서 고른 정렬이 돈다.
+     */
+    const scopeRank = (m: LibraryMaterial) => (!m.scope || m.scope === "common" ? 0 : 1);
+    const pin = (cmp: (a: LibraryMaterial, b: LibraryMaterial) => number) =>
+      inGyobungi ? (a: LibraryMaterial, b: LibraryMaterial) => scopeRank(a) - scopeRank(b) || cmp(a, b) : cmp;
     switch (sort) {
       case "popular":
-        return filtered.sort((a, b) => (favCount.get(b.id) ?? 0) - (favCount.get(a.id) ?? 0) || recent(a, b));
+        return filtered.sort(pin((a, b) => (favCount.get(b.id) ?? 0) - (favCount.get(a.id) ?? 0) || recent(a, b)));
       case "helpful":
         return filtered.sort(
-          (a, b) => (b.helpfulBy?.length ?? 0) - (a.helpfulBy?.length ?? 0) || recent(a, b),
+          pin((a, b) => (b.helpfulBy?.length ?? 0) - (a.helpfulBy?.length ?? 0) || recent(a, b)),
         );
       case "views":
         return filtered.sort(
-          (a, b) => (materialViews[b.id] ?? 0) - (materialViews[a.id] ?? 0) || recent(a, b),
+          pin((a, b) => (materialViews[b.id] ?? 0) - (materialViews[a.id] ?? 0) || recent(a, b)),
         );
       default:
-        return filtered.sort(recent);
+        return filtered.sort(pin(recent));
     }
-  }, [materials, folder, scopeKey, scopeAll, categoryFilter, query, sort, favCount, materialViews]);
+  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews]);
 
   /** 상세 열기 — 조회수는 **이 클릭에서만** 오른다 (렌더·effect에서 부르지 않는다) */
   function openDetail(m: LibraryMaterial) {
@@ -156,7 +196,10 @@ export function FolderLibrary({
               <Plus size={15} /> 자료 등록
             </button>
           ) : (
-            <span className="text-[11px] text-ink-soft">등록 권한: 콘텐츠 관리자 · 총회 신학부장</span>
+            <span className="text-[11px] text-ink-soft">
+              등록 권한: 콘텐츠 관리자 · 총회 신학부장
+              {inGyobungi && " · 지파 보충본은 지파 신학부장"}
+            </span>
           )
         }
       />
@@ -218,9 +261,14 @@ export function FolderLibrary({
               <div className="mt-1 text-[12px] text-ink-soft">
                 {(selected.folderPath ?? []).join(" › ") || "폴더 없음"}
                 {" · "}
-                {LIBRARY_CATEGORY_LABELS[selected.category]} · {selected.createdBy} (
-                {ROLE_LABELS[selected.createdByRole]}) · {selected.createdAt.slice(0, 10)} · 조회{" "}
-                {materialViews[selected.id] ?? 0}
+                {LIBRARY_CATEGORY_LABELS[selected.category]}
+                {selected.level && ` · ${selected.level}`}
+                {selected.scope && selected.scope !== "common" && (
+                  <> · {selected.scope.slice("tribe:".length)} 지파 보충본</>
+                )}
+                {" · "}
+                {selected.createdBy} ({ROLE_LABELS[selected.createdByRole]}) ·{" "}
+                {selected.createdAt.slice(0, 10)} · 조회 {materialViews[selected.id] ?? 0}
               </div>
             </div>
             {/* 추천 — 1인 1표 토글. 게시판 표의 추천순이 이 수를 본다 */}
@@ -319,6 +367,26 @@ export function FolderLibrary({
                     <td className="max-w-0 py-2.5 pr-2">
                       <span className="flex items-center gap-1.5">
                         {m.isFeatured && <Star size={12} className="shrink-0 fill-gold-500 text-gold-500" />}
+                        {/* 교분기 2계층 표시 — 표준본/지파 보충본이 한 목록에 섞이므로 갈라 보인다 (FB-06) */}
+                        {inGyobungi && (
+                          <span
+                            className={
+                              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold " +
+                              (!m.scope || m.scope === "common"
+                                ? "bg-zion-100 text-zion-700"
+                                : "bg-gold-100 text-gold-700")
+                            }
+                          >
+                            {!m.scope || m.scope === "common"
+                              ? "표준"
+                              : `${m.scope.slice("tribe:".length)} 보충`}
+                          </span>
+                        )}
+                        {levelFilter === null && m.level && (
+                          <span className="shrink-0 rounded bg-zion-100 px-1.5 py-0.5 text-[10px] font-semibold text-zion-700">
+                            {m.level}
+                          </span>
+                        )}
                         <button
                           onClick={() => openDetail(m)}
                           className="min-w-0 flex-1 truncate text-left font-medium text-zion-800 hover:underline"
@@ -343,11 +411,39 @@ export function FolderLibrary({
 
       {formOpen && writable && (
         <MaterialForm
-          folders={folders}
-          defaultFolder={folder ?? folders[0]}
+          /*
+            지파 신학부장(보충본 전용 권한)은 **교분기 폴더에만** 올릴 수 있다 — 폼에서
+            다른 폴더를 골라 일반 자료를 만드는 길을 선택지에서부터 막는다 (FB-06).
+          */
+          folders={canWriteLibrary(session) ? folders : GYOBUNGI_FOLDERS}
+          defaultFolder={folder ?? (canWriteLibrary(session) ? folders[0] : GYOBUNGI_FOLDERS[0])}
           onClose={() => setFormOpen(false)}
           onSubmit={(input) => {
-            addMaterial({ ...input, createdBy: session.name, createdByRole: session.roleCode });
+            const top = input.folderPath[0];
+            const isGyo = GYOBUNGI_FOLDERS.includes(top);
+            // 폼 선택지를 제한했지만 한 번 더 못박는다 — 서버 연동 시 서버가 같은 검사를 한다
+            if (!canWriteLibrary(session) && !isGyo) return;
+            /**
+             * 범위·단계는 여기서 확정한다 (Q-03):
+             * - scope — 역할이 정한다. 총회·콘텐츠 관리자는 표준본(common),
+             *   지파 신학부장은 자기 지파 보충본. 화면에서 고르게 두지 않는다
+             * - 교분기 자료의 level은 폴더 이름(교분기 초등/중등/고등)에서 온다
+             */
+            const scope: MaterialScope | undefined = isGyo
+              ? canWriteLibrary(session)
+                ? "common"
+                : `tribe:${session.tribe}`
+              : undefined;
+            const level = isGyo
+              ? (top.replace("교분기 ", "") as MaterialLevel)
+              : input.level;
+            addMaterial({
+              ...input,
+              level,
+              scope,
+              createdBy: session.name,
+              createdByRole: session.roleCode,
+            });
             setFormOpen(false);
           }}
         />
@@ -378,10 +474,13 @@ function MaterialForm({
      */
     section: "instructor";
     folderPath: string[];
+    /** 단계 (FB-05②) — 공통이면 null. 교분기 폴더면 제출부가 폴더 이름으로 덮어쓴다 */
+    level: MaterialLevel | null;
   }) => void;
 }) {
   const [folder, setFolder] = useState(defaultFolder);
   const [category, setCategory] = useState<LibraryCategory>("standard_lecture");
+  const [level, setLevel] = useState<MaterialLevel | "공통">("공통");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("");
@@ -409,6 +508,7 @@ function MaterialForm({
       videoUrl: video.trim() || null,
       section: "instructor",
       folderPath: [folder],
+      level: level === "공통" ? null : level,
     });
   }
 
@@ -453,6 +553,22 @@ function MaterialForm({
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {LIBRARY_CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {/* 단계 (FB-05②) — 초/중/고 우수 교안·특강 필터가 이 값을 본다 */}
+              <label className="mb-1 block text-[12px] font-semibold text-ink">단계</label>
+              <select
+                value={level}
+                onChange={(e) => setLevel(e.target.value as MaterialLevel | "공통")}
+                className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              >
+                <option value="공통">공통 (모든 단계)</option>
+                {MATERIAL_LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
                   </option>
                 ))}
               </select>

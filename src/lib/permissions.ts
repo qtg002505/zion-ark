@@ -11,6 +11,17 @@ export function canWriteLibrary(s: Session): boolean {
   return s.roleCode === "content_admin" || s.roleCode === "headquarters_admin";
 }
 
+/**
+ * 교분기 **지파 보충본** 등록: 지파 신학부장 (2026-08-14 FB-06 · Q-03 리드 확정).
+ * 공통(표준본)은 종전대로 `canWriteLibrary`(총회·콘텐츠 관리자)가 맡고, 지파 보충은
+ * 그 지파 `tribe_admin`이 맡는다 — 지파 공지(`notice_tribe`)와 같은 권한 패턴이다.
+ * 등록되는 자료의 `scope`는 화면이 아니라 **역할이 정한다**: tribe_admin이 올리면
+ * 무조건 `tribe:{자기 지파}`다. 서버 연동 시 같은 판정을 서버가 다시 한다.
+ */
+export function canWriteGyobungiSupplement(s: Session): boolean {
+  return s.roleCode === "tribe_admin";
+}
+
 /** 우수 교안 지정·해제: headquarters_admin만 (확정 결정 4) */
 export function canToggleFeatured(s: Session): boolean {
   return s.roleCode === "headquarters_admin";

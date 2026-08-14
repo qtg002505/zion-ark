@@ -14,6 +14,8 @@ import type {
   LibraryCategory,
   LibraryMaterial,
   LibrarySection,
+  MaterialLevel,
+  MaterialScope,
   QuoteCategory,
   PlanEntry,
   PlanEntryKind,
@@ -424,6 +426,10 @@ interface StoreValue {
     videoUrl: string | null;
     section: LibrarySection;
     folderPath: string[];
+    /** 단계 (2026-08-14 FB-05②) — 없으면 공통 */
+    level?: MaterialLevel | null;
+    /** 공유 범위 (2026-08-14 FB-06 · Q-03) — 없으면 common. 교분기 지파 보충본이 쓴다 */
+    scope?: MaterialScope;
     createdBy: string;
     createdByRole: RoleCode;
   }) => void;

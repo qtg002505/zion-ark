@@ -163,12 +163,19 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Shovel,
         items: folderItems("/teaching", INSTRUCTOR_BATGARI_FOLDERS),
       },
+      /*
+        2026-08-14 피드백 FB-05 — 표기를 「우수 교안·특강」으로 바꿨다('지침' 제거).
+        `level` 파라미터가 붙어 **그 단계 자료만** 나온다 — 종전에는 어느 단계에서
+        들어가도 같은 목록이었다. FB-06 — 각 단계에 「교분기」 탭을 더했다(추가 확정분).
+      */
       {
         label: "초등",
         icon: Baby,
         items: [
           { to: "/lessons", label: "초등 강의자료", icon: BookText },
-          { to: "/teaching?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("초등")}`, label: "우수 교안·특강", icon: Star },
+          // ⚠️ folder 값은 encodeURIComponent — 활성 판정이 location.search(인코딩된 값)와 견주기 때문
+          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: "교분기", icon: BookOpenText },
         ],
       },
       {
@@ -176,7 +183,8 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Leaf,
         items: [
           { to: "/lessons?course=middle", label: "중등 강의자료", icon: BookText, badge: "준비 중" },
-          { to: "/teaching?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("중등")}`, label: "우수 교안·특강", icon: Star },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: "교분기", icon: BookOpenText },
         ],
       },
       {
@@ -184,7 +192,8 @@ const NAV_GROUPS: NavGroup[] = [
         icon: TreeDeciduous,
         items: [
           { to: "/lessons?course=high", label: "고등 강의자료", icon: BookText },
-          { to: "/teaching?tab=excellent_plan", label: "우수교안·지침·특강", icon: Star },
+          { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("고등")}`, label: "우수 교안·특강", icon: Star },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: "교분기", icon: BookOpenText },
         ],
       },
       {
