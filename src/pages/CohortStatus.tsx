@@ -26,6 +26,13 @@ import {
 } from "../content/cohort-mock";
 import { LineChart } from "../components/LineChart";
 import {
+  SESSION_WEEKDAY_LABELS,
+  lessonOfSession,
+  sessionLabelOf,
+  sessionsOfWeek,
+  sessionsThroughWeek,
+} from "../content/curriculum-mock";
+import {
   MARK_GLYPH,
   MARK_LABEL,
   MARK_TONE,
@@ -277,9 +284,19 @@ export function CohortStatus() {
  */
 const GRID_PAGE = 8;
 
+/**
+ * 표시 축 (2026-08-14 피드백 FB-02) — 치리자는 주차가, 실무자는 회차·진도가 궁금하다.
+ * 주차별은 종전 그대로이고, 회차별·진도별은 주차 머리 아래 요일(월·화·목) 세부 칸이 열린다.
+ * ⚠️ 목업 출결이 주 단위라 **한 주의 세 회차는 그 주의 표기를 따른다** (시범 확장) —
+ * 실연동 시 시트의 회차별 값이 이 칸에 그대로 들어오고 구조는 안 바뀐다.
+ * 매핑은 `curriculum-mock.ts`(교체 경계) 한 곳이다.
+ */
+type GridAxis = "week" | "session" | "lesson";
+
 function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
   /** page 0 = 최근 8주 (종전 화면과 동일). 커질수록 과거로 간다 */
   const [page, setPage] = useState(0);
+  const [axis, setAxis] = useState<GridAxis>("week");
   const pageCount = Math.max(1, Math.ceil(DONE_WEEKS / GRID_PAGE));
 
   const rows = [...students].sort((a, b) => {
@@ -300,22 +317,129 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
     [rows],
   );
 
+  /** 기수 평균 행 (FB-02 시안) — 그 주에 출석(대면·보강완료)한 사람 비율 */
+  const weekAvg = (ago: number) => {
+    const marks = rows.map((s) => history.get(s.key)?.[ago]?.mark ?? "unknown");
+    const known = marks.filter((m) => m !== "unknown");
+    if (known.length === 0) return null;
+    const ok = known.filter((m) => m === "present" || m === "makeupDone").length;
+    return Math.round((ok / known.length) * 100);
+  };
+
+  /** 엑셀(CSV) 내려받기 — 지금 보이는 축·구간 그대로 뽑는다. BOM을 붙여 엑셀이 한글을 살린다 */
+  function downloadCsv() {
+    const weekCols = agoList.map((ago) => weekNoOfAgo(ago));
+    const head =
+      axis === "week"
+        ? ["이름", "분반", ...weekCols.map((w) => `${w}주차`), "보강 포함 %", "대면만 %"]
+        : [
+            "이름",
+            "분반",
+            ...weekCols.flatMap((w) =>
+              sessionsOfWeek(w).map((s) =>
+                axis === "session"
+                  ? `${s.sessionNo}회차(${SESSION_WEEKDAY_LABELS[s.slot]})`
+                  : `${s.sessionNo}회차 ${s.lessonNo}강`,
+              ),
+            ),
+            "보강 포함 %",
+            "대면만 %",
+          ];
+    const lines = rows.map((st) => {
+      const hist = history.get(st.key) ?? [];
+      const r = rateOf(st);
+      const cells =
+        axis === "week"
+          ? agoList.map((ago) => MARK_GLYPH[hist[ago]?.mark ?? "unknown"])
+          : agoList.flatMap((ago) =>
+              sessionsOfWeek(weekNoOfAgo(ago)).map(() => MARK_GLYPH[hist[ago]?.mark ?? "unknown"]),
+            );
+      return [st.name, st.division, ...cells, r.withMakeup, r.presentOnly];
+    });
+    const avg = ["우리 기수 평균", ""];
+    for (const ago of agoList) {
+      const v = weekAvg(ago);
+      const cell = v === null ? "-" : `${v}%`;
+      if (axis === "week") avg.push(cell);
+      else sessionsOfWeek(weekNoOfAgo(ago)).forEach(() => avg.push(cell));
+    }
+    const csv = [head, ...lines, avg]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `출결_${COHORT.cohort}_${axis === "week" ? "주차별" : axis === "session" ? "회차별" : "진도별"}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[14px] font-bold text-zion-900">주차별 출결</div>
+          <div className="text-[14px] font-bold text-zion-900">
+            {axis === "week" ? "주차별" : axis === "session" ? "회차별" : "진도별"} 출결
+          </div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
             보강 포함 출석률이 낮은 사람이 위에 옵니다 — 먼저 볼 사람이 먼저 보이게 했습니다.
           </p>
         </div>
-        <WeekPager
-          rangeLabel={`${weekNoOfAgo(agoList[agoList.length - 1])}~${weekNoOfAgo(agoList[0])}주차`}
-          onOlder={() => setPage((p) => p + 1)}
-          onNewer={() => setPage((p) => p - 1)}
-          olderDisabled={page >= pageCount - 1}
-          newerDisabled={page === 0}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 보기 전환 (FB-02①) — 주차/회차/진도 */}
+          <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="출결 표시 축">
+            {(
+              [
+                ["week", "주차별"],
+                ["session", "회차별"],
+                ["lesson", "진도별"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={axis === k}
+                onClick={() => setAxis(k)}
+                className={
+                  "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
+                  (axis === k ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* ○주차까지 보기 (FB-02 시안의 드롭다운) — 페이저와 같은 상태를 움직인다 */}
+          <select
+            value={page}
+            onChange={(e) => setPage(Number(e.target.value))}
+            aria-label="보는 주차 구간"
+            className="rounded-lg border border-zion-100 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-zion-500"
+          >
+            {Array.from({ length: pageCount }, (_, p) => {
+              const hi = DONE_WEEKS - p * GRID_PAGE;
+              const lo = Math.max(1, hi - GRID_PAGE + 1);
+              return (
+                <option key={p} value={p}>
+                  {lo}~{hi}주차 보기
+                </option>
+              );
+            })}
+          </select>
+          <button
+            onClick={downloadCsv}
+            className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          >
+            엑셀 다운로드
+          </button>
+          <WeekPager
+            rangeLabel={`${weekNoOfAgo(agoList[agoList.length - 1])}~${weekNoOfAgo(agoList[0])}주차`}
+            onOlder={() => setPage((p) => p + 1)}
+            onNewer={() => setPage((p) => p - 1)}
+            olderDisabled={page >= pageCount - 1}
+            newerDisabled={page === 0}
+          />
+        </div>
       </div>
       <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
         {(["present", "makeupDone", "makeupPending", "absent", "unknown"] as const).map((m) => (
@@ -335,16 +459,50 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
 
       {/* 좁은 화면에서는 표만 가로로 넘긴다 — 본문이 옆으로 밀리지 않게 */}
       <div className="-mx-1 overflow-x-auto px-1">
-        <table className="w-full min-w-[620px] text-[13px]">
+        <table className={"w-full text-[13px] " + (axis === "week" ? "min-w-[620px]" : "min-w-[980px]")}>
           <thead>
+            {/* 회차·진도 보기에서는 주차 머리 아래 요일 세부 칸이 열린다 (FB-02 시안) */}
+            {axis !== "week" && (
+              <tr className="border-b border-zion-100 text-center text-[11px] text-ink-soft">
+                <th colSpan={2} />
+                {agoList.map((ago) => (
+                  <th key={ago} colSpan={sessionsOfWeek(weekNoOfAgo(ago)).length} className="pb-1 font-semibold text-zion-700">
+                    {weekNoOfAgo(ago)}주차
+                  </th>
+                ))}
+                <th colSpan={3} />
+              </tr>
+            )}
             <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
               <th className="pb-2 font-medium">이름</th>
               <th className="pb-2 font-medium">분반</th>
-              {agoList.map((ago) => (
-                <th key={ago} className="pb-2 text-center font-medium">
-                  {weekNoOfAgo(ago)}주
-                </th>
-              ))}
+              {axis === "week"
+                ? agoList.map((ago) => (
+                    <th key={ago} className="pb-2 text-center font-medium">
+                      {weekNoOfAgo(ago)}주
+                    </th>
+                  ))
+                : agoList.flatMap((ago) =>
+                    sessionsOfWeek(weekNoOfAgo(ago)).map((sess) => (
+                      <th
+                        key={sess.sessionNo}
+                        className="pb-2 text-center font-medium"
+                        title={sessionLabelOf(sess)}
+                      >
+                        {axis === "session" ? (
+                          <>
+                            {SESSION_WEEKDAY_LABELS[sess.slot]}
+                            <span className="block text-[10px] font-normal">{sess.sessionNo}회</span>
+                          </>
+                        ) : (
+                          <>
+                            {sess.lessonNo}강
+                            <span className="block text-[10px] font-normal">{sess.sessionNo}회</span>
+                          </>
+                        )}
+                      </th>
+                    )),
+                  )}
               <th className="pb-2 text-right font-medium">보강 포함</th>
               <th className="pb-2 text-right font-medium">대면만</th>
               <th className="pb-2 pl-3 font-medium">상태</th>
@@ -354,26 +512,35 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
             {rows.map((s) => {
               const r = rateOf(s);
               const hist = history.get(s.key) ?? [];
+              const cell = (ago: number, key: string | number, title: string) => {
+                const mark = hist[ago]?.mark ?? "unknown";
+                return (
+                  <td key={key} className="py-2 text-center">
+                    <span
+                      className={
+                        "inline-flex h-6 w-6 items-center justify-center rounded border text-[11px] font-bold " +
+                        MARK_TONE[mark]
+                      }
+                      title={`${title} — ${MARK_LABEL[mark]}`}
+                    >
+                      {MARK_GLYPH[mark]}
+                    </span>
+                  </td>
+                );
+              };
               return (
                 <tr key={s.key} className="border-b border-zion-100 last:border-0">
                   <td className="py-2 pr-2 font-medium text-ink">{s.name}</td>
                   <td className="py-2 pr-2 text-[12px] text-ink-soft">{s.division}</td>
-                  {agoList.map((ago) => {
-                    const mark = hist[ago]?.mark ?? "unknown";
-                    return (
-                      <td key={ago} className="py-2 text-center">
-                        <span
-                          className={
-                            "inline-flex h-6 w-6 items-center justify-center rounded border text-[11px] font-bold " +
-                            MARK_TONE[mark]
-                          }
-                          title={`${weekNoOfAgo(ago)}주차 (${ago === 0 ? "최근 완료 주" : `${ago}주 전`}) — ${MARK_LABEL[mark]}`}
-                        >
-                          {MARK_GLYPH[mark]}
-                        </span>
-                      </td>
-                    );
-                  })}
+                  {axis === "week"
+                    ? agoList.map((ago) =>
+                        cell(ago, ago, `${weekNoOfAgo(ago)}주차 (${ago === 0 ? "최근 완료 주" : `${ago}주 전`})`),
+                      )
+                    : agoList.flatMap((ago) =>
+                        sessionsOfWeek(weekNoOfAgo(ago)).map((sess) =>
+                          cell(ago, sess.sessionNo, sessionLabelOf(sess)),
+                        ),
+                      )}
                   <td className="py-2 text-right font-semibold text-zion-800">{r.withMakeup}%</td>
                   <td className="py-2 text-right text-[12px] text-ink-soft">{r.presentOnly}%</td>
                   <td className="py-2 pl-3">
@@ -382,6 +549,22 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
                 </tr>
               );
             })}
+            {/* 우리 기수 평균 — 맨 아래 한 줄 (FB-02 시안) */}
+            <tr className="border-t-2 border-zion-200 bg-zion-50/60 text-[12px]">
+              <td colSpan={2} className="py-2 pr-2 font-bold text-zion-800">
+                우리 기수 평균
+              </td>
+              {agoList.flatMap((ago) => {
+                const v = weekAvg(ago);
+                const cols = axis === "week" ? 1 : sessionsOfWeek(weekNoOfAgo(ago)).length;
+                return (
+                  <td key={ago} colSpan={cols} className="py-2 text-center font-semibold text-zion-700">
+                    {v === null ? "—" : `${v}%`}
+                  </td>
+                );
+              })}
+              <td colSpan={3} />
+            </tr>
           </tbody>
         </table>
       </div>
@@ -390,6 +573,13 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
         출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음
         동기화를 기다립니다. 「보강 포함」·「대면만」 비율은 페이지와 무관하게 <strong>최근 8주
         기준</strong>입니다. 왼쪽이 최근 주입니다.
+        {axis !== "week" && (
+          <>
+            {" "}
+            ⚠️ 목업 출결이 주 단위라 <strong>한 주의 세 회차는 그 주의 표기를 따릅니다</strong> —
+            실연동 시 시트의 회차별 값이 그대로 들어옵니다. 회차·과수 매핑은 시범 값입니다.
+          </>
+        )}
       </p>
     </Card>
   );
@@ -400,46 +590,193 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
  * 선 셋: 우리 기수 · 우리 지파 평균 · 12지파 평균. 색과 무늬를 함께 써서 가른다.
  * 실적이 없는 미래 주는 **선이 끊긴다** — 0으로 그리면 폭락처럼 보이기 때문이다.
  */
+/**
+ * 2026-08-14 피드백 FB-03 — 셋을 더했다:
+ * (a) Y축 동적 스케일 — 데이터 min~max에 5%p 여유. 0~100 고정으로는 선 차이가 안 보였다
+ * (b) X축 토글 [월별|회차별|진도별] — 달력으로 비교하면 개강 시점이 다른 기수끼리
+ *     불공정하다(3월 초 개강 vs 3월 말 개강). 이 그래프의 주 축은 애초에 「개강 후 N주」라
+ *     회차별 = 그 주까지 마친 회차, 진도별 = 그 회차의 강이다. **실연동에서 타 기수
+ *     계열이 들어와도 같은 「개강 후 N회차」 축으로 정렬해 합류한다** — 매핑은
+ *     `curriculum-mock.ts`(FB-02와 공유, 중복 구현 금지)
+ * (c) 복사 버튼 — 지금 보이는 상태 그대로 이미지로 클립보드에 담는다. 미지원 환경은
+ *     PNG 내려받기로 폴백. ⚠️ 이 차트는 집계 3계열뿐이라 「집계·통계만 반출」 원칙에
+ *     어긋나지 않는다 — 개인 이름·개인 출결을 이 차트에 넣게 되면 복사 버튼부터 다시 본다
+ */
+type TrendAxis = "month" | "session" | "lesson";
+
 function EightMonthTrend() {
-  const monthLabels = useMemo(() => {
-    const out: { at: number; label: string }[] = [];
-    let last = "";
-    WEEKLY_RATES.forEach((r, i) => {
-      const month = `${Number(r.weekOf.slice(5, 7))}월`;
-      if (month !== last) {
-        out.push({ at: i, label: month });
-        last = month;
-      }
-    });
-    return out;
+  const [xAxis, setXAxis] = useState<TrendAxis>("month");
+  const [copied, setCopied] = useState<"idle" | "copied" | "downloaded">("idle");
+  const chartRef = { current: null as HTMLDivElement | null };
+
+  const xLabels = useMemo(() => {
+    if (xAxis === "month") {
+      const out: { at: number; label: string }[] = [];
+      let last = "";
+      WEEKLY_RATES.forEach((r, i) => {
+        const month = `${Number(r.weekOf.slice(5, 7))}월`;
+        if (month !== last) {
+          out.push({ at: i, label: month });
+          last = month;
+        }
+      });
+      return out;
+    }
+    // 회차별·진도별 — 6주 간격으로 「N회차」 또는 그 회차의 강을 적는다
+    return WEEKLY_RATES.map((_, i) => i)
+      .filter((i) => i % 6 === 0)
+      .map((i) => {
+        const n = sessionsThroughWeek(i + 1);
+        return {
+          at: i,
+          label: xAxis === "session" ? `${n}회차` : `${lessonOfSession(Math.max(1, n)).lessonNo}강`,
+        };
+      });
+  }, [xAxis]);
+
+  /** Y축 동적 범위 — 실측값 min~max에 5%p 여유 (FB-03ⓐ). 0~100 고정 금지 */
+  const yRange = useMemo(() => {
+    const all = WEEKLY_RATES.flatMap((r) => [r.rate, r.tribeAvg, r.allAvg]).filter(
+      (v): v is number => v !== null,
+    );
+    return {
+      min: Math.max(0, Math.floor(Math.min(...all)) - 5),
+      max: Math.min(100, Math.ceil(Math.max(...all)) + 5),
+    };
   }, []);
+
+  /**
+   * 차트 복사 (FB-03ⓒ) — SVG를 캔버스에 옮겨 클립보드로. SVG가 팔레트를 CSS 클래스로
+   * 입고 있어 **계산된 색을 인라인으로 박은 사본**을 만들어 그린다 — 안 하면 흑백이 나온다.
+   */
+  async function copyChart() {
+    const host = chartRef.current;
+    const svg = host?.querySelector("svg");
+    if (!host || !svg) return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    const orig = svg.querySelectorAll("line, polyline");
+    clone.querySelectorAll("line, polyline").forEach((el, i) => {
+      const cs = getComputedStyle(orig[i]);
+      el.setAttribute("stroke", cs.stroke);
+      el.setAttribute("stroke-width", cs.strokeWidth);
+    });
+    const w = svg.clientWidth || 640;
+    const h = svg.clientHeight || 170;
+    clone.setAttribute("width", String(w));
+    clone.setAttribute("height", String(h));
+    const url = URL.createObjectURL(
+      new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml" }),
+    );
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+      img.src = url;
+    });
+    const pad = 16;
+    const legendH = 24;
+    const cv = document.createElement("canvas");
+    cv.width = (w + pad * 2) * 2;
+    cv.height = (h + pad * 2 + legendH) * 2;
+    const ctx = cv.getContext("2d")!;
+    ctx.scale(2, 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w + pad * 2, h + pad * 2 + legendH);
+    ctx.drawImage(img, pad, pad, w, h);
+    URL.revokeObjectURL(url);
+    // 범례는 HTML이라 캔버스에 직접 적는다
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = "#334";
+    const axisLabel = xAxis === "month" ? "월별" : xAxis === "session" ? "회차별" : "진도별";
+    ctx.fillText(
+      `${COHORT.cohort} 출석 흐름 (${axisLabel}) — 실선 우리 기수 · 긴점선 지파 평균 · 짧은점선 12지파 평균`,
+      pad,
+      h + pad + 16,
+    );
+    const blob = await new Promise<Blob | null>((res) => cv.toBlob(res, "image/png"));
+    if (!blob) return;
+    try {
+      // http·미지원 브라우저에서는 아래 폴백으로 떨어진다
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      setCopied("copied");
+    } catch {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `출석흐름_${COHORT.cohort}_${axisLabel}.png`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setCopied("downloaded");
+    }
+    setTimeout(() => setCopied("idle"), 2500);
+  }
 
   return (
     <Card>
-      <div className="mb-1 text-[14px] font-bold text-zion-900">8개월 출석 흐름</div>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[14px] font-bold text-zion-900">8개월 출석 흐름</div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="흐름 그래프 X축">
+            {(
+              [
+                ["month", "월별"],
+                ["session", "회차별"],
+                ["lesson", "진도별"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={xAxis === k}
+                onClick={() => setXAxis(k)}
+                className={
+                  "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
+                  (xAxis === k ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={copyChart}
+            className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          >
+            {copied === "copied" ? "복사됨 ✓" : copied === "downloaded" ? "PNG 저장됨" : "복사"}
+          </button>
+        </div>
+      </div>
       <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
-        개강부터 종강 예정까지 {WEEKLY_RATES.length}주 전체입니다. 선이 끊긴 곳부터는 아직 오지
-        않은 주입니다. 주차를 하나씩 파려면 아래 막대에서 누르세요.
+        개강부터 종강 예정까지 {WEEKLY_RATES.length}주 전체입니다. 축은 「개강 후 N주」 기준이라
+        개강 시점이 다른 기수와 견줘도 어긋나지 않습니다. 선이 끊긴 곳부터는 아직 오지 않은
+        주입니다. 주차를 하나씩 파려면 아래 막대에서 누르세요.
       </p>
-      <LineChart
-        ariaLabel="주차별 출석률 — 우리 기수·지파 평균·12지파 평균 비교"
-        series={[
-          { label: "우리 기수", strokeClass: "stroke-zion-700", points: WEEKLY_RATES.map((r) => r.rate) },
-          {
-            label: "우리 지파 평균",
-            strokeClass: "stroke-gold-500",
-            dash: "6 4",
-            points: WEEKLY_RATES.map((r) => r.tribeAvg),
-          },
-          {
-            label: "12지파 평균",
-            strokeClass: "stroke-zion-400",
-            dash: "2 3",
-            points: WEEKLY_RATES.map((r) => r.allAvg),
-          },
-        ]}
-        xLabels={monthLabels}
-      />
+      <div
+        ref={(el) => {
+          chartRef.current = el;
+        }}
+      >
+        <LineChart
+          ariaLabel="주차별 출석률 — 우리 기수·지파 평균·12지파 평균 비교"
+          yMin={yRange.min}
+          yMax={yRange.max}
+          series={[
+            { label: "우리 기수", strokeClass: "stroke-zion-700", points: WEEKLY_RATES.map((r) => r.rate) },
+            {
+              label: "우리 지파 평균",
+              strokeClass: "stroke-gold-500",
+              dash: "6 4",
+              points: WEEKLY_RATES.map((r) => r.tribeAvg),
+            },
+            {
+              label: "12지파 평균",
+              strokeClass: "stroke-zion-400",
+              dash: "2 3",
+              points: WEEKLY_RATES.map((r) => r.allAvg),
+            },
+          ]}
+          xLabels={xLabels}
+        />
+      </div>
     </Card>
   );
 }

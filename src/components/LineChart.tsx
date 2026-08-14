@@ -26,6 +26,7 @@ export function LineChart({
   series,
   xLabels,
   yMax = 100,
+  yMin = 0,
   height = 170,
   ariaLabel,
 }: {
@@ -33,12 +34,20 @@ export function LineChart({
   /** x축 눈금 — 값이 있는 위치만 라벨을 적는다 (예: 월 경계) */
   xLabels: { at: number; label: string }[];
   yMax?: number;
+  /**
+   * Y축 하한 (2026-08-14 FB-03ⓐ) — 0~100 고정이면 선들이 위쪽에 눌려 변별력이 없다.
+   * 호출부가 데이터 min에 여유(~5%p)를 둔 값을 넘기면 그 구간만 펼쳐 그린다.
+   */
+  yMin?: number;
   height?: number;
   ariaLabel: string;
 }) {
   const count = Math.max(...series.map((s) => s.points.length), 2);
   const x = (i: number) => (i / (count - 1)) * 100;
-  const y = (v: number) => 100 - (v / yMax) * 100;
+  const y = (v: number) => 100 - ((v - yMin) / Math.max(1, yMax - yMin)) * 100;
+
+  /** 눈금 — 구간을 4등분한 안쪽 셋. 기본(0~100)이면 종전과 같은 25·50·75가 나온다 */
+  const ticks = [1, 2, 3].map((n) => Math.round(yMin + ((yMax - yMin) * n) / 4));
 
   /** null에서 선을 끊는다 — 연속 구간별로 polyline 좌표 문자열을 만든다 */
   function runsOf(points: (number | null)[]): string[] {
@@ -58,15 +67,26 @@ export function LineChart({
 
   return (
     <div>
-      <div role="img" aria-label={ariaLabel}>
+      <div role="img" aria-label={ariaLabel} className="relative">
+        {/* 눈금 값 — 동적 구간일 때 어디부터 어디까지인지 읽히게 값을 함께 적는다 (FB-03ⓐ) */}
+        {ticks.map((v) => (
+          <span
+            key={`t-${v}`}
+            aria-hidden
+            className="absolute right-0 -translate-y-1/2 text-[9px] text-ink-soft"
+            style={{ top: `${(y(v) / 100) * height}px` }}
+          >
+            {v}
+          </span>
+        ))}
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           className="w-full"
           style={{ height }}
         >
-          {/* 배경 눈금 — 25·50·75 */}
-          {[25, 50, 75].map((v) => (
+          {/* 배경 눈금 — 표시 구간의 4등분점 */}
+          {ticks.map((v) => (
             <line
               key={v}
               x1="0"
