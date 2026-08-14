@@ -17,7 +17,9 @@ import type {
   LibraryMaterial,
   LibrarySection,
   MaterialLevel,
+  MaterialRating,
   MaterialScope,
+  MaterialValidView,
   QuoteCategory,
   PlanEntry,
   PlanEntryKind,
@@ -61,6 +63,9 @@ const ACTIVITY_KEY = "zion_ark_activity_logs";
 /** 건의·의견 게시판 (2026-08-14 FB-09) — 실연동 시 D1 board_posts/board_replies로 교체 */
 const BOARD_POST_KEY = "zion_ark_board_posts";
 const BOARD_REPLY_KEY = "zion_ark_board_replies";
+/** 인기 교안 인프라 (2026-08-14 FB-04) — 별점·유효 조회. 실연동 시 D1로 교체 */
+const RATING_KEY = "zion_ark_material_ratings";
+const VALID_VIEW_KEY = "zion_ark_material_valid_views";
 /** 열람 기록 보관 한도 — 기간 정책이 정해지기 전까지 건수로만 막는다 */
 const ACTIVITY_LIMIT = 200;
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
@@ -444,6 +449,18 @@ interface StoreValue {
   /** 자료 조회수 — 게시판 표의 조회순 근거. 상세를 **여는 클릭에서만** 올린다 */
   materialViews: Record<string, number>;
   logMaterialView: (id: string) => void;
+  /* 인기 교안 인프라 (2026-08-14 FB-04 · Q-02 추천안) */
+  materialRatings: MaterialRating[];
+  /** 별점 — 사용자당 1건 upsert (1~5) */
+  rateMaterial: (materialId: string, userName: string, stars: number) => void;
+  materialValidViews: MaterialValidView[];
+  /**
+   * 유효 조회 — 같은 사용자·자료·날짜에 이미 있으면 안 쌓는다(1일 1회).
+   * 30초 체류 판정은 화면(FolderLibrary)이 하고, 실연동 시 서버가 다시 한다.
+   */
+  logValidMaterialView: (materialId: string, userName: string) => void;
+  /** 지파 공유 승격 토글 (Q-02 — 우수 교안 2단의 1단) — 지파 신학부장이 자기 지파 이름으로 */
+  toggleTribeEndorsement: (materialId: string, tribe: string) => void;
   addEntry: (input: {
     kind: WorkspaceKind;
     title: string;
@@ -703,6 +720,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [boardReplies, setBoardReplies] = useState<BoardReply[]>(() =>
     loadPlain<BoardReply>(BOARD_REPLY_KEY),
   );
+  const [materialRatings, setMaterialRatings] = useState<MaterialRating[]>(() =>
+    loadPlain<MaterialRating>(RATING_KEY),
+  );
+  const [materialValidViews, setMaterialValidViews] = useState<MaterialValidView[]>(() =>
+    loadPlain<MaterialValidView>(VALID_VIEW_KEY),
+  );
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() =>
     loadPlain<ActivityLog>(ACTIVITY_KEY),
   );
@@ -847,6 +870,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       personalEvents,
       boardPosts,
       boardReplies,
+      materialRatings,
+      materialValidViews,
       favorites,
       activityLogs,
       studentStatusOverrides,
@@ -1016,6 +1041,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       deletePersonalEvent: (id) => {
         persistPersonal(personalEvents.filter((e) => e.id !== id));
+      },
+      rateMaterial: (materialId, userName, stars) => {
+        const bounded = Math.max(1, Math.min(5, Math.round(stars)));
+        const next = [
+          ...materialRatings.filter((r) => !(r.materialId === materialId && r.userName === userName)),
+          { materialId, userName, stars: bounded, ratedAt: nowIso() },
+        ];
+        localStorage.setItem(RATING_KEY, JSON.stringify(next));
+        setMaterialRatings(next);
+      },
+      logValidMaterialView: (materialId, userName) => {
+        const date = nowIso().slice(0, 10);
+        // 같은 사람이 같은 자료를 같은 날 또 봐도 안 쌓인다 — 반복 출입 조작 차단 (FB-04)
+        if (materialValidViews.some((v) => v.materialId === materialId && v.userName === userName && v.date === date)) {
+          return;
+        }
+        const next = [...materialValidViews, { materialId, userName, date, viewedAt: nowIso() }];
+        localStorage.setItem(VALID_VIEW_KEY, JSON.stringify(next));
+        setMaterialValidViews(next);
+      },
+      toggleTribeEndorsement: (materialId, tribe) => {
+        persistMaterials(
+          materials.map((m) => {
+            if (m.id !== materialId) return m;
+            const list = m.tribeEndorsements ?? [];
+            return {
+              ...m,
+              tribeEndorsements: list.includes(tribe) ? list.filter((t) => t !== tribe) : [...list, tribe],
+              updatedAt: nowIso(),
+            };
+          }),
+        );
       },
       addBoardPost: (input) => {
         const next = [{ id: uid(), ...input, createdAt: nowIso() }, ...boardPosts];
@@ -1319,6 +1376,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persistPersonal,
       boardPosts,
       boardReplies,
+      materialRatings,
+      materialValidViews,
       favorites,
       activityLogs,
       studentStatusOverrides,

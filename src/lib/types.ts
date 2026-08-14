@@ -210,6 +210,13 @@ export interface LibraryMaterial {
   level?: MaterialLevel | null;
   /** 공유 범위 (FB-06 · Q-03) — 없으면 `common`. 교분기의 지파 보충본 판별에 쓴다 */
   scope?: MaterialScope;
+  /**
+   * 지파 공유 승격 (2026-08-14 FB-04 · Q-02 추천안 — 우수 교안 2단 체계의 1단).
+   * 어느 지파 신학부장이 「우리 지파가 공유할 만하다」고 승격했는지, 지파 이름 목록.
+   * 총회 신학부장의 최종 우수 배지(`isFeatured`)는 종전 그대로다 (확정 결정 4 연속성).
+   * 전방 추가 필드 — 옛 자료는 빈 것으로 친다.
+   */
+  tribeEndorsements?: string[];
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;
@@ -233,6 +240,35 @@ export interface WorkspaceEntry {
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;
+}
+
+/**
+ * 자료 별점 (2026-08-14 FB-04) — **사용자당 자료 하나에 1건 upsert.**
+ * 실연동 시 D1 `material_ratings`에 대응한다. 숫자 카운터로 두면 무한 클릭이 되므로
+ * (추천·즐겨찾기와 같은 이유) 사람 단위로 저장한다.
+ */
+export interface MaterialRating {
+  userName: string;
+  materialId: string;
+  /** 1~5 */
+  stars: number;
+  ratedAt: string;
+}
+
+/**
+ * 유효 조회 (2026-08-14 FB-04 — 조작 방지).
+ * **같은 사용자 1일 1회 + 열람 30초 이상**만 쌓인다 — 반복 새로고침으로 조회수를 올리는
+ * 조작을 막는다. 상세를 여는 클릭마다 오르는 `materialViews`(표시용 총 조회수)와는
+ * 다른 축이다 — 인기 점수는 이것만 본다.
+ * ⚠️ **판정은 실연동 시 서버가 다시 한다** (D1 `material_views.valid`) — 클라이언트
+ * 판정은 편의일 뿐, 서버를 안 거치는 조작을 막지 못한다.
+ */
+export interface MaterialValidView {
+  userName: string;
+  materialId: string;
+  /** YYYY-MM-DD — 1일 1회 판정의 키 */
+  date: string;
+  viewedAt: string;
 }
 
 /**

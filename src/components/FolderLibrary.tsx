@@ -27,9 +27,11 @@ const CATEGORIES: LibraryCategory[] = ["standard_lecture", "class_material", "ex
  * ⚠️ `SortKey`가 세 화면째 따로 있지만 공용화하지 않는다 — 두 곳은 알약 tablist,
  * 여기는 셀렉트라 UI가 달라서 타입만 공유하게 되는데 얻는 것이 없다.
  */
-type MaterialSortKey = "recent" | "popular" | "helpful" | "views";
+type MaterialSortKey = "recent" | "score" | "popular" | "helpful" | "views";
 const SORT_LABELS: Record<MaterialSortKey, string> = {
   recent: "최신순",
+  /** 2026-08-14 FB-04 · Q-02 추천안 — 최근 30일 롤링: 유효조회×1 + 즐겨찾기×3 + 별점평균×2 */
+  score: "인기 교안 (30일 종합)",
   popular: "인기순 (즐겨찾기)",
   helpful: "추천순",
   views: "조회순",
@@ -94,13 +96,63 @@ export function FolderLibrary({
   children?: ReactNode;
 }) {
   const session = useSession();
-  const { materials, addMaterial, toggleFeatured, toggleMaterialHelpful, materialViews, logMaterialView, favorites } =
-    useStore();
+  const {
+    materials,
+    addMaterial,
+    toggleFeatured,
+    toggleMaterialHelpful,
+    materialViews,
+    logMaterialView,
+    favorites,
+    materialRatings,
+    materialValidViews,
+    rateMaterial,
+    logValidMaterialView,
+    toggleTribeEndorsement,
+  } = useStore();
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<MaterialSortKey>("recent");
   const [selected, setSelected] = useState<LibraryMaterial | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  /** 열람을 마치고 목록으로 돌아온 자료 — 1탭 별점 배너의 대상 (FB-04② · 닫기 가능) */
+  const [ratingFor, setRatingFor] = useState<LibraryMaterial | null>(null);
+
+  /**
+   * 유효 조회 (FB-04① — 조작 방지): 상세를 **30초 이상** 열어 둔 경우에만,
+   * 같은 사용자·자료는 하루 한 번만 쌓인다(판정은 store + 실연동 시 서버).
+   * 반복 새로고침·반복 출입으로는 인기 점수가 오르지 않는다.
+   */
+  useEffect(() => {
+    if (!selected) return;
+    const id = selected.id;
+    const t = setTimeout(() => logValidMaterialView(id, session.name), 30_000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, session.name]);
+
+  /** 자료별 별점 평균·건수 — 인기 점수와 상세 표기가 함께 쓴다 */
+  const ratingStats = useMemo(() => {
+    const map = new Map<string, { sum: number; n: number }>();
+    for (const r of materialRatings) {
+      const s = map.get(r.materialId) ?? { sum: 0, n: 0 };
+      s.sum += r.stars;
+      s.n += 1;
+      map.set(r.materialId, s);
+    }
+    return map;
+  }, [materialRatings]);
+
+  /** 최근 30일 유효 조회 수 — 인기 점수의 롤링 창 */
+  const validViews30d = useMemo(() => {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const map = new Map<string, number>();
+    for (const v of materialValidViews) {
+      if (v.date < cutoff) continue;
+      map.set(v.materialId, (map.get(v.materialId) ?? 0) + 1);
+    }
+    return map;
+  }, [materialValidViews]);
 
   /** 지금 화면이 교분기 폴더인가 — 2계층(표준본/지파 보충본) 표시·권한이 여기서 갈린다 */
   const inGyobungi = folder !== null && GYOBUNGI_FOLDERS.includes(folder);
@@ -165,7 +217,15 @@ export function FolderLibrary({
     const scopeRank = (m: LibraryMaterial) => (!m.scope || m.scope === "common" ? 0 : 1);
     const pin = (cmp: (a: LibraryMaterial, b: LibraryMaterial) => number) =>
       inGyobungi ? (a: LibraryMaterial, b: LibraryMaterial) => scopeRank(a) - scopeRank(b) || cmp(a, b) : cmp;
+    // 인기 교안 종합 점수 (FB-04 · Q-02 추천안) — 삭제 없음, 저조 자료는 그저 아래로 간다
+    const hotScore = (m: LibraryMaterial) => {
+      const stat = ratingStats.get(m.id);
+      const avg = stat && stat.n > 0 ? stat.sum / stat.n : 0;
+      return (validViews30d.get(m.id) ?? 0) * 1 + (favCount.get(m.id) ?? 0) * 3 + avg * 2;
+    };
     switch (sort) {
+      case "score":
+        return filtered.sort(pin((a, b) => hotScore(b) - hotScore(a) || recent(a, b)));
       case "popular":
         return filtered.sort(pin((a, b) => (favCount.get(b.id) ?? 0) - (favCount.get(a.id) ?? 0) || recent(a, b)));
       case "helpful":
@@ -179,7 +239,7 @@ export function FolderLibrary({
       default:
         return filtered.sort(pin(recent));
     }
-  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews]);
+  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, ratingStats, validViews30d]);
 
   /** 상세 열기 — 조회수는 **여는 행위에서만** 오른다 (목록 렌더에서 부르지 않는다) */
   function openDetail(m: LibraryMaterial) {
@@ -267,9 +327,42 @@ export function FolderLibrary({
         {!folder && <span>— 폴더는 왼쪽 메뉴에서 고릅니다</span>}
       </div>
 
+      {/* 열람 종료 별점 배너 (FB-04②) — 한 번 탭이면 끝나고, 닫을 수 있다 */}
+      {!selected && ratingFor && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-gold-500/50 bg-gold-100/50 px-3 py-2.5">
+          <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
+            방금 보신 <strong className="font-semibold">{ratingFor.title}</strong> — 도움이 됐다면 별점을 남겨 주세요
+          </span>
+          <StarPicker
+            value={materialRatings.find((r) => r.materialId === ratingFor.id && r.userName === session.name)?.stars ?? 0}
+            onPick={(stars) => {
+              rateMaterial(ratingFor.id, session.name, stars);
+              setRatingFor(null);
+            }}
+          />
+          <button
+            onClick={() => setRatingFor(null)}
+            aria-label="별점 배너 닫기"
+            className="shrink-0 rounded p-1 text-ink-soft hover:bg-gold-100"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {selected ? (
         <Card>
-          <button onClick={() => setSelected(null)} className="mb-3 text-[12px] font-semibold text-zion-700 hover:underline">
+          <button
+            onClick={() => {
+              /*
+                열람 종료 → 1탭 별점 배너 (FB-04② — 강제 팝업 금지, 닫기 가능).
+                뒤로가기를 막는 강제 UX는 이탈만 높이므로 목록 위 배너로만 띄운다.
+              */
+              setRatingFor(selected);
+              setSelected(null);
+            }}
+            className="mb-3 text-[12px] font-semibold text-zion-700 hover:underline"
+          >
             ← 목록으로
           </button>
           <div className="flex items-start justify-between gap-3">
@@ -291,7 +384,21 @@ export function FolderLibrary({
                 {" · "}
                 {selected.createdBy} ({ROLE_LABELS[selected.createdByRole]}) ·{" "}
                 {selected.createdAt.slice(0, 10)} · 조회 {materialViews[selected.id] ?? 0}
+                {(() => {
+                  const s = ratingStats.get(selected.id);
+                  return s && s.n > 0 ? (
+                    <>
+                      {" · "}★ {(s.sum / s.n).toFixed(1)} ({s.n}명)
+                    </>
+                  ) : null;
+                })()}
               </div>
+              {/* 지파 공유 승격 현황 (Q-02 — 우수 교안 2단의 1단). 총회 배지는 종전 isFeatured */}
+              {(selected.tribeEndorsements?.length ?? 0) > 0 && (
+                <div className="mt-1 text-[11px] font-semibold text-zion-700">
+                  {selected.tribeEndorsements!.join(" · ")} 지파가 공유 승격한 자료입니다
+                </div>
+              )}
             </div>
             {/* 추천 — 1인 1표 토글. 게시판 표의 추천순이 이 수를 본다 */}
             <button
@@ -314,6 +421,33 @@ export function FolderLibrary({
             >
               <ThumbsUp size={13} /> 추천 {(selected.helpfulBy ?? []).length}
             </button>
+            {/*
+              지파 공유 승격 (Q-02 추천안 1단) — 지파 신학부장이 「우리 지파가 공유할 만하다」고
+              올린다. 총회 신학부장의 최종 우수 배지와 별개의 축이다.
+            */}
+            {session.roleCode === "tribe_admin" && (
+              <button
+                onClick={() => {
+                  toggleTribeEndorsement(selected.id, session.tribe);
+                  const list = selected.tribeEndorsements ?? [];
+                  setSelected({
+                    ...selected,
+                    tribeEndorsements: list.includes(session.tribe)
+                      ? list.filter((t) => t !== session.tribe)
+                      : [...list, session.tribe],
+                  });
+                }}
+                aria-pressed={(selected.tribeEndorsements ?? []).includes(session.tribe)}
+                className={
+                  "flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition " +
+                  ((selected.tribeEndorsements ?? []).includes(session.tribe)
+                    ? "border-zion-500 bg-zion-50 text-zion-800"
+                    : "border-zion-200 text-zion-700 hover:bg-zion-50")
+                }
+              >
+                {(selected.tribeEndorsements ?? []).includes(session.tribe) ? "지파 공유 해제" : "지파 공유 승격"}
+              </button>
+            )}
             {featureAdmin && (
               <button
                 onClick={() => {
@@ -661,6 +795,30 @@ function MaterialForm({
         </form>
       </div>
     </Portal>
+  );
+}
+
+/**
+ * 별점 고르기 (FB-04②) — 별 다섯 개 한 줄, 한 번 탭이면 끝난다.
+ * 이미 준 별점이 있으면 채워서 보여 준다(사용자당 1건 upsert — 다시 누르면 갱신).
+ */
+function StarPicker({ value, onPick }: { value: number; onPick: (stars: number) => void }) {
+  return (
+    <span className="flex shrink-0 items-center gap-0.5" role="group" aria-label="별점 남기기">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          onClick={() => onPick(n)}
+          aria-label={`${n}점`}
+          className="rounded p-0.5 transition hover:scale-110"
+        >
+          <Star
+            size={16}
+            className={n <= value ? "fill-gold-500 text-gold-500" : "text-zion-300"}
+          />
+        </button>
+      ))}
+    </span>
   );
 }
 
