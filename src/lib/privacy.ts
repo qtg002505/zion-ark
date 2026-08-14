@@ -76,6 +76,25 @@ export function redactForAI(text: string): RedactResult {
 }
 
 /**
+ * 표시 최소화 (2026-08-14 피드백 FB-07-B① — 즉시 기술 조치).
+ *
+ * 상세 화면의 전화·주소는 **기본이 마스킹**이고, 눌러야 전체가 보인다(해제는 감사 로그에
+ * 남는다 — `store.logStudentAccess`). 「엄격해서 못 쓰는 시스템」이 되지 않게 해제는
+ * 1클릭이고 담당 범위 안에서는 마찰을 더 두지 않는다 (지시문 주의사항).
+ */
+
+/** 010-****-4420 — 국번만 가린다. 마지막 네 자리는 본인 확인 통화에 필요해 남긴다 */
+export function maskPhone(phone: string): string {
+  return phone.replace(/^(01[016-9])[-\s.]?\d{3,4}[-\s.]?(\d{4})$/, "$1-****-$2");
+}
+
+/** 시·구까지만 — 동·번지를 가린다 (선교센터 '구' 단위 표기와 같은 눈높이) */
+export function maskAddress(address: string): string {
+  const parts = address.trim().split(/\s+/);
+  return parts.length <= 2 ? address : `${parts.slice(0, 2).join(" ")} ***`;
+}
+
+/**
  * 동의 상태 — **백엔드가 붙기 전까지는 자리만 있다.**
  *
  * 동의를 어디에 어떻게 받아 둘지는 리드가 정할 몫이라(수강 신청서에 넣을지, 기수 단위로

@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type FormEvent } from "react";
+import { useEffect, useState, type ReactNode, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 // 화면 전환 효과가 조용히 빠지지 않게 여기서 가져온다 (CLAUDE.md 화면 규칙)
 import { Link } from "../components/TransitionLink";
@@ -33,6 +33,7 @@ import {
 import { attendanceStreak, readSignals } from "../lib/attendance-signals";
 import { gradeOf, GRADE_LABELS, SUGGESTIONS, growthScore, type Grade } from "../lib/student-grade";
 import { resolveSuggestionLinks } from "../lib/suggestion-links";
+import { maskAddress, maskPhone } from "../lib/privacy";
 import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
 import { PageHeader, Card } from "./common";
@@ -182,6 +183,7 @@ export function StudentDetailPage({
     checklistProgress,
     setChecklistItemScore,
     materials,
+    logStudentAccess,
   } = useStore();
   /**
    * 이 페이지는 원래 「보기 + 고치기」가 한 화면에 섞여 있었다. 2026-08-13 리드 지시로
@@ -195,6 +197,15 @@ export function StudentDetailPage({
   const { key } = useParams<{ key: string }>();
   const decodedKey = studentKey ?? (key ? decodeURIComponent(key) : "");
   const student = STUDENTS.find((s) => s.key === decodedKey);
+
+  /**
+   * 접근 감사 로그 (2026-08-14 FB-07-B②) — 누가·누구를·언제 열었는지 남긴다.
+   * 훅이라 이른 반환보다 먼저 선언한다. 실연동 시 서버가 기록하는 것이 정본이다.
+   */
+  useEffect(() => {
+    if (student) logStudentAccess(session.name, session.roleCode, student.key, "view");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.key]);
 
   if (!student) {
     return (
@@ -460,8 +471,22 @@ export function StudentDetailPage({
               <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
                 <SummaryRow label="이름" value={`${student.name} ${p.gender}(${age}세)`} />
                 <SummaryRow label="생년월일" value={`${birthDate} (${birthCalendarOf(birthDate)})`} />
-                <SummaryRow label="전화" value={phone} />
-                <SummaryRow label="주소" value={address} />
+                {/*
+                  전화·주소는 기본 마스킹 (2026-08-14 FB-07-B①) — 한 번 누르면 전체가 보이고
+                  해제가 감사 로그에 남는다. 담당 범위 안 마찰을 늘리지 않는 선(1클릭)이다.
+                */}
+                <MaskedRow
+                  label="전화"
+                  masked={maskPhone(phone)}
+                  full={phone}
+                  onReveal={() => logStudentAccess(session.name, session.roleCode, student.key, "reveal_phone")}
+                />
+                <MaskedRow
+                  label="주소"
+                  masked={maskAddress(address)}
+                  full={address}
+                  onReveal={() => logStudentAccess(session.name, session.roleCode, student.key, "reveal_address")}
+                />
               </dl>
             ) : (
               /*
@@ -1201,6 +1226,44 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     <div className="min-w-0">
       <dt className="text-[11px] text-ink-soft">{label}</dt>
       <dd className="mt-0.5 font-semibold text-zion-700">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * 마스킹 행 (2026-08-14 FB-07-B①) — 기본은 가린 값, 누르면 전체가 보인다.
+ * 해제 순간 감사 로그가 남는다(`onReveal`). 다시 누르면 도로 가려진다 — 화면을 같이
+ * 보는 자리에서 계속 노출되지 않게 한다. 해제는 1클릭 — 마찰을 더 두지 않는다.
+ */
+function MaskedRow({
+  label,
+  masked,
+  full,
+  onReveal,
+}: {
+  label: string;
+  masked: string;
+  full: string;
+  onReveal: () => void;
+}) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] text-ink-soft">{label}</dt>
+      <dd className="mt-0.5 font-semibold text-zion-700">
+        <button
+          type="button"
+          onClick={() => {
+            if (!shown) onReveal();
+            setShown(!shown);
+          }}
+          title={shown ? "다시 가리기" : "전체 보기 — 열람 기록이 남습니다"}
+          aria-pressed={shown}
+          className="rounded text-left hover:bg-zion-50"
+        >
+          {shown ? full : masked}
+        </button>
+      </dd>
     </div>
   );
 }

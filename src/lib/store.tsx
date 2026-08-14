@@ -66,6 +66,9 @@ const BOARD_REPLY_KEY = "zion_ark_board_replies";
 /** 인기 교안 인프라 (2026-08-14 FB-04) — 별점·유효 조회. 실연동 시 D1로 교체 */
 const RATING_KEY = "zion_ark_material_ratings";
 const VALID_VIEW_KEY = "zion_ark_material_valid_views";
+/** 수강생 상세 접근 감사 로그 (2026-08-14 FB-07-B②) — 누가·누구를·언제. 실연동 시 D1 */
+const STUDENT_ACCESS_KEY = "zion_ark_student_access_logs";
+const STUDENT_ACCESS_LIMIT = 500;
 /** 열람 기록 보관 한도 — 기간 정책이 정해지기 전까지 건수로만 막는다 */
 const ACTIVITY_LIMIT = 200;
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
@@ -461,6 +464,13 @@ interface StoreValue {
   logValidMaterialView: (materialId: string, userName: string) => void;
   /** 지파 공유 승격 토글 (Q-02 — 우수 교안 2단의 1단) — 지파 신학부장이 자기 지파 이름으로 */
   toggleTribeEndorsement: (materialId: string, tribe: string) => void;
+  /**
+   * 수강생 상세 접근 감사 로그 (2026-08-14 FB-07-B②) — 누가·누구를·언제·무엇을.
+   * view = 상세 열람, reveal = 마스킹(전화·주소) 해제. 실연동 시 서버가 기록한다 —
+   * 클라이언트 기록은 시범이고, 서버 기록이 정본이다.
+   */
+  studentAccessLogs: { by: string; byRole: RoleCode; studentKey: string; action: string; at: string }[];
+  logStudentAccess: (by: string, byRole: RoleCode, studentKey: string, action: string) => void;
   addEntry: (input: {
     kind: WorkspaceKind;
     title: string;
@@ -726,6 +736,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [materialValidViews, setMaterialValidViews] = useState<MaterialValidView[]>(() =>
     loadPlain<MaterialValidView>(VALID_VIEW_KEY),
   );
+  const [studentAccessLogs, setStudentAccessLogs] = useState<
+    { by: string; byRole: RoleCode; studentKey: string; action: string; at: string }[]
+  >(() => loadPlain(STUDENT_ACCESS_KEY));
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() =>
     loadPlain<ActivityLog>(ACTIVITY_KEY),
   );
@@ -872,6 +885,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       boardReplies,
       materialRatings,
       materialValidViews,
+      studentAccessLogs,
       favorites,
       activityLogs,
       studentStatusOverrides,
@@ -1060,6 +1074,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const next = [...materialValidViews, { materialId, userName, date, viewedAt: nowIso() }];
         localStorage.setItem(VALID_VIEW_KEY, JSON.stringify(next));
         setMaterialValidViews(next);
+      },
+      logStudentAccess: (by, byRole, studentKey, action) => {
+        const next = [{ by, byRole, studentKey, action, at: nowIso() }, ...studentAccessLogs].slice(
+          0,
+          STUDENT_ACCESS_LIMIT,
+        );
+        localStorage.setItem(STUDENT_ACCESS_KEY, JSON.stringify(next));
+        setStudentAccessLogs(next);
       },
       toggleTribeEndorsement: (materialId, tribe) => {
         persistMaterials(
@@ -1378,6 +1400,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       boardReplies,
       materialRatings,
       materialValidViews,
+      studentAccessLogs,
       favorites,
       activityLogs,
       studentStatusOverrides,
