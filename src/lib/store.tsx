@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
   ActivityLog,
+  BoardPost,
+  BoardReply,
   PersonalEvent,
   CounselCase,
   CounselingTip,
@@ -56,6 +58,9 @@ const REACTION_KEY = "zion_ark_student_reactions";
 const FAVORITE_KEY = "zion_ark_favorites";
 const PERSONAL_KEY = "zion_ark_personal_events";
 const ACTIVITY_KEY = "zion_ark_activity_logs";
+/** 건의·의견 게시판 (2026-08-14 FB-09) — 실연동 시 D1 board_posts/board_replies로 교체 */
+const BOARD_POST_KEY = "zion_ark_board_posts";
+const BOARD_REPLY_KEY = "zion_ark_board_replies";
 /** 열람 기록 보관 한도 — 기간 정책이 정해지기 전까지 건수로만 막는다 */
 const ACTIVITY_LIMIT = 200;
 const TIP_REPORT_KEY = "zion_ark_tip_reports";
@@ -496,6 +501,20 @@ interface StoreValue {
   personalEvents: PersonalEvent[];
   addPersonalEvent: (input: { userName: string; date: string; time: string; title: string }) => void;
   deletePersonalEvent: (id: string) => void;
+  /**
+   * 건의·의견 게시판 (2026-08-14 FB-09) — 저장만 한다. 비밀글 열람 판정은
+   * `permissions.ts`의 `canReadSecretPost`가 하고, 실연동 시 서버가 응답에서 거른다.
+   */
+  boardPosts: BoardPost[];
+  boardReplies: BoardReply[];
+  addBoardPost: (input: {
+    title: string;
+    body: string;
+    isSecret: boolean;
+    createdBy: string;
+    createdByRole: RoleCode;
+  }) => void;
+  addBoardReply: (input: { postId: string; body: string; createdBy: string; createdByRole: RoleCode }) => void;
   /* 마이페이지 — 즐겨찾기·열람 기록 (지시문 §4-2) */
   favorites: Favorite[];
   activityLogs: ActivityLog[];
@@ -680,6 +699,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [personalEvents, setPersonalEvents] = useState<PersonalEvent[]>(() =>
     load(PERSONAL_KEY, []),
   );
+  const [boardPosts, setBoardPosts] = useState<BoardPost[]>(() => loadPlain<BoardPost>(BOARD_POST_KEY));
+  const [boardReplies, setBoardReplies] = useState<BoardReply[]>(() =>
+    loadPlain<BoardReply>(BOARD_REPLY_KEY),
+  );
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() =>
     loadPlain<ActivityLog>(ACTIVITY_KEY),
   );
@@ -822,6 +845,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       lessonResources,
       studentReactions,
       personalEvents,
+      boardPosts,
+      boardReplies,
       favorites,
       activityLogs,
       studentStatusOverrides,
@@ -991,6 +1016,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       deletePersonalEvent: (id) => {
         persistPersonal(personalEvents.filter((e) => e.id !== id));
+      },
+      addBoardPost: (input) => {
+        const next = [{ id: uid(), ...input, createdAt: nowIso() }, ...boardPosts];
+        localStorage.setItem(BOARD_POST_KEY, JSON.stringify(next));
+        setBoardPosts(next);
+      },
+      addBoardReply: (input) => {
+        const next = [...boardReplies, { id: uid(), ...input, createdAt: nowIso() }];
+        localStorage.setItem(BOARD_REPLY_KEY, JSON.stringify(next));
+        setBoardReplies(next);
       },
       toggleFavorite: (userName, targetType, targetId) => {
         const has = favorites.some(
@@ -1282,6 +1317,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       studentReactions,
       personalEvents,
       persistPersonal,
+      boardPosts,
+      boardReplies,
       favorites,
       activityLogs,
       studentStatusOverrides,

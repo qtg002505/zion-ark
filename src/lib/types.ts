@@ -236,6 +236,38 @@ export interface WorkspaceEntry {
 }
 
 /**
+ * 건의·의견 게시판 (2026-08-14 피드백 FB-09 — 신설).
+ *
+ * 실무자(강사·전도사)가 총회 신학부장·개발자에게 건의·감사를 남기는 창구다 —
+ * 「마음의 편지」가 아니라 **플랫폼에 대한 의견**(쿠팡 후기 같은 것)이다.
+ *
+ * - 작성: 로그인 사명자 전체. 공개글/비밀글 선택
+ * - 공개글: 로그인 전체 열람 · **비밀글: 작성자 본인 + 수신 역할(총회 신학부장)만**
+ *   판정은 `permissions.ts`의 `canReadSecretPost` — 실연동 시 **서버가 세션의
+ *   memberships/role을 대조해 응답에서 거른다.** 클라이언트 필터는 편의일 뿐이다
+ * - 답글: 수신 역할의 1단 답글만 (답글에 답글 없음)
+ * - 실연동 시 D1 `board_posts` / `board_replies` 테이블 신설 — 마이그레이션 전방 추가
+ */
+export interface BoardPost {
+  id: string;
+  title: string;
+  body: string;
+  isSecret: boolean;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+}
+
+export interface BoardReply {
+  id: string;
+  postId: string;
+  body: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+}
+
+/**
  * 강의 후 현장 기록 — 원 저장소 `content_library_notes` 계약에 맞춘 구조.
  * 교리 원문(교안)은 그대로 두고, 실제 강의에서 겪은 것만 옆에 붙인다.
  * 다음에 같은 강을 맡는 강사가 앞사람의 경험을 먼저 보게 하는 것이 목적이다.

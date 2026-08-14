@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 // 화면 전환 효과가 조용히 빠지지 않게 여기서 가져온다 (CLAUDE.md 화면 규칙)
 import { Link } from "../components/TransitionLink";
 import { Portal } from "../components/Portal";
-import { ArrowLeft, Sparkles, StickyNote, PencilLine, Check, X, Search, Camera } from "lucide-react";
+import { ArrowLeft, BookOpen, Sparkles, StickyNote, PencilLine, Check, X, Search, Camera } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, canEditCohortRecord } from "../lib/permissions";
@@ -32,6 +32,7 @@ import {
 } from "../content/student-profiles";
 import { attendanceStreak, readSignals } from "../lib/attendance-signals";
 import { gradeOf, GRADE_LABELS, SUGGESTIONS, growthScore, type Grade } from "../lib/student-grade";
+import { resolveSuggestionLinks } from "../lib/suggestion-links";
 import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
 import { PageHeader, Card } from "./common";
@@ -180,6 +181,7 @@ export function StudentDetailPage({
     deleteStudentFeedback,
     checklistProgress,
     setChecklistItemScore,
+    materials,
   } = useStore();
   /**
    * 이 페이지는 원래 「보기 + 고치기」가 한 화면에 섞여 있었다. 2026-08-13 리드 지시로
@@ -229,6 +231,8 @@ export function StudentDetailPage({
   const enrollmentStatus = override?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT;
   const yuwol = override?.faithType ?? (p.faithType === "비오픈" ? "비오픈" : "오픈");
   const faithStatus = override?.faithStatus ?? p.faithStatus;
+  /** AI 추천 액션 → 자료 딥링크 (2026-08-14 FB-08) — 규칙 기반, 존재하는 자료만 잇는다 */
+  const suggestionLinks = resolveSuggestionLinks(SUGGESTIONS[grade], materials);
   const note = override?.note ?? p.note;
   // 이력 목록 — 지금 값은 안 넣는다(위에 이미 보이므로). "최초"(씨앗 값)를 맨 끝에 덧붙인다:
   // override가 처음 생길 때는 store가 씨앗을 몰라 이력에 못 넣으므로 여기서 항상 붙여 준다
@@ -1084,10 +1088,30 @@ export function StudentDetailPage({
 
           <div className="rounded-lg border border-zion-100 p-3">
             <div className="mb-1.5 text-[12px] font-semibold text-zion-800">추천 액션</div>
-            <ul className="space-y-1 text-[11.5px] leading-relaxed text-ink">
-              {SUGGESTIONS[grade].map((sug) => (
-                <li key={sug} className="flex gap-1">
-                  <span className="text-zion-600">·</span> {sug}
+            {/*
+              2026-08-14 FB-08 — 추천이 글로 끝나지 않고 **맞는 보강 교안·교재로 바로 이어진다.**
+              연결은 규칙 기반이고(`lib/suggestion-links.ts`) 존재하는 자료만 잇는다 —
+              AI가 링크를 지어내지 않으며, 맞는 자료가 없으면 「연결 자료 없음」으로 비운다.
+            */}
+            <ul className="space-y-1.5 text-[11.5px] leading-relaxed text-ink">
+              {suggestionLinks.map(({ suggestion, link }) => (
+                <li key={suggestion}>
+                  <span className="flex gap-1">
+                    <span className="text-zion-600">·</span> {suggestion}
+                  </span>
+                  {link.material && link.href ? (
+                    <Link
+                      viewTransition
+                      to={link.href}
+                      className="ml-3 mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-zion-700 hover:underline"
+                      title={link.material.title}
+                    >
+                      <BookOpen size={11} className="shrink-0" />
+                      <span className="truncate">{link.material.title}</span>
+                    </Link>
+                  ) : (
+                    <span className="ml-3 mt-0.5 block text-[10.5px] text-ink-soft">연결 자료 없음</span>
+                  )}
                 </li>
               ))}
             </ul>

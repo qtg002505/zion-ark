@@ -39,6 +39,7 @@ import {
   ClipboardList,
   RefreshCw,
   MapPin,
+  MessageSquarePlus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -388,6 +389,13 @@ const NAV_GROUPS: NavGroup[] = [
    * 2026-08-14 FB-10 — **지파 신학부장 이상만** 본다. 역할 목록은 permissions.ts가 정본.
    */
   { label: "12지파 선교센터", icon: MapPin, to: "/centers", restrictTo: MISSION_CENTER_VIEW_ROLES },
+
+  /**
+   * 건의·의견 게시판 (2026-08-14 피드백 FB-09 — 신설).
+   * 실무자가 총회 신학부장·개발자에게 남기는 플랫폼 의견 창구다. 기존 순서는 안 건드리고
+   * 맨 뒤에 붙였다 — 12지파 선교센터를 더할 때와 같은 원칙이다.
+   */
+  { label: "건의 · 의견", icon: MessageSquarePlus, to: "/board" },
 ];
 
 /** 대주제가 품은 모든 항목 (직속 + 하위 묶음) */

@@ -50,6 +50,7 @@ export function Library() {
       onSelectFolder={(next) => setParams(next ? { folder: next } : {})}
       scopeAll
       categoryFilter={category}
+      openId={params.get("open")}
       emptyNote={
         isArchive
           ? "아직 올라온 파일이 없습니다. 원본이 등록되면 여기서 내려받습니다."

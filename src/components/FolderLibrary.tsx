@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Download, ExternalLink, FolderOpen, Plus, Search, Star, ThumbsUp, X } from "lucide-react";
 import { Portal } from "./Portal";
 import { useSession } from "../lib/auth";
@@ -57,6 +57,7 @@ export function FolderLibrary({
   scopeAll = false,
   categoryFilter = null,
   levelFilter = null,
+  openId = null,
   emptyNote,
   children,
 }: {
@@ -82,6 +83,11 @@ export function FolderLibrary({
    * 어느 단계에서도 안 보여 영영 못 찾는다.
    */
   levelFilter?: MaterialLevel | null;
+  /**
+   * 딥링크로 바로 열 자료 id (2026-08-14 FB-08 — AI 추천 액션의 자료 연결).
+   * `?open=<id>`를 화면(자료실·강의 도우미)이 읽어 넘긴다. 마운트 때 한 번만 연다.
+   */
+  openId?: string | null;
   /** 자료가 없을 때 덧붙일 안내 (폴더 성격에 따라 다르다) */
   emptyNote?: string;
   /** 목록 위에 끼울 화면별 안내 */
@@ -175,11 +181,27 @@ export function FolderLibrary({
     }
   }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews]);
 
-  /** 상세 열기 — 조회수는 **이 클릭에서만** 오른다 (렌더·effect에서 부르지 않는다) */
+  /** 상세 열기 — 조회수는 **여는 행위에서만** 오른다 (목록 렌더에서 부르지 않는다) */
   function openDetail(m: LibraryMaterial) {
     logMaterialView(m.id);
     setSelected(m);
   }
+
+  /**
+   * 딥링크 열기 (FB-08) — `?open=<id>`로 들어오면 그 자료 상세를 바로 연다.
+   * 한 번만 연다(ref) — 뒤로 갔다가 목록을 쓰는 것을 막지 않기 위해서다.
+   * 조회수도 오른다 — 딥링크로 여는 것 역시 「상세를 여는 행위」다.
+   */
+  const openedByLink = useRef(false);
+  useEffect(() => {
+    if (openedByLink.current || !openId) return;
+    const m = materials.find((x) => x.id === openId);
+    if (m && scopeVisible(m)) {
+      openedByLink.current = true;
+      openDetail(m);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, materials]);
 
   return (
     <div>

@@ -17,6 +17,7 @@ import { TeachingLibrary } from "./pages/TeachingLibrary";
 import { TendencyAnalysis } from "./pages/TendencyAnalysis";
 import { SeriesReader } from "./pages/SeriesReader";
 import { Notices } from "./pages/Notices";
+import { Board } from "./pages/Board";
 import { Quotes } from "./pages/Quotes";
 import { Lessons } from "./pages/Lessons";
 import { Enneagram } from "./pages/Enneagram";
@@ -79,6 +80,8 @@ function Routed() {
         <Route path="/series/:seriesId" element={<SeriesReader />} />
         <Route path="/notices" element={<Notices />} />
         <Route path="/quotes" element={<Quotes />} />
+        {/* 건의·의견 게시판 (2026-08-14 FB-09) — 작성은 로그인 전체, 비밀글 열람은 화면·서버가 거른다 */}
+        <Route path="/board" element={<Board />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/enneagram" element={<Enneagram />} />
         <Route path="/my" element={<MyPage />} />

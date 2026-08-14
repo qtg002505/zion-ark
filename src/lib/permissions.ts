@@ -1,4 +1,4 @@
-import type { CounselingTip, RoleCode, Session, WorkspaceKind } from "./types";
+import type { BoardPost, CounselingTip, RoleCode, Session, WorkspaceKind } from "./types";
 
 /**
  * 권한 판정 — 옵시디언 금고 「권한-결정사항」 확정값 (2026-08-05 리드).
@@ -129,6 +129,27 @@ export function canEditCounselingTip(s: Session, tip: CounselingTip): boolean {
  */
 export function canModerateCounselingTips(s: Session): boolean {
   return s.roleCode === "content_admin" || s.roleCode === "headquarters_admin";
+}
+
+/**
+ * 건의·의견 게시판 — 비밀글 열람 (2026-08-14 피드백 FB-09).
+ *
+ * **작성자 본인 + 수신 역할(총회 신학부장)만** 본다. 지시문의 수신자 「개발자」는
+ * 역할 코드가 아직 없다 — 데이터 계약(역할 코드)은 임의로 늘리지 않으므로(CLAUDE.md),
+ * 실연동에서 developer 역할이 생기면 여기 한 줄을 더한다.
+ * 시범 로그인은 이름이 곧 계정이라 이름+역할로 대조한다(상담법 수정 권한과 같은 방식).
+ * ⚠️ **실연동 시 서버가 응답에서 거른다** — 이 함수는 UI 편의이고, 타인 비밀글 API
+ * 직접 호출은 403이어야 한다 (지시문 핵심 테스트).
+ */
+export function canReadSecretPost(s: Session, post: BoardPost): boolean {
+  if (!post.isSecret) return true;
+  if (s.roleCode === "headquarters_admin") return true;
+  return post.createdBy === s.name && post.createdByRole === s.roleCode;
+}
+
+/** 게시판 답글 — 수신 역할(총회 신학부장)의 1단 답글만 */
+export function canReplyBoard(s: Session): boolean {
+  return s.roleCode === "headquarters_admin";
 }
 
 /**

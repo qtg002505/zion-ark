@@ -60,6 +60,7 @@ export function TeachingLibrary() {
       onSelectFolder={(next) => setParams(next ? { folder: next } : {})}
       categoryFilter={featuredOnly ? "excellent_plan" : null}
       levelFilter={featuredOnly ? level : null}
+      openId={params.get("open")}
       emptyNote={
         inGyobungi
           ? "등록된 교분기 자료가 없습니다. 표준본은 콘텐츠 관리자·총회 신학부장이, 지파 보충본은 지파 신학부장이 올립니다."
