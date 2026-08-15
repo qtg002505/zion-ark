@@ -53,9 +53,10 @@ export function lessonOfSession(sessionNo: number): { lessonNo: number; title: s
 /**
  * 주차 번호(1부터) → 그 주의 회차들.
  *
- * ⚠️ **요일은 주차마다 다를 수 있다** (2026-08-14 리드 지시 — 6개월차 이후 월→일/수로
- * 바뀐다). 그래서 `periods`를 받아 그 주차의 요일을 그때그때 읽는다. 안 주면 기본
- * (월·화·목)이다. 회차 번호는 **앞 주차들의 실제 수업 수를 더해** 매긴다 —
+ * ⚠️ **요일은 주차마다 다를 수 있다** (2026-08-14 리드 지시 — 6개월차 이후 **월→일 ·
+ * 화→수**로 옮겨져 일·수·목이 된다. 2026-08-15 확정). 그래서 `periods`를 받아 그 주차의
+ * 요일을 그때그때 읽는다. 안 주면 기본(월·화·목)이다.
+ * 회차 번호는 **앞 주차들의 실제 수업 수를 더해** 매긴다 —
  * 주당 회차 수가 구간마다 달라질 수 있어 `주차×3`으로 계산하면 어긋난다.
  */
 export function sessionsOfWeek(weekNo: number, periods?: ClassWeekdayPeriodList): SessionInfo[] {

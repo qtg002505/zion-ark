@@ -15,9 +15,10 @@ import { PageHeader, Card } from "./common";
  * 「마음의 편지」가 아니라 쿠팡 후기 같은 것이다.
  *
  * - 작성: 로그인 사명자 전체. 공개글/비밀글 선택
- * - 비밀글 열람: **작성자 본인 + 총회 신학부장만** (`canReadSecretPost`).
+ * - 비밀글 열람: **작성자 본인 + 총회 관리자 + 작성자와 같은 지파의 신학부장**
+ *   (2026-08-15 리드 확정 — 종전 「총회 신학부장만」에서 넓혔다. `canReadSecretPost`).
  *   목록에는 제목이 잠금 표시로 가려진 채 남는다 — 글이 있다는 사실은 보이되 내용은 안 보인다
- * - 답글: 총회 신학부장의 1단 답글만
+ * - 답글: 총회 신학부장의 1단 답글만 (열람 범위와 별개다 — 답은 총회가 한다)
  *
  * ⚠️ **비밀글 거름은 여기(클라이언트)만으로 끝나지 않는다** — 실연동 시 서버가 세션
  * 역할을 대조해 응답에서 거른다. 타인 비밀글 API 직접 호출은 403이다 (지시문 핵심 테스트).
@@ -47,7 +48,7 @@ export function Board() {
       <PageHeader
         crumb="건의 · 의견"
         title="건의 · 의견"
-        desc="플랫폼을 쓰다가 느낀 건의·불편·감사를 남기는 자리입니다. 비밀글은 작성자 본인과 총회 신학부장만 봅니다."
+        desc="플랫폼을 쓰다가 느낀 건의·불편·감사를 남기는 자리입니다. 비밀글은 작성자 본인과 총회 관리자, 해당 지파 신학부장만 봅니다."
         action={
           <button
             onClick={() => setFormOpen(true)}
@@ -69,7 +70,10 @@ export function Board() {
               <h2 className="text-[17px] font-bold text-zion-900">{opened.title}</h2>
               <div className="mt-1 text-[12px] text-ink-soft">
                 {opened.createdBy} ({ROLE_LABELS[opened.createdByRole]}) · {opened.createdAt.slice(0, 16).replace("T", " ")}
-                {opened.isSecret && " · 비밀글 — 작성자와 총회 신학부장만 봅니다"}
+                {opened.isSecret &&
+                  ` · 비밀글 — 작성자와 총회 관리자${
+                    opened.createdByTribe ? `, ${opened.createdByTribe} 신학부장` : ""
+                  }만 봅니다`}
               </div>
             </div>
           </div>
@@ -150,7 +154,13 @@ export function Board() {
         <PostForm
           onClose={() => setFormOpen(false)}
           onSubmit={(input) => {
-            addBoardPost({ ...input, createdBy: session.name, createdByRole: session.roleCode });
+            addBoardPost({
+              ...input,
+              createdBy: session.name,
+              createdByRole: session.roleCode,
+              // 지파 신학부장 열람 판정의 기준 — 글이 어느 지파에서 나왔는지 함께 남긴다
+              createdByTribe: session.tribe,
+            });
             setFormOpen(false);
           }}
         />
@@ -228,6 +238,7 @@ function PostForm({
   onClose: () => void;
   onSubmit: (input: { title: string; body: string; isSecret: boolean }) => void;
 }) {
+  const session = useSession();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [isSecret, setIsSecret] = useState(false);
@@ -305,7 +316,8 @@ function PostForm({
                 <Lock size={13} className="text-gold-700" /> 비밀글로 올리기
               </span>
               <span className="mt-0.5 block text-[11.5px] leading-relaxed text-ink-soft">
-                작성자 본인과 총회 신학부장만 볼 수 있습니다. 목록에는 「비밀글입니다」로만 보입니다.
+                작성자 본인과 총회 관리자, {session.tribe} 신학부장만 볼 수 있습니다. 다른 지파에는
+                목록에 「비밀글입니다」로만 보입니다.
               </span>
             </span>
           </label>

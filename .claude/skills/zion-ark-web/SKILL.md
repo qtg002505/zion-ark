@@ -293,7 +293,15 @@ JSON.stringify({
 })
 ```
 
-- 로그인은 `localStorage.setItem('zion_ark_session', …)`로 건너뛴다 (역할을 바꿔 볼 때도)
+- 로그인은 `localStorage.setItem('zion_ark_session', …)`로 건너뛴다 (역할을 바꿔 볼 때도).
+  ⚠️ **다 보고 나면 심어 둔 값을 지운다** — 세션·게시글·일정 수정을 그대로 두면 리드가
+  개발 서버를 열었을 때 가짜 이름과 가짜 일정이 남아 있다
+- ⚠️ **체크박스는 `form_input`으로 켜지지 않는다.** `.checked`만 바뀌고 React의 `onChange`가
+  안 불려 **상태는 꺼진 채로 저장된다** — 「비밀글로 올리기」를 켰는데 공개글로 저장돼
+  한참 앱을 의심했다(2026-08-15). 체크박스는 `computer{action:"left_click", ref}`로 **누른다**.
+  글자 입력(`input`·`textarea`)은 `form_input`으로 잘 들어간다
+- ⚠️ **클릭 직후 같은 호출에서 결과를 재지 않는다.** React가 아직 다시 그리기 전이라
+  「모달이 안 열렸다」로 읽힌다 — 재는 것은 **다음 호출**에서 한다
 - `read_page`/`get_page_text`는 결과가 크다 — **꼭 필요할 때만** 쓰고 `max_chars`를 줄인다
 - 저장 결과는 화면이 아니라 `localStorage`에서 확인하는 편이 확실하다
 

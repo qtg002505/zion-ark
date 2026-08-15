@@ -6,6 +6,8 @@ import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf, isFieldStaff, studentScopeLabel } from "../lib/permissions";
 import { STUDENTS, COHORT, DIVISIONS, SCHEDULE } from "../content/cohort-mock";
 import {
+  CLASS_WEEKDAYS,
+  LATE_CLASS_WEEKDAYS,
   WEEKDAY_NAMES,
   effectiveSchedule,
   newcomerEndOf,
@@ -217,8 +219,9 @@ export function Overview() {
         </div>
         {/*
           수업 요일 (2026-08-14 리드 지시) — **기수 도중에 바뀐다.**
-          개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는 일·수·목이 될 수 있어
-          「기수 하나 = 요일 하나」로는 못 담는다. 「N주차부터 이 요일」 구간으로 고친다.
+          개강~6개월차는 월·화·목, 6~8개월차는 **일·수·목**이다 (2026-08-15 리드 확정 —
+          월요일 수업이 일요일로, 화요일 수업이 수요일로 옮겨진다).
+          「기수 하나 = 요일 하나」로는 못 담으므로 「N주차부터 이 요일」 구간으로 고친다.
         */}
         <WeekdayPeriodsEditor
           periods={sched.weekdayPeriods}
@@ -440,11 +443,14 @@ export function Overview() {
 /**
  * 수업 요일 구간 편집기 (2026-08-14 리드 지시).
  *
- * 기수 도중에 수업 요일이 바뀐다 — 개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는
- * 일·수·목이 될 수 있다. 그래서 **「N주차부터 이 요일」 구간을 여러 개** 둔다.
+ * 기수 도중에 수업 요일이 바뀐다 — 개강~6개월차는 월·화·목, 6~8개월차는 **일·수·목**이다
+ * (2026-08-15 리드 확정: 월요일 수업이 일요일로, 화요일 수업이 수요일로 옮겨진다).
+ * 그래서 **「N주차부터 이 요일」 구간을 여러 개** 둔다. 두 조합은 프리셋 단추로 한 번에 넣고,
+ * 다른 조합이 필요하면 요일을 하나씩 눌러 만든다.
  *
  * - 첫 구간은 언제나 1주차부터다(그 앞이 빈칸이 되지 않게 `normalizeWeekdayPeriods`가 강제)
- * - 요일은 0=일 … 6=토라 정렬하면 「일·화·목」처럼 쓰는 순서가 저절로 맞는다
+ * - 요일은 0=일 … 6=토라 정렬하면 「일·수·목」처럼 쓰는 순서가 저절로 맞는다 —
+ *   일요일이 **그 주의 첫날**이라 표기 순서와 실제 수업 차례가 같다
  * - 저장은 「고침」을 눌러야 반영된다 — 요일을 하나씩 켤 때마다 저장하면 잠깐씩
  *   요일 0개인 상태가 저장돼 회차 계산이 흔들린다
  *
@@ -486,6 +492,11 @@ function WeekdayPeriodsEditor({
             },
       ),
     );
+  }
+
+  /** 프리셋 — 확정된 두 조합을 한 번에 넣는다. 요일 셋을 하나씩 누르는 수고를 던다 */
+  function setPreset(idx: number, days: number[]) {
+    setDraft((prev) => prev.map((p, i) => (i === idx ? { ...p, weekdays: [...days] } : p)));
   }
 
   function save() {
@@ -571,6 +582,21 @@ function WeekdayPeriodsEditor({
                     );
                   })}
                 </span>
+                {/* 확정된 두 조합 — 눌러서 한 번에 채운다 */}
+                <span className="flex flex-wrap gap-1">
+                  {[
+                    { label: "월·화·목", days: CLASS_WEEKDAYS },
+                    { label: "일·수·목", days: LATE_CLASS_WEEKDAYS },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => setPreset(idx, preset.days)}
+                      className="rounded-lg border border-zion-200 px-2 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </span>
                 {idx > 0 && (
                   <button
                     onClick={() => setDraft((prev) => prev.filter((_, i) => i !== idx))}
@@ -592,7 +618,8 @@ function WeekdayPeriodsEditor({
                 ...prev,
                 {
                   fromWeek: Math.min(lastWeek, (prev[prev.length - 1]?.fromWeek ?? 1) + 4),
-                  weekdays: [0, 2, 4],
+                  // 새 구간의 기본값은 6개월차 이후 확정 조합(일·수·목)이다
+                  weekdays: [...LATE_CLASS_WEEKDAYS],
                 },
               ])
             }
@@ -606,6 +633,9 @@ function WeekdayPeriodsEditor({
           <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
             ⚠️ 요일을 바꾸면 <strong>총 수업 횟수와 회차·진도 매핑이 따라 움직입니다.</strong>{" "}
             주차 번호와 주차 라벨은 그대로입니다 — 저장된 주차 기록이 끊어지지 않게 했습니다.
+            <br />
+            일요일은 <strong>그 주의 첫날</strong>로 셉니다 — 월요일 수업이 하루 앞당겨진 것이라
+            일·수·목 차례가 됩니다.
           </p>
 
           <div className="mt-2 flex justify-end gap-2">

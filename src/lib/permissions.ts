@@ -132,18 +132,34 @@ export function canModerateCounselingTips(s: Session): boolean {
 }
 
 /**
- * 건의·의견 게시판 — 비밀글 열람 (2026-08-14 피드백 FB-09).
+ * 건의·의견 게시판 — 비밀글 열람 (2026-08-14 피드백 FB-09 · 2026-08-15 범위 확대).
  *
- * **작성자 본인 + 수신 역할(총회 신학부장)만** 본다. 지시문의 수신자 「개발자」는
- * 역할 코드가 아직 없다 — 데이터 계약(역할 코드)은 임의로 늘리지 않으므로(CLAUDE.md),
- * 실연동에서 developer 역할이 생기면 여기 한 줄을 더한다.
+ * 보는 사람은 셋이다 — **작성자 본인 · 총회 관리자 · 작성자와 같은 지파의 지파 신학부장.**
+ * (2026-08-15 리드 확정: 종전 「총회 신학부장만」에서 넓혔다. 지파 단위 운영 글에
+ * 총회가 답할 때까지 그 지파가 손을 못 대던 것을 푼 것이다.)
+ *
+ * ⚠️ **지파 관리자는 「같은 지파」일 때만이다** — `tribe_admin`이라고 다 보이면 남의 지파
+ * 비밀글이 열린다. 작성자 지파(`createdByTribe`)가 **없는 옛 글은 닫는다**: 모호할 때
+ * 여는 쪽으로 기울면 비밀글의 뜻이 사라진다.
+ *
+ * 지시문의 수신자 「개발자」는 역할 코드가 아직 없다 — 데이터 계약(역할 코드)은 임의로
+ * 늘리지 않으므로(CLAUDE.md), 실연동에서 developer 역할이 생기면 아래 목록에 더한다.
  * 시범 로그인은 이름이 곧 계정이라 이름+역할로 대조한다(상담법 수정 권한과 같은 방식).
  * ⚠️ **실연동 시 서버가 응답에서 거른다** — 이 함수는 UI 편의이고, 타인 비밀글 API
- * 직접 호출은 403이어야 한다 (지시문 핵심 테스트).
+ * 직접 호출은 403이어야 한다 (지시문 핵심 테스트). **지파 대조도 서버가 다시 한다** —
+ * 세션의 지파를 브라우저에서 고칠 수 있기 때문이다(시범 로그인은 인증이 아니다).
  */
+export const SECRET_POST_READ_ROLES: RoleCode[] = ["headquarters_admin", "content_admin"];
+
 export function canReadSecretPost(s: Session, post: BoardPost): boolean {
   if (!post.isSecret) return true;
-  if (s.roleCode === "headquarters_admin") return true;
+  // 총회 관리자 — 전체를 본다
+  if (SECRET_POST_READ_ROLES.includes(s.roleCode)) return true;
+  // 해당 지파 신학부장 — 자기 지파 글만
+  if (s.roleCode === "tribe_admin" && post.createdByTribe != null && post.createdByTribe === s.tribe) {
+    return true;
+  }
+  // 작성자 본인
   return post.createdBy === s.name && post.createdByRole === s.roleCode;
 }
 

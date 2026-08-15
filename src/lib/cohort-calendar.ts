@@ -12,11 +12,19 @@ import type { ClassWeekdayPeriod, ScheduleOverride } from "./types";
  * 수업 요일 기본값 — 월·화·목 (2026-08-13 리드 확정: 8개월 · 월화목 수업).
  *
  * ⚠️ **이건 기본값일 뿐 고정이 아니다** (2026-08-14 리드 지시). 기수 도중에 요일이
- * 바뀐다 — 개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는 일·수·목이 될 수 있다.
+ * 바뀐다 — 개강~6개월차는 월·화·목, 6~8개월차는 **일·수·목**이다
+ * (2026-08-15 리드 확정: **월요일 수업이 일요일로, 화요일 수업이 수요일로 옮겨진다**).
  * 그래서 실제 요일은 `ClassWeekdayPeriod[]`(구간 목록)로 받고, 인자를 안 주면 이 값을
  * 쓴다. 요일을 읽는 곳은 전부 `weekdaysOfWeek()`를 거친다 — 상수를 직접 보지 않는다.
  */
 export const CLASS_WEEKDAYS = [1, 2, 4];
+
+/**
+ * 6~8개월차 요일 — 일·수·목 (2026-08-15 리드 확정).
+ * 화면의 「요일 고치기」가 한 번에 채우는 프리셋으로 쓴다. 저장값은 여전히 구간 목록이라
+ * 여기서 벗어난 조합도 손으로 고를 수 있다 — 이 상수는 편의일 뿐 규칙이 아니다.
+ */
+export const LATE_CLASS_WEEKDAYS = [0, 3, 4];
 
 /** 요일 이름 — `Date.getDay()` 순서 (0=일) */
 export const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
@@ -57,13 +65,17 @@ export function weekdaysOfWeek(weekNo: number, periods?: ClassWeekdayPeriod[]): 
 
 /**
  * 그 주 시작일(월요일)에서 요일 d까지의 날 수.
- * ⚠️ **일요일은 그 주의 끝(월+6)으로 친다** — ISO 주(월요일 시작)를 그대로 쓰기 때문이다.
- * 주차 번호·주차 라벨(목요일 기준)이 이 전제 위에 서 있어 바꾸면 저장된 기록이 끊어진다.
- * 「일화목」에서 일요일을 **화요일 앞**으로 보는 해석도 가능하다 — 그때는 그 일요일이
- * 앞 주차에 속하게 되므로, 리드 확인 후 이 함수 한 곳만 고친다.
+ *
+ * ⚠️ **일요일은 그 주의 첫날(월−1)이다** (2026-08-15 리드 확정 — 종전 「그 주의 끝(월+6)」을
+ * 이 규칙이 대체한다). 6개월차부터 **월요일 수업이 하루 앞당겨져 일요일이 되는** 것이므로,
+ * 그 일요일은 월요일 **앞**에 붙어 같은 주차에 속한다(일·수·목 차례).
+ * 주차 번호를 매기는 `weekNoOf`도 같은 규칙을 쓴다 — 두 곳이 어긋나면 회차가 밀린다.
+ *
+ * 주차 라벨(그 주 목요일 기준)은 이 변경에 영향받지 않는다 — 목요일 자리가 그대로여서
+ * 저장된 주차 기록(`zion_ark_week_notes`)의 조인이 끊어지지 않는다.
  */
 export function offsetInWeek(weekday: number): number {
-  return weekday === 0 ? 6 : weekday - 1;
+  return weekday === 0 ? -1 : weekday - 1;
 }
 
 function parse(ymd: string): Date {
@@ -104,9 +116,17 @@ export function countClassDays(start: string, end: string, periods?: ClassWeekda
   return n;
 }
 
-/** 개강일 기준 1부터 세는 주차. 개강 주가 1주차다 */
+/**
+ * 개강일 기준 1부터 세는 주차. 개강 주가 1주차다.
+ *
+ * ⚠️ **일요일은 하루 뒤(월요일)와 같은 주차로 센다** (2026-08-15 리드 확정 — `offsetInWeek`과
+ * 같은 규칙). 6개월차부터 월요일 수업이 일요일로 앞당겨지므로, 그 일요일이 앞 주차로 밀리면
+ * 「27주차부터 일·수·목」 구간의 첫 수업이 26주차(월·화·목)로 판정돼 회차에서 통째로 빠진다.
+ * 월~토는 종전과 같아 저장된 기록·주차 라벨(목요일 기준)은 그대로다.
+ */
 export function weekNoOf(start: string, ymd: string): number {
-  return Math.floor(diffDays(start, ymd) / 7) + 1;
+  const sundayShift = parse(ymd).getDay() === 0 ? 1 : 0;
+  return Math.floor((diffDays(start, ymd) + sundayShift) / 7) + 1;
 }
 
 /** N주차의 시작일(개강 요일 기준). 개강이 월요일이면 그 주 월요일이다 */
@@ -177,7 +197,7 @@ export function effectiveSchedule(
   };
 }
 
-/** 「1~26주 월·화·목 / 27주~ 일·화·목」처럼 사람이 읽는 한 줄 */
+/** 「1~26주 월·화·목 / 27주~ 일·수·목」처럼 사람이 읽는 한 줄 */
 export function weekdayPeriodsLabel(periods: ClassWeekdayPeriod[], lastWeek?: number): string {
   const list = normalizeWeekdayPeriods(periods);
   return list

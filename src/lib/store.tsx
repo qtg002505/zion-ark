@@ -535,6 +535,8 @@ interface StoreValue {
   /**
    * 건의·의견 게시판 (2026-08-14 FB-09) — 저장만 한다. 비밀글 열람 판정은
    * `permissions.ts`의 `canReadSecretPost`가 하고, 실연동 시 서버가 응답에서 거른다.
+   * ⚠️ `createdByTribe`는 **비밀글을 그 지파 신학부장이 보게 하는 기준**이다(2026-08-15) —
+   * 화면이 세션의 지파를 그대로 넘긴다. 옛 글에는 없어 옵션이다.
    */
   boardPosts: BoardPost[];
   boardReplies: BoardReply[];
@@ -544,6 +546,7 @@ interface StoreValue {
     isSecret: boolean;
     createdBy: string;
     createdByRole: RoleCode;
+    createdByTribe?: string;
   }) => void;
   addBoardReply: (input: { postId: string; body: string; createdBy: string; createdByRole: RoleCode }) => void;
   /* 마이페이지 — 즐겨찾기·열람 기록 (지시문 §4-2) */
