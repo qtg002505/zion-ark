@@ -22,9 +22,17 @@ export function canWriteGyobungiSupplement(s: Session): boolean {
   return s.roleCode === "tribe_admin";
 }
 
-/** 우수 교안 지정·해제: headquarters_admin만 (확정 결정 4) */
+/**
+ * 우수 교안 지정·해제: **지파 신학부장(`tribe_admin`)** (2026-08-15 리드 지시).
+ *
+ * ⚠️ **2026-08-05 확정값(「headquarters_admin만」)을 이 지시가 대체한다.** 승인 워크플로우가
+ * 없는 것은 그대로다 — 누르면 곧바로 지정된다.
+ * ⚠️ 이 변경으로 **「지파 공유 승격」(`tribeEndorsements`)과 주체가 겹친다** — 둘 다 지파
+ * 신학부장이 누른다. 하나로 합칠지는 리드 확인 대기이고, 그때까지 두 축을 그대로 둔다
+ * (합치는 것은 저장된 값이 걸린 일이라 임의로 하지 않는다 — 불변식 10).
+ */
 export function canToggleFeatured(s: Session): boolean {
-  return s.roleCode === "headquarters_admin";
+  return s.roleCode === "tribe_admin";
 }
 
 /** 공지·어록·영상 작성 권한 */

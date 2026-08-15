@@ -4,6 +4,7 @@ import { Link } from "../components/TransitionLink";
 import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
+import { keywordOf } from "../content/curriculum-mock";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
@@ -195,7 +196,17 @@ export function Lessons() {
                         : "text-ink hover:bg-zion-50")
                     }
                   >
-                    {l.lessonNo}강 — {l.title}
+                    {/*
+                      핵심단어를 앞세우고 원문 제목을 아래에 둔다 (2026-08-15 리드 지시 —
+                      「핵심단어로 표현」). 고등 목록이 계시록 장을 앞세우는 것과 같은 모양이다.
+                      ⚠️ 원문 제목은 지우지 않는다 — 자른 표기와 원문을 함께 보인다(불변식 5)
+                    */}
+                    <span className="block font-semibold">
+                      {l.lessonNo}강 — {keywordOf(l.title)}
+                    </span>
+                    {keywordOf(l.title) !== l.title && (
+                      <span className="block truncate opacity-70">{l.title}</span>
+                    )}
                   </button>
                 ))
               : highList.map((l) => (
@@ -226,7 +237,11 @@ export function Lessons() {
             {course === "elementary" ? (
               <>
                 <div className="text-[12px] font-semibold text-zion-700">{elCurrent.lessonNo}강</div>
-                <h2 className="mt-0.5 mb-4 text-[19px] font-bold text-zion-900">{elCurrent.title}</h2>
+                {/* 핵심단어가 제목, 원문 제목은 그 아래 그대로 (2026-08-15 리드 지시) */}
+                <h2 className="mt-0.5 text-[19px] font-bold text-zion-900">
+                  {keywordOf(elCurrent.title)}
+                </h2>
+                <p className="mb-4 mt-0.5 text-[12px] text-ink-soft">{elCurrent.title}</p>
                 <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
                 {/* 교안 바로 아래 그 강의 PPT·영상 — 원스톱 매칭 (2026-08-10) */}
                 <LessonResources lessonKey={`elementary-${elCurrent.lessonNo}`} />

@@ -173,6 +173,73 @@ export const MATERIAL_LEVELS: MaterialLevel[] = ["초등", "중등", "고등"];
  */
 export type MaterialScope = "common" | `tribe:${string}`;
 
+/**
+ * 특강 (2026-08-15 리드 지시) — 정규 수업 요일 밖에서 따로 여는 강의.
+ *
+ * 「주차마다 특강을 추가할 수 있게 · 다른 요일에도 · 출석도 자유롭게 추가」가 지시다.
+ * ⚠️ **출결 원본 시트에는 없는 것이라 사이트가 기록한다** — 불변식 3(출결 원본은 읽기 전용)에
+ * 걸리지 않는다. 정규 회차의 출결은 여전히 못 고친다.
+ * ⚠️ **출석률에는 기본으로 안 들어간다** (리드 지시 — 「특강은 포함되지 않고 메인강의만」).
+ * 화면의 「특강 포함」 필터를 켤 때만 센다.
+ * ⚠️ 수업날에 특강식 수업을 한 경우는 **특강이 아니라 정규**로 친다 (리드 지시) — 그 날은
+ * 정규 회차 칸에 그대로 체크하고 여기에 만들지 않는다.
+ */
+export interface SpecialSession {
+  id: string;
+  cohortKey: string;
+  /** 몇 주차에 붙는 특강인지 — 격자에서 그 주 칸 뒤에 놓인다 */
+  weekNo: number;
+  /** 실제 날짜 — 정규 수업 요일이 아니어도 된다 */
+  date: string;
+  title: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+}
+
+/** 특강 출결 — 정규와 **같은 어휘**(`AttendanceMark`)를 쓴다. 계약을 새로 만들지 않는다 */
+export interface SpecialAttendance {
+  sessionId: string;
+  studentKey: string;
+  mark: AttendanceMark;
+  markedBy: string;
+  markedAt: string;
+}
+
+/**
+ * 작성자 팔로우 (2026-08-15 리드 제안) — 「내가 원하는 강사님 교안들을 팔로우해서 보기」.
+ * 시범 로그인은 이름이 곧 계정이라 이름으로 잇는다. 실연동 시 `user_id`·`author_id`가 된다.
+ */
+export interface AuthorFollow {
+  /** 팔로우한 사람 */
+  userName: string;
+  /** 팔로우 대상 작성자 이름 */
+  author: string;
+  followedAt: string;
+}
+
+/**
+ * 좋아요 갈래 (2026-08-15 리드 지시) — 「인기 교안을 체크할 때 구체적으로 평가하도록」.
+ * 리드가 적어 준 세 가지 그대로다: 무신앙·무신론자에게 / 왜곡 씻기에 / 신앙 성장에.
+ * ⚠️ 표현이 다듬어질 수 있으므로 **라벨만 고치면 되게** 코드 값과 화면 문구를 갈라 둔다.
+ */
+export type MaterialLikeKind = "unbeliever" | "correction" | "growth";
+
+export const MATERIAL_LIKE_KINDS: MaterialLikeKind[] = ["unbeliever", "correction", "growth"];
+
+export const MATERIAL_LIKE_LABELS: Record<MaterialLikeKind, string> = {
+  unbeliever: "무신앙·무신론자에게 좋아요",
+  correction: "왜곡 씻기에 좋아요",
+  growth: "신앙 성장에 좋아요",
+};
+
+/** 목록·뱃지처럼 좁은 자리 표기 */
+export const MATERIAL_LIKE_SHORT: Record<MaterialLikeKind, string> = {
+  unbeliever: "무신앙",
+  correction: "왜곡씻기",
+  growth: "신앙성장",
+};
+
 export interface LibraryMaterial {
   id: string;
   category: LibraryCategory;
@@ -195,6 +262,19 @@ export interface LibraryMaterial {
    * 옛 저장분은 `migrateMaterials`가 빈 배열로 채운다.
    */
   helpfulBy?: string[];
+  /**
+   * **갈래별 좋아요** (2026-08-15 리드 지시 — 「인기교안 체크할 때 구체적으로 평가하도록」).
+   * 무신앙·무신론자에게 / 왜곡 씻기에 / 신앙 성장에 — 갈래마다 1인 1표이고 여러 갈래를 함께 고를 수 있다.
+   * ⚠️ **`helpfulBy`는 이 갈래들의 합집합으로 유지된다** — 게시판 표의 추천 열·추천순 정렬이
+   * 그 필드를 보고 있어서다. 갈래를 다 풀면 `helpfulBy`에서도 빠진다.
+   */
+  likesBy?: Partial<Record<MaterialLikeKind, string[]>>;
+  /**
+   * 이 자료를 연 계정들 (2026-08-15 리드 지시 — 「계정 1개당 조회수는 1번 증가」).
+   * 조회수(`materialViews`)는 이 목록에 없는 계정이 열 때만 오른다.
+   * ⚠️ 전방 추가 — 옛 자료는 목록이 없고, 그때까지 쌓인 조회수는 그대로 둔다.
+   */
+  viewedBy?: string[];
   /**
    * 어느 구획인지 (2026-08-06 추가 · **2026-08-13 폐지**).
    * 저장된 값을 지우지 않으려고 남겨 둔 자리다 — **읽는 곳이 없다.** `LibrarySection` 주석 참고.

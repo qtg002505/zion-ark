@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Download, ExternalLink, FolderOpen, Plus, Search, Star, ThumbsUp, X } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  Flame,
+  FolderOpen,
+  Plus,
+  Search,
+  Star,
+  ThumbsUp,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { Portal } from "./Portal";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
@@ -8,6 +19,8 @@ import {
   GYOBUNGI_FOLDERS,
   LIBRARY_CATEGORY_LABELS,
   MATERIAL_LEVELS,
+  MATERIAL_LIKE_KINDS,
+  MATERIAL_LIKE_LABELS,
   ROLE_LABELS,
   type LibraryCategory,
   type LibraryMaterial,
@@ -30,12 +43,25 @@ const CATEGORIES: LibraryCategory[] = ["standard_lecture", "class_material", "ex
 type MaterialSortKey = "recent" | "score" | "popular" | "helpful" | "views";
 const SORT_LABELS: Record<MaterialSortKey, string> = {
   recent: "최신순",
-  /** 2026-08-14 FB-04 · Q-02 추천안 — 최근 30일 롤링: 유효조회×1 + 즐겨찾기×3 + 별점평균×2 */
-  score: "인기 교안 (30일 종합)",
+  /** 2026-08-15 리드 확정 — **조회 대비 좋아요 비율**. 종전 30일 종합 점수를 대체한다 */
+  score: "인기 교안 (조회 대비 좋아요)",
   popular: "인기순 (즐겨찾기)",
   helpful: "추천순",
   views: "조회순",
 };
+
+/**
+ * 인기 교안 판정 (2026-08-15 리드 확정).
+ *
+ * 리드가 준 기준 그대로다 — ① 계정당 조회는 1회(`logMaterialView`가 막는다)
+ * ② **본 조회수 대비 좋아요를 누른 비율**로 줄 세운다.
+ *
+ * ⚠️ 최소 조회수를 두는 이유: 1명이 보고 1명이 좋아요를 누르면 비율 100%가 되어 맨 위로
+ * 올라간다. 표본이 너무 적은 자료는 비율을 믿을 수 없으므로 **인기 마크를 달지 않는다**
+ * (정렬에서는 여전히 비율로 견주되 동점 처리에서 조회 많은 쪽이 앞선다).
+ */
+const POPULAR_MIN_VIEWS = 5;
+const POPULAR_MIN_RATIO = 0.5;
 
 /**
  * 폴더 하나의 자료를 열고 등록하는 화면 — **자료실과 강의 도우미가 같은 부품을 쓴다.**
@@ -100,7 +126,11 @@ export function FolderLibrary({
     materials,
     addMaterial,
     toggleFeatured,
-    toggleMaterialHelpful,
+    /*
+      ⚠️ `toggleMaterialHelpful`(종전 「추천」 단추)은 **화면에서 안 쓴다** (2026-08-15) —
+      갈래별 좋아요가 그 자리를 대신하고, `helpfulBy`는 갈래들의 합집합으로 갱신된다.
+      store 액션은 남겨 둔다: 다른 화면이 쓸 수 있고 계약을 줄일 이유가 없다.
+    */
     materialViews,
     logMaterialView,
     favorites,
@@ -109,10 +139,21 @@ export function FolderLibrary({
     rateMaterial,
     logValidMaterialView,
     toggleTribeEndorsement,
+    toggleMaterialLike,
+    authorFollows,
+    toggleAuthorFollow,
   } = useStore();
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<MaterialSortKey>("recent");
+  /** 팔로우한 작성자 자료만 보기 (2026-08-15 리드 제안) */
+  const [followedOnly, setFollowedOnly] = useState(false);
+
+  /** 내가 팔로우한 작성자들 */
+  const myFollows = useMemo(
+    () => new Set(authorFollows.filter((f) => f.userName === session.name).map((f) => f.author)),
+    [authorFollows, session.name],
+  );
   const [selected, setSelected] = useState<LibraryMaterial | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   /** 열람을 마치고 목록으로 돌아온 자료 — 1탭 별점 배너의 대상 (FB-04② · 닫기 가능) */
@@ -143,16 +184,25 @@ export function FolderLibrary({
     return map;
   }, [materialRatings]);
 
-  /** 최근 30일 유효 조회 수 — 인기 점수의 롤링 창 */
-  const validViews30d = useMemo(() => {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const map = new Map<string, number>();
-    for (const v of materialValidViews) {
-      if (v.date < cutoff) continue;
-      map.set(v.materialId, (map.get(v.materialId) ?? 0) + 1);
-    }
-    return map;
-  }, [materialValidViews]);
+  /**
+   * 조회 대비 좋아요 비율 — 인기 교안의 정본 기준 (2026-08-15 리드 확정).
+   * 조회수가 0이면 0으로 친다(나눗셈이 아니라 판정이라 예외를 만들지 않는다).
+   */
+  const likeRatio = (m: LibraryMaterial) => {
+    const views = materialViews[m.id] ?? 0;
+    if (views === 0) return 0;
+    return (m.helpfulBy?.length ?? 0) / views;
+  };
+  /** 인기 마크를 달 자료인가 — 표본이 너무 적으면 비율을 믿지 않는다 */
+  const isPopular = (m: LibraryMaterial) =>
+    (materialViews[m.id] ?? 0) >= POPULAR_MIN_VIEWS && likeRatio(m) >= POPULAR_MIN_RATIO;
+
+  /*
+    ⚠️ 유효 조회(30초 체류·1일 1회, FB-04)는 **기록은 계속 남기되 인기 산정에서는 빠졌다**
+    (2026-08-15). 조회수 자체가 계정당 1회가 되면서 조작 방지 몫을 그쪽이 맡았기 때문이다.
+    저장된 값은 지우지 않는다(불변식 10) — 기준이 다시 바뀌면 꺼내 쓴다.
+  */
+  void materialValidViews;
 
   /** 지금 화면이 교분기 폴더인가 — 2계층(표준본/지파 보충본) 표시·권한이 여기서 갈린다 */
   const inGyobungi = folder !== null && GYOBUNGI_FOLDERS.includes(folder);
@@ -205,8 +255,19 @@ export function FolderLibrary({
       .filter(scopeVisible)
       // 단계 필터 (FB-05②) — 단계 없는 자료는 공통으로 쳐서 남긴다
       .filter((m) => !levelFilter || !m.level || m.level === levelFilter)
-      // 띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙)
-      .filter((m) => !q || looseIncludes(m.title, q) || looseIncludes(m.body, q));
+      // 팔로우한 작성자만 보기 (2026-08-15 리드 제안)
+      .filter((m) => !followedOnly || myFollows.has(m.createdBy))
+      /*
+        띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙).
+        **작성자도 찾는다** (2026-08-15 리드 지시 — 「작성자로도 검색해 볼 수 있게」).
+      */
+      .filter(
+        (m) =>
+          !q ||
+          looseIncludes(m.title, q) ||
+          looseIncludes(m.body, q) ||
+          looseIncludes(m.createdBy, q),
+      );
 
     // 동점은 전부 최신순 2차 키 — 정렬을 넣으면서 시드가 끝에 붙던 어정쩡한 순서도 사라진다
     const recent = (a: LibraryMaterial, b: LibraryMaterial) => b.createdAt.localeCompare(a.createdAt);
@@ -217,15 +278,21 @@ export function FolderLibrary({
     const scopeRank = (m: LibraryMaterial) => (!m.scope || m.scope === "common" ? 0 : 1);
     const pin = (cmp: (a: LibraryMaterial, b: LibraryMaterial) => number) =>
       inGyobungi ? (a: LibraryMaterial, b: LibraryMaterial) => scopeRank(a) - scopeRank(b) || cmp(a, b) : cmp;
-    // 인기 교안 종합 점수 (FB-04 · Q-02 추천안) — 삭제 없음, 저조 자료는 그저 아래로 간다
-    const hotScore = (m: LibraryMaterial) => {
-      const stat = ratingStats.get(m.id);
-      const avg = stat && stat.n > 0 ? stat.sum / stat.n : 0;
-      return (validViews30d.get(m.id) ?? 0) * 1 + (favCount.get(m.id) ?? 0) * 3 + avg * 2;
-    };
+    /*
+      인기 = **조회 대비 좋아요 비율** (2026-08-15 리드 확정 — 종전 30일 종합 점수를 대체한다).
+      조회수는 계정당 1회라 「많이 눌린 자료」가 아니라 「본 사람 중 몇 명이 좋아했나」가 된다.
+      동점이면 조회가 많은 쪽 → 최신 순이다. 삭제는 없다 — 저조 자료는 그저 아래로 간다.
+    */
     switch (sort) {
       case "score":
-        return filtered.sort(pin((a, b) => hotScore(b) - hotScore(a) || recent(a, b)));
+        return filtered.sort(
+          pin(
+            (a, b) =>
+              likeRatio(b) - likeRatio(a) ||
+              (materialViews[b.id] ?? 0) - (materialViews[a.id] ?? 0) ||
+              recent(a, b),
+          ),
+        );
       case "popular":
         return filtered.sort(pin((a, b) => (favCount.get(b.id) ?? 0) - (favCount.get(a.id) ?? 0) || recent(a, b)));
       case "helpful":
@@ -239,11 +306,15 @@ export function FolderLibrary({
       default:
         return filtered.sort(pin(recent));
     }
-  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, ratingStats, validViews30d]);
+  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, followedOnly, myFollows]);
 
-  /** 상세 열기 — 조회수는 **여는 행위에서만** 오른다 (목록 렌더에서 부르지 않는다) */
+  /**
+   * 상세 열기 — 조회수는 **여는 행위에서만** 오른다 (목록 렌더에서 부르지 않는다).
+   * ⚠️ **계정당 1회**다 (2026-08-15 리드 지시) — 같은 사람이 다시 열어도 안 오른다.
+   * 판정은 store가 하고, 실연동 시 서버가 다시 한다.
+   */
   function openDetail(m: LibraryMaterial) {
-    logMaterialView(m.id);
+    logMaterialView(m.id, session.name);
     setSelected(m);
   }
 
@@ -302,12 +373,27 @@ export function FolderLibrary({
             </option>
           ))}
         </select>
+        {/* 팔로우한 작성자만 (2026-08-15 리드 제안) — 팔로우가 하나도 없으면 안 보인다 */}
+        {myFollows.size > 0 && (
+          <button
+            onClick={() => setFollowedOnly((v) => !v)}
+            aria-pressed={followedOnly}
+            className={
+              "flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-2 text-[12px] font-semibold transition " +
+              (followedOnly
+                ? "border-zion-700 bg-zion-700 text-white"
+                : "border-zion-200 bg-white text-zion-700 hover:bg-zion-50")
+            }
+          >
+            <UserPlus size={13} /> 팔로우한 작성자 {myFollows.size}
+          </button>
+        )}
         <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
           <Search size={13} className="shrink-0 text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="제목·내용 검색"
+            placeholder="제목·내용·작성자 검색"
             aria-label="자료 검색"
             className="min-w-0 flex-1 bg-transparent text-[12px] outline-none"
           />
@@ -367,11 +453,20 @@ export function FolderLibrary({
           </button>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              {selected.isFeatured && (
-                <span className="flex w-fit items-center gap-1 rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-700">
-                  <Star size={11} className="fill-gold-500 text-gold-500" /> 우수 교안
-                </span>
-              )}
+              <span className="flex flex-wrap items-center gap-1">
+                {selected.isFeatured && (
+                  <span className="flex w-fit items-center gap-1 rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-700">
+                    <Star size={11} className="fill-gold-500 text-gold-500" /> 우수 교안
+                  </span>
+                )}
+                {/* 인기 마크 (2026-08-15 리드 지시) — 우수(지정)와 다른 축이라 모양도 가른다 */}
+                {isPopular(selected) && (
+                  <span className="flex w-fit items-center gap-1 rounded-full bg-zion-100 px-2 py-0.5 text-[11px] font-semibold text-zion-700">
+                    <Flame size={11} /> 인기 교안 · 본 사람의{" "}
+                    {Math.round(likeRatio(selected) * 100)}%가 좋아요
+                  </span>
+                )}
+              </span>
               <h2 className="mt-1 text-[17px] font-bold text-zion-900">{selected.title}</h2>
               <div className="mt-1 text-[12px] text-ink-soft">
                 {(selected.folderPath ?? []).join(" › ") || "폴더 없음"}
@@ -400,27 +495,25 @@ export function FolderLibrary({
                 </div>
               )}
             </div>
-            {/* 추천 — 1인 1표 토글. 게시판 표의 추천순이 이 수를 본다 */}
-            <button
-              onClick={() => {
-                toggleMaterialHelpful(selected.id, session.name);
-                const list = selected.helpfulBy ?? [];
-                const has = list.includes(session.name);
-                setSelected({
-                  ...selected,
-                  helpfulBy: has ? list.filter((n) => n !== session.name) : [...list, session.name],
-                });
-              }}
-              aria-pressed={(selected.helpfulBy ?? []).includes(session.name)}
-              className={
-                "flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition " +
-                ((selected.helpfulBy ?? []).includes(session.name)
-                  ? "border-gold-500 bg-gold-100 text-gold-700"
-                  : "border-zion-200 text-zion-700 hover:bg-zion-50")
-              }
-            >
-              <ThumbsUp size={13} /> 추천 {(selected.helpfulBy ?? []).length}
-            </button>
+            {/*
+              작성자 팔로우 (2026-08-15 리드 제안) — 목록 위 「팔로우한 작성자만」과 짝이다.
+              자기 글은 팔로우할 것이 없으니 안 보인다.
+            */}
+            {selected.createdBy !== session.name && (
+              <button
+                onClick={() => toggleAuthorFollow(session.name, selected.createdBy)}
+                aria-pressed={myFollows.has(selected.createdBy)}
+                className={
+                  "flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition " +
+                  (myFollows.has(selected.createdBy)
+                    ? "border-zion-700 bg-zion-700 text-white"
+                    : "border-zion-200 text-zion-700 hover:bg-zion-50")
+                }
+              >
+                <UserPlus size={13} />
+                {myFollows.has(selected.createdBy) ? "팔로우 중" : "작성자 팔로우"}
+              </button>
+            )}
             {/*
               지파 공유 승격 (Q-02 추천안 1단) — 지파 신학부장이 「우리 지파가 공유할 만하다」고
               올린다. 총회 신학부장의 최종 우수 배지와 별개의 축이다.
@@ -466,6 +559,49 @@ export function FolderLibrary({
               </button>
             )}
           </div>
+
+          {/*
+            **갈래별 좋아요** (2026-08-15 리드 지시 — 「인기교안 체크할 때 구체적으로 평가하도록」).
+            종전의 「추천」 단추 하나를 이 셋이 대신한다. 갈래마다 1인 1표이고 여럿 고를 수 있다.
+            ⚠️ 표의 추천 수(`helpfulBy`)는 **이 셋의 합집합**이라 어느 갈래든 누르면 함께 오른다.
+          */}
+          <div className="mt-4 rounded-xl bg-zion-50 px-3 py-2.5">
+            <div className="mb-2 text-[12px] text-ink-soft">
+              이 교안이 어디에 좋았는지 골라 주세요 — 여럿 골라도 됩니다.{" "}
+              <strong className="text-ink">인기 교안은 본 사람 중 좋아요 비율</strong>로 뽑습니다.
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {MATERIAL_LIKE_KINDS.map((kind) => {
+                const voters = selected.likesBy?.[kind] ?? [];
+                const on = voters.includes(session.name);
+                return (
+                  <button
+                    key={kind}
+                    onClick={() => {
+                      toggleMaterialLike(selected.id, session.name, kind);
+                      const likes = { ...(selected.likesBy ?? {}) };
+                      likes[kind] = on
+                        ? voters.filter((n) => n !== session.name)
+                        : [...voters, session.name];
+                      const union = new Set<string>();
+                      for (const k of MATERIAL_LIKE_KINDS) for (const n of likes[k] ?? []) union.add(n);
+                      setSelected({ ...selected, likesBy: likes, helpfulBy: [...union] });
+                    }}
+                    aria-pressed={on}
+                    className={
+                      "flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition " +
+                      (on
+                        ? "border-gold-500 bg-gold-100 text-gold-700"
+                        : "border-zion-200 bg-white text-zion-700 hover:bg-zion-50")
+                    }
+                  >
+                    <ThumbsUp size={12} /> {MATERIAL_LIKE_LABELS[kind]} {voters.length}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* 세부 설명(본문) · PPT · 영상이 한 화면에 이어진다 (2026-08-10 리드 지시) */}
           <div className="mt-4 whitespace-pre-wrap border-t border-zion-100 pt-4 text-[14px] leading-relaxed text-ink">
             {selected.body}
@@ -523,6 +659,15 @@ export function FolderLibrary({
                     <td className="max-w-0 py-2.5 pr-2">
                       <span className="flex items-center gap-1.5">
                         {m.isFeatured && <Star size={12} className="shrink-0 fill-gold-500 text-gold-500" />}
+                        {/* 인기 마크 (2026-08-15) — 본 사람 대비 좋아요 비율이 기준을 넘은 자료 */}
+                        {isPopular(m) && (
+                          <span
+                            className="flex shrink-0 items-center gap-0.5 rounded bg-zion-100 px-1 py-0.5 text-[10px] font-bold text-zion-700"
+                            title={`본 사람의 ${Math.round(likeRatio(m) * 100)}%가 좋아요`}
+                          >
+                            <Flame size={10} /> 인기
+                          </span>
+                        )}
                         {/* 교분기 2계층 표시 — 표준본/지파 보충본이 한 목록에 섞이므로 갈라 보인다 (FB-06) */}
                         {inGyobungi && (
                           <span

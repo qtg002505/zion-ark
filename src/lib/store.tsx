@@ -1,9 +1,13 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
   ActivityLog,
+  AuthorFollow,
   BoardPost,
   BoardReply,
   ClassWeekdayPeriod,
+  MaterialLikeKind,
+  SpecialSession,
+  SpecialAttendance,
   PersonalEvent,
   CounselCase,
   CounselingTip,
@@ -80,6 +84,10 @@ const FEEDBACK_DELETED_KEY = "zion_ark_student_feedback_deleted";
 const CHECKLIST_KEY = "zion_ark_checklist_progress";
 const SCHEDULE_KEY = "zion_ark_schedule_overrides";
 const MATERIAL_VIEW_KEY = "zion_ark_material_views";
+/** 작성자 팔로우 · 특강 (2026-08-15 리드 지시) — 실연동 시 D1 테이블로 교체 */
+const AUTHOR_FOLLOW_KEY = "zion_ark_author_follows";
+const SPECIAL_SESSION_KEY = "zion_ark_special_sessions";
+const SPECIAL_ATTENDANCE_KEY = "zion_ark_special_attendance";
 
 function nowIso() {
   return new Date().toISOString();
@@ -450,9 +458,34 @@ interface StoreValue {
   toggleFeatured: (id: string) => void;
   /** 자료 추천 — 1인 1표 토글 (`toggleCaseHelpful`과 같은 계약, 2026-08-13) */
   toggleMaterialHelpful: (id: string, userName: string) => void;
-  /** 자료 조회수 — 게시판 표의 조회순 근거. 상세를 **여는 클릭에서만** 올린다 */
+  /**
+   * 갈래별 좋아요 (2026-08-15 리드 지시) — 무신앙·왜곡씻기·신앙성장.
+   * `helpfulBy`를 갈래들의 합집합으로 함께 갱신한다.
+   */
+  toggleMaterialLike: (id: string, userName: string, kind: MaterialLikeKind) => void;
+  /**
+   * 자료 조회수 — 게시판 표의 조회순·인기 산정 근거. 상세를 **여는 클릭에서만** 올린다.
+   * ⚠️ **계정당 1회**다 (2026-08-15 리드 지시) — 누가 봤는지는 자료의 `viewedBy`에 남는다.
+   */
   materialViews: Record<string, number>;
-  logMaterialView: (id: string) => void;
+  logMaterialView: (id: string, userName: string) => void;
+  /**
+   * 작성자 팔로우 (2026-08-15 리드 제안) — 「내가 원하는 강사님 교안들을 팔로우해서 보기」.
+   * 시범 로그인은 이름이 곧 계정이라 **이름으로** 잇는다. 실연동 시 user_id로 바뀐다.
+   */
+  authorFollows: AuthorFollow[];
+  toggleAuthorFollow: (userName: string, author: string) => void;
+  /**
+   * 특강 (2026-08-15 리드 지시) — 주차마다 아무 요일에나 더한다.
+   * ⚠️ 출결 원본이 아니라 **사이트 기록**이다(불변식 3에 걸리지 않는다).
+   * 권한 대조(해당 기수의 강사·전도사)는 화면이 먼저 한다.
+   */
+  specialSessions: SpecialSession[];
+  addSpecialSession: (input: Omit<SpecialSession, "id" | "createdAt">) => void;
+  deleteSpecialSession: (id: string) => void;
+  /** 특강 출결 — (특강, 수강생) 하나당 한 줄. 같은 칸을 다시 찍으면 갈아 끼운다 */
+  specialAttendance: SpecialAttendance[];
+  setSpecialAttendance: (input: Omit<SpecialAttendance, "markedAt">) => void;
   /* 인기 교안 인프라 (2026-08-14 FB-04 · Q-02 추천안) */
   materialRatings: MaterialRating[];
   /** 별점 — 사용자당 1건 upsert (1~5) */
@@ -778,6 +811,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [materialViews, setMaterialViews] = useState<Record<string, number>>(() =>
     loadRecord(MATERIAL_VIEW_KEY),
   );
+  const [authorFollows, setAuthorFollows] = useState<AuthorFollow[]>(() =>
+    loadPlain<AuthorFollow>(AUTHOR_FOLLOW_KEY),
+  );
+  const [specialSessions, setSpecialSessions] = useState<SpecialSession[]>(() =>
+    loadPlain<SpecialSession>(SPECIAL_SESSION_KEY),
+  );
+  // 상태 setter와 store 액션의 이름이 겹치지 않게 setter 쪽에 State를 붙인다
+  const [specialAttendance, setSpecialAttendanceState] = useState<SpecialAttendance[]>(() =>
+    loadPlain<SpecialAttendance>(SPECIAL_ATTENDANCE_KEY),
+  );
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -932,17 +975,86 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         );
       },
       materialViews,
-      logMaterialView: (id) => {
+      logMaterialView: (id, userName) => {
         /*
           조회수는 상세를 **여는 클릭 핸들러에서만** 부른다 — 렌더·effect에서 부르면
-          StrictMode 이중 실행으로 두 배가 된다. 중복 억제(같은 사람 재방문)는 목업에서
-          생략한다 — 실연동 시 서버가 센다.
+          StrictMode 이중 실행으로 두 배가 된다.
+
+          ⚠️ **계정 하나당 한 번만 오른다** (2026-08-15 리드 지시 — 인기 교안 산정의 뿌리다).
+          누가 봤는지는 자료의 `viewedBy`에 남긴다. 같은 사람이 다시 열어도 조회수는 그대로다.
+          실연동 시 서버가 같은 판정을 한다 — 브라우저 저장은 지우면 그만이라 정본이 아니다.
         */
+        const target = materials.find((m) => m.id === id);
+        if (target && (target.viewedBy ?? []).includes(userName)) return;
+        if (target) {
+          persistMaterials(
+            materials.map((m) =>
+              m.id === id ? { ...m, viewedBy: [...(m.viewedBy ?? []), userName] } : m,
+            ),
+          );
+        }
         setMaterialViews((prev) => {
           const next = { ...prev, [id]: (prev[id] ?? 0) + 1 };
           localStorage.setItem(MATERIAL_VIEW_KEY, JSON.stringify(next));
           return next;
         });
+      },
+      /**
+       * 갈래별 좋아요 토글 (2026-08-15) — 갈래마다 1인 1표, 여러 갈래를 함께 고를 수 있다.
+       * `helpfulBy`는 **갈래들의 합집합**으로 다시 계산한다 — 게시판 표의 추천 열과 추천순
+       * 정렬이 그 필드를 보고 있어 두 값이 어긋나면 안 된다.
+       */
+      toggleMaterialLike: (id, userName, kind) => {
+        persistMaterials(
+          materials.map((m) => {
+            if (m.id !== id) return m;
+            const likes = { ...(m.likesBy ?? {}) };
+            const list = likes[kind] ?? [];
+            likes[kind] = list.includes(userName)
+              ? list.filter((n) => n !== userName)
+              : [...list, userName];
+            const union = new Set<string>();
+            for (const k of Object.keys(likes) as MaterialLikeKind[]) {
+              for (const n of likes[k] ?? []) union.add(n);
+            }
+            return { ...m, likesBy: likes, helpfulBy: [...union], updatedAt: nowIso() };
+          }),
+        );
+      },
+      authorFollows,
+      toggleAuthorFollow: (userName, author) => {
+        const has = authorFollows.some((f) => f.userName === userName && f.author === author);
+        const next = has
+          ? authorFollows.filter((f) => !(f.userName === userName && f.author === author))
+          : [...authorFollows, { userName, author, followedAt: nowIso() }];
+        localStorage.setItem(AUTHOR_FOLLOW_KEY, JSON.stringify(next));
+        setAuthorFollows(next);
+      },
+      specialSessions,
+      addSpecialSession: (input) => {
+        const next = [...specialSessions, { id: uid(), ...input, createdAt: nowIso() }];
+        localStorage.setItem(SPECIAL_SESSION_KEY, JSON.stringify(next));
+        setSpecialSessions(next);
+      },
+      deleteSpecialSession: (id) => {
+        const next = specialSessions.filter((s) => s.id !== id);
+        localStorage.setItem(SPECIAL_SESSION_KEY, JSON.stringify(next));
+        setSpecialSessions(next);
+        // 특강이 사라지면 그 출결도 함께 지운다 — 남겨 두면 어디에도 안 붙는 유령 기록이 된다
+        const rest = specialAttendance.filter((a) => a.sessionId !== id);
+        localStorage.setItem(SPECIAL_ATTENDANCE_KEY, JSON.stringify(rest));
+        setSpecialAttendanceState(rest);
+      },
+      specialAttendance,
+      setSpecialAttendance: (input) => {
+        const next = [
+          ...specialAttendance.filter(
+            (a) => !(a.sessionId === input.sessionId && a.studentKey === input.studentKey),
+          ),
+          { ...input, markedAt: nowIso() },
+        ];
+        localStorage.setItem(SPECIAL_ATTENDANCE_KEY, JSON.stringify(next));
+        setSpecialAttendanceState(next);
       },
       addEntry: (input) => {
         const item: WorkspaceEntry = { id: uid(), ...input, createdAt: nowIso() };
@@ -1424,6 +1536,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deletedFeedbackIds,
       checklistProgress,
       materialViews,
+      authorFollows,
+      specialSessions,
+      specialAttendance,
       persistPlanEntries,
       persistLessonResources,
       persistReactions,

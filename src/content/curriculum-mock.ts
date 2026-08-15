@@ -40,7 +40,10 @@ export interface SessionInfo {
   weekdayLabel: string;
   /** 이 회차의 진도 — 그 단계 안에서의 강 번호 */
   lessonNo: number;
+  /** 원문 제목 — 툴팁·상세에 그대로 쓴다 */
   lessonTitle: string;
+  /** 화면 표기용 핵심단어 — 좁은 칸에는 이것을 쓴다 (2026-08-15) */
+  lessonKeyword: string;
   /** 초·중·고 어느 단계의 강인지 — 회차가 105개라 단계를 함께 봐야 뜻이 선다 */
   level: LessonLevel;
 }
@@ -48,7 +51,33 @@ export interface SessionInfo {
 export interface CurriculumStep {
   level: LessonLevel;
   lessonNo: number;
+  /** 원문 제목 — **그대로다**(불변식 5). 표기를 줄일 때도 이 값은 안 건드린다 */
   title: string;
+  /**
+   * 화면 표기용 핵심단어 (2026-08-15 리드 지시 — 「핵심단어로 표현」).
+   * 초등·중등은 **비유 핵심단어**, 고등은 **계시록 장**이다.
+   *
+   * ⚠️ **원문을 고쳐 쓴 것이 아니라 원문에서 잘라 낸 것이다**(불변식 5의 「원문에서 뽑은 것」).
+   * 규칙은 `keywordOf` 한 곳에 있고 결정적이다 — 사람이 손으로 다시 적은 표가 아니라서
+   * 원문이 바뀌면 표기도 따라 바뀐다. 원문 제목은 상세·툴팁에서 그대로 볼 수 있다.
+   */
+  keyword: string;
+}
+
+/**
+ * 원문 제목 → 핵심단어. **자르기만 한다.**
+ * - 「비유한 씨 · 밭 · 나무 · 새」 → 「씨 · 밭 · 나무 · 새」
+ * - 「두 가지 신 (하나님과 사단)」 → 「두 가지 신」
+ * - 「천국 비밀 비유」 → 「천국 비밀」
+ * 낱말을 새로 짓거나 뜻을 옮기지 않는다 — 지우는 것은 수식어(비유한/비유)와 괄호뿐이다.
+ */
+export function keywordOf(title: string): string {
+  return title
+    .replace(/\([^)]*\)/g, " ") // 괄호 안 보충 설명
+    .replace(/비유한\s*/g, "")
+    .replace(/\s*비유$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /**
@@ -66,11 +95,14 @@ export const CURRICULUM: CurriculumStep[] = (() => {
     level: "초등" as const,
     lessonNo: l.lessonNo,
     title: l.title,
+    keyword: keywordOf(l.title),
   }));
+  /** 고등은 **계시록 장**이 핵심단어다 (2026-08-15 리드 지시) — 원문 파일명의 장 표기를 쓴다 */
   const high: CurriculumStep[] = HIGH_LESSONS.map((l, i) => ({
     level: "고등" as const,
     lessonNo: i + 1,
     title: `${l.label} ${l.title}`.trim(),
+    keyword: l.label,
   }));
   /*
     남는 회차가 중등 몫이다 — 원문이 없어 **번호만** 매기고 제목은 빈 칸으로 둔다.
@@ -78,7 +110,7 @@ export const CURRICULUM: CurriculumStep[] = (() => {
     원문이 오면 여기서 제목만 채우면 화면은 그대로 따라온다.
   */
   const midCount = Math.max(0, TOTAL_SESSIONS - out.length - high.length);
-  for (let i = 1; i <= midCount; i++) out.push({ level: "중등", lessonNo: i, title: "" });
+  for (let i = 1; i <= midCount; i++) out.push({ level: "중등", lessonNo: i, title: "", keyword: "" });
   return [...out, ...high];
 })();
 
@@ -123,6 +155,7 @@ export function sessionsOfWeek(weekNo: number, periods?: ClassWeekdayPeriodList)
         weekdayLabel: WEEKDAY_NAMES[weekday],
         lessonNo: lesson.lessonNo,
         lessonTitle: lesson.title,
+        lessonKeyword: lesson.keyword,
         level: lesson.level,
       };
     })
@@ -136,9 +169,17 @@ export function sessionsThroughWeek(weekNo: number, periods?: ClassWeekdayPeriod
   return Math.min(TOTAL_SESSIONS, n);
 }
 
-/** 회차 라벨 — 「12회차 · 월 · 초등 3강 예언」 형태. 제목이 없는 강(중등)은 번호까지만 */
+/** 회차 라벨 — 「12회차 · 월 · 초등 3강 천국 비밀 비유」 형태(툴팁이라 **원문 제목**을 쓴다) */
 export function sessionLabelOf(s: SessionInfo): string {
   return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.level} ${s.lessonNo}강 ${s.lessonTitle}`.trim();
+}
+
+/**
+ * 좁은 칸의 진도 표기 — 「초3강 천국 비밀」·「고5강 계 5장」 (2026-08-15 리드 지시).
+ * 핵심단어가 없는 강(중등 — 원문 대기)은 번호까지만 나온다.
+ */
+export function sessionKeywordLabel(s: SessionInfo): string {
+  return `${shortLessonLabel(s)}${s.lessonKeyword ? ` ${s.lessonKeyword}` : ""}`;
 }
 
 /** 짧은 강 제목 — 표 머리처럼 좁은 자리용 */

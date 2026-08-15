@@ -63,7 +63,9 @@ npm.cmd run build
 
 - 총회 공지 작성: `headquarters_admin` + `content_admin` / 지파 공지: 해당 지파 `tribe_admin`
 - 어록·영상·자료실 등록: `content_admin` + `headquarters_admin`
-- 우수 교안 지정: `headquarters_admin`만, 승인 워크플로우 없음
+- 우수 교안 지정: **`tribe_admin`(지파 신학부장)**, 승인 워크플로우 없음
+  (2026-08-15 리드 지시 — 종전 「`headquarters_admin`만」을 대체한다.
+  ⚠️ 「지파 공유 승격」과 주체가 겹친다 — 합칠지는 리드 확인 대기)
 - 열람은 로그인 전체. 본부·지파의 강사/전도사 도우미 사용은 "보기만"
 - 시범 로그인 당분간 유지 — **실제 개인정보 투입 전 반드시 정리**
 
