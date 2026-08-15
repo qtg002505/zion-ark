@@ -669,7 +669,11 @@ interface StoreValue {
     updatedBy: string,
     updatedByRole: RoleCode,
   ) => void;
-  /** 보강·상담·특이사항·메모 기록 추가 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다) */
+  /**
+   * 보강·상담·특이사항·메모 기록 추가 — 해당 기수의 강사·전도사만(호출부가 권한을 먼저 본다).
+   * ⚠️ `makeupState`·`sessionNo`는 **출석 격자의 결석 칸에서 남긴 보강 기록**에만 붙는다
+   * (2026-08-15). 출결 원본은 여전히 읽기 전용이다 — 이 기록은 그 옆에 붙는 별도 메모다.
+   */
   addStudentFeedback: (input: {
     studentKey: string;
     kind: FeedbackKind;
@@ -677,6 +681,8 @@ interface StoreValue {
     subject?: string;
     text: string;
     checklistItems?: number[];
+    makeupState?: "planned" | "done";
+    sessionNo?: number;
     by: string;
     byRole: RoleCode;
   }) => void;

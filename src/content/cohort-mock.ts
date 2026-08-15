@@ -262,21 +262,57 @@ export interface CohortRank {
   tribe: string;
   church: string;
   cohort: string;
+  /** 지금까지의 누적 출석률 — 기수마다 진도가 달라 이 값끼리는 공정한 비교가 아니다 */
   rate: number;
+  /**
+   * 개강일 — **회차 기준 비교의 뿌리**다 (2026-08-15 리드 지시).
+   * 월 초 개강한 반과 월 말 개강한 반은 같은 달이어도 진도가 다르다.
+   */
+  startsOn: string;
+  /** 지금까지 마친 회차 — 이 기수가 어디까지 나갔는지 */
+  doneSessions: number;
   /** 우리 기수인지 */
   isMine?: boolean;
 }
 
+/**
+ * 지파 내·전국 기수 비교 목록.
+ * ⚠️ 진도(회차)가 다른 기수를 견주려고 개강일·마친 회차를 함께 담는다 — 회차별 출석률은
+ * 아래 `sessionRateOf`가 결정적 규칙으로 만든다(시범 값 · 불변식 6).
+ */
 export const COHORT_RANKS: CohortRank[] = [
-  { tribe: "요한", church: "과천교회", cohort: "115기", rate: 91 },
-  { tribe: "요한", church: "안양교회", cohort: "112기", rate: 87 },
-  { tribe: "요한", church: "과천교회", cohort: "113기", rate: 80, isMine: true },
-  { tribe: "요한", church: "수원교회", cohort: "114기", rate: 76 },
-  { tribe: "바돌로매", church: "대구교회", cohort: "108기", rate: 94 },
-  { tribe: "베드로", church: "부산교회", cohort: "121기", rate: 89 },
-  { tribe: "마태", church: "광주교회", cohort: "110기", rate: 85 },
-  { tribe: "도마", church: "대전교회", cohort: "119기", rate: 83 },
+  { tribe: "요한", church: "과천교회", cohort: "115기", rate: 91, startsOn: "2026-05-04", doneSessions: 42 },
+  { tribe: "요한", church: "안양교회", cohort: "112기", rate: 87, startsOn: "2025-12-01", doneSessions: 105 },
+  { tribe: "요한", church: "과천교회", cohort: "113기", rate: 80, startsOn: "2026-03-02", doneSessions: 69, isMine: true },
+  { tribe: "요한", church: "수원교회", cohort: "114기", rate: 76, startsOn: "2026-03-30", doneSessions: 57 },
+  { tribe: "바돌로매", church: "대구교회", cohort: "108기", rate: 94, startsOn: "2025-09-01", doneSessions: 105 },
+  { tribe: "베드로", church: "부산교회", cohort: "121기", rate: 89, startsOn: "2026-06-01", doneSessions: 30 },
+  { tribe: "마태", church: "광주교회", cohort: "110기", rate: 85, startsOn: "2025-11-03", doneSessions: 105 },
+  { tribe: "도마", church: "대전교회", cohort: "119기", rate: 83, startsOn: "2026-04-06", doneSessions: 51 },
 ];
+
+/**
+ * **같은 회차에서의 출석률** — 기수 비교의 정본 (2026-08-15 리드 지시).
+ *
+ * 달력으로 견주면 개강 시점이 다른 기수끼리 불공정하다. 「3개월 먼저 개강한 반이 지금
+ * 더 낮아 보여도, **우리가 지금 하는 그 진도에서는** 더 높았을 수 있다」는 것이 리드의 지적이다.
+ * 그래서 축을 **개강 후 N회차**로 옮긴다 — 이미 앞선 기수도 그 회차에서 어땠는지가 보인다.
+ *
+ * ⚠️ **결정적 규칙으로 만든 시범 값이다**(불변식 6). 실연동 시 기수별 회차 출석률이
+ * 집계로 들어오고, 화면은 이 함수만 갈아 끼우면 된다(교체 경계).
+ * 규칙: 개강 초 높고 중반에 처지다 후반에 조금 회복 — 기수마다 누적 출석률(`rate`)을 중심으로 흔든다.
+ * 아직 그 회차에 이르지 못한 기수는 **null**이다 — 0으로 그리면 폭락처럼 보인다.
+ */
+export function sessionRateOf(rank: CohortRank, sessionNo: number): number | null {
+  if (sessionNo < 1 || sessionNo > rank.doneSessions) return null;
+  const t = sessionNo / TOTAL_SESSIONS; // 0~1 진행도
+  // 개강 직후 +8%p에서 시작해 60% 지점에서 -6%p까지 처지고 끝에서 -1%p로 회복하는 곡선
+  const shape = 8 - 23 * t + 16 * t * t;
+  // 기수마다 다른 잔결 — 이름에서 뽑은 고정 값이라 새로 고쳐도 안 흔들린다
+  const seed = [...`${rank.church}${rank.cohort}`].reduce((n, c) => n + c.charCodeAt(0), 0);
+  const wobble = ((seed + sessionNo * 7) % 5) - 2;
+  return Math.max(0, Math.min(100, Math.round(rank.rate + shape + wobble)));
+}
 
 export const STATUS_LABELS: Record<Student["status"], string> = {
   active: "수강 중",

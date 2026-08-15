@@ -5,6 +5,7 @@ import {
   type ClassWeekdayPeriodList,
 } from "../lib/cohort-calendar";
 import { elementaryLessons } from "./elementary-lessons";
+import { HIGH_LESSONS } from "./lessons-high";
 import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
 
 /**
@@ -17,10 +18,15 @@ import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
  * 갈아 끼우고, 화면(`CohortStatus`)은 축 선택값만 받으므로 그대로 둔다. 시트 고유 구조를
  * 화면으로 새어들게 하지 않는다는 지시문 원칙 그대로다.
  *
- * ⚠️ 지금 값은 **결정적 규칙으로 만든 시범 값**이다(불변식 6): 주당 수업 3회(월·화·목,
- * `cohort-calendar` 확정)이고, 진도는 초등 23강을 전체 회차에 고르게 편 것이다.
- * 실제 기수의 진도표와 다르다 — 화면에도 시범 값임을 표기한다.
+ * ⚠️ 지금 값은 **결정적 규칙으로 만든 시범 값**이다(불변식 6): 주당 수업 3회이고,
+ * **한 회차가 한 강**이다. 실제 기수의 진도표와 다르다 — 화면에도 시범 값임을 표기한다.
  */
+
+/** 과정 단계 — `student-profiles`의 `CourseLevel`과 같은 어휘를 쓴다 */
+export type LessonLevel = "초등" | "중등" | "고등";
+
+/** 좁은 칸(격자 머리)에 쓰는 한 글자 표기 */
+export const LEVEL_SHORT: Record<LessonLevel, string> = { 초등: "초", 중등: "중", 고등: "고" };
 
 export interface SessionInfo {
   /** 1부터 — 개강 후 N회차 */
@@ -32,22 +38,65 @@ export interface SessionInfo {
   weekday: number;
   /** 요일 한 글자 — 「월」·「일」 */
   weekdayLabel: string;
-  /** 이 회차의 진도 — 초등 강 번호·제목 (시범 값) */
+  /** 이 회차의 진도 — 그 단계 안에서의 강 번호 */
   lessonNo: number;
   lessonTitle: string;
+  /** 초·중·고 어느 단계의 강인지 — 회차가 105개라 단계를 함께 봐야 뜻이 선다 */
+  level: LessonLevel;
+}
+
+export interface CurriculumStep {
+  level: LessonLevel;
+  lessonNo: number;
+  title: string;
 }
 
 /**
- * 회차 번호 → 진도(강). 23강을 전체 회차에 고르게 편다 — 단조 증가라
- * 「진도별 보기」의 경계가 어긋나지 않는다.
+ * 회차 차례표 — **한 회차가 한 강이다** (2026-08-15 리드 확정).
+ *
+ * 종전에는 초등 23강을 105회차에 고르게 펴서 **한 강이 4~5회차에 걸쳐** 있었다.
+ * 리드가 「12강을 한 주 내내 하는 게 아니라 하루가 한 강의」라고 짚어 1:1로 바꿨다.
+ *
+ * 105회를 초등 → 중등 → 고등 차례로 채운다. **중등 원문은 아직 없어** 제목 자리를
+ * 「중등 N강」으로만 둔다 — 원문이 오면 여기 한 곳에서 이어 붙인다.
+ * ⚠️ 실연동 시 이 배열이 통째로 커리큘럼 테이블로 갈린다(교체 경계).
  */
-export function lessonOfSession(sessionNo: number): { lessonNo: number; title: string } {
-  const idx = Math.min(
-    elementaryLessons.length - 1,
-    Math.floor(((sessionNo - 1) * elementaryLessons.length) / Math.max(1, TOTAL_SESSIONS)),
-  );
-  const lesson = elementaryLessons[idx];
-  return { lessonNo: lesson.lessonNo, title: lesson.title };
+export const CURRICULUM: CurriculumStep[] = (() => {
+  const out: CurriculumStep[] = elementaryLessons.map((l) => ({
+    level: "초등" as const,
+    lessonNo: l.lessonNo,
+    title: l.title,
+  }));
+  const high: CurriculumStep[] = HIGH_LESSONS.map((l, i) => ({
+    level: "고등" as const,
+    lessonNo: i + 1,
+    title: `${l.label} ${l.title}`.trim(),
+  }));
+  /*
+    남는 회차가 중등 몫이다 — 원문이 없어 **번호만** 매기고 제목은 빈 칸으로 둔다.
+    「중등 46강」 같은 문구를 제목 자리에 넣으면 「중등 46강 중등 46강」으로 겹쳐 나온다.
+    원문이 오면 여기서 제목만 채우면 화면은 그대로 따라온다.
+  */
+  const midCount = Math.max(0, TOTAL_SESSIONS - out.length - high.length);
+  for (let i = 1; i <= midCount; i++) out.push({ level: "중등", lessonNo: i, title: "" });
+  return [...out, ...high];
+})();
+
+/**
+ * 회차 번호 → 진도(강). **한 회차가 한 강**이라 차례표에서 그대로 꺼낸다.
+ * 차례표를 넘어가는 회차(일정이 늘어난 경우)는 마지막 강으로 붙잡아 둔다 — 화면이 빈칸이 되지 않게.
+ */
+export function lessonOfSession(sessionNo: number): CurriculumStep {
+  const idx = Math.min(CURRICULUM.length - 1, Math.max(0, sessionNo - 1));
+  return CURRICULUM[idx];
+}
+
+/**
+ * 좁은 칸용 — 「초12강」·「고3강」.
+ * `CurriculumStep`과 `SessionInfo`가 함께 쓰므로 **필요한 두 필드만** 받는다.
+ */
+export function shortLessonLabel(step: { level: LessonLevel; lessonNo: number }): string {
+  return `${LEVEL_SHORT[step.level]}${step.lessonNo}강`;
 }
 
 /**
@@ -74,6 +123,7 @@ export function sessionsOfWeek(weekNo: number, periods?: ClassWeekdayPeriodList)
         weekdayLabel: WEEKDAY_NAMES[weekday],
         lessonNo: lesson.lessonNo,
         lessonTitle: lesson.title,
+        level: lesson.level,
       };
     })
     .filter((s) => s.sessionNo <= TOTAL_SESSIONS);
@@ -86,9 +136,9 @@ export function sessionsThroughWeek(weekNo: number, periods?: ClassWeekdayPeriod
   return Math.min(TOTAL_SESSIONS, n);
 }
 
-/** 회차 라벨 — 「12회차 · 월 · 3강 예언」 형태 */
+/** 회차 라벨 — 「12회차 · 월 · 초등 3강 예언」 형태. 제목이 없는 강(중등)은 번호까지만 */
 export function sessionLabelOf(s: SessionInfo): string {
-  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.lessonNo}강 ${s.lessonTitle}`;
+  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.level} ${s.lessonNo}강 ${s.lessonTitle}`.trim();
 }
 
 /** 짧은 강 제목 — 표 머리처럼 좁은 자리용 */

@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Portal } from "../components/Portal";
 import { useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, PencilLine, Users } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, PencilLine, Users, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { ROLE_LABELS } from "../lib/types";
@@ -22,10 +22,19 @@ import {
   TOTAL_SESSIONS,
   WEEKLY_RATES,
   COHORT_RANKS,
+  STATUS_LABELS,
+  sessionRateOf,
   studentWeekHistory,
   type WeeklyRate,
 } from "../content/cohort-mock";
-import { effectiveSchedule, type ClassWeekdayPeriodList } from "../lib/cohort-calendar";
+import {
+  WEEKDAY_NAMES,
+  addDays,
+  effectiveSchedule,
+  mondayOfWeek,
+  offsetInWeek,
+  type ClassWeekdayPeriodList,
+} from "../lib/cohort-calendar";
 import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { LineChart } from "../components/LineChart";
 import {
@@ -33,6 +42,8 @@ import {
   sessionLabelOf,
   sessionsOfWeek,
   sessionsThroughWeek,
+  shortLessonLabel,
+  type SessionInfo,
 } from "../content/curriculum-mock";
 import {
   MARK_GLYPH,
@@ -63,7 +74,7 @@ export function CohortStatus() {
    * 수업 요일 구간 — 화면에서 고친 값이 있으면 그것, 없으면 기본(월·화·목).
    * 출석 격자의 칸·회차 번호가 전부 이 값을 따른다 (2026-08-14 리드 지시).
    */
-  const { weekdayPeriods } = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
+  const { weekdayPeriods, startsOn } = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
   const [searchParams] = useSearchParams();
   const initialTab = TAB_IDS.includes(searchParams.get("tab") as Tab) ? (searchParams.get("tab") as Tab) : "summary";
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -227,7 +238,7 @@ export function CohortStatus() {
       )}
 
       {tab === "attendance" && (
-        <AttendanceGrid students={students} weekdayPeriods={weekdayPeriods} />
+        <AttendanceGrid students={students} weekdayPeriods={weekdayPeriods} startsOn={startsOn} />
       )}
 
       {tab === "trend" && (
@@ -310,35 +321,117 @@ type GridAxis = "lesson" | "week";
  * 왼쪽 붙박이 칸의 가로 폭 — 23주(69칸)를 가로로 넘겨 보는 동안 번호·이름이 따라다녀야
  * 누구 줄인지 놓치지 않는다. `sticky`는 `left` 값을 픽셀로 받아야 해서 상수로 둔다.
  */
-const STICKY_NO_W = 40;
-const STICKY_NAME_W = 76;
+const STICKY_NO_W = 36;
+const STICKY_NAME_W = 74;
 
+/**
+ * 출석 격자 — 2026-08-15 리드 피드백으로 배치를 갈아엎었다.
+ *
+ * 바뀐 것 여섯:
+ * 1. **상태·보강포함·대면만이 이름 바로 옆으로** 왔다 — 종전에는 69칸 건너 맨 오른쪽이라
+ *    누구의 비율인지 보려면 끝까지 밀어야 했다
+ * 2. **최근 회차가 왼쪽이고 맨 오른쪽이 1주차**다 — 매일 보는 것은 최근이라 열자마자 보여야 한다
+ * 3. 주차 아래 **날짜**를 적는다 (`8/25`)
+ * 4. **요일을 골라 볼 수 있다** — 「목요일만」처럼 한 요일 흐름만 보는 자리
+ * 5. 칸을 넓혀 **한 화면에 4주쯤** 들어온다 (종전 8주 — 빽빽해서 눈이 미끄러졌다)
+ * 6. **출석한 사람이 위, 결석이 아래**이고 **분반별로 묶어** 가로 띠를 둔다
+ *    ⚠️ 2026-08-14의 「낮은 사람이 위」를 뒤집은 것이다 — 리드 지시로 바뀌었다
+ *
+ * ⚠️ **출결 원본은 여전히 읽기 전용이다**(불변식 3). 결석 칸을 누르면 뜨는 것은 원본을
+ * 고치는 창이 아니라 **그 옆에 붙는 보강 기록**이다 — 원본 mark는 그대로 있고, 기록은
+ * `studentFeedback`(kind `makeup`)으로 남아 수강생 상세의 「보강·상담 메모」에도 그대로 뜬다.
+ */
 function AttendanceGrid({
   students,
   weekdayPeriods,
+  startsOn,
 }: {
   students: typeof STUDENTS;
   /** 그 기수의 수업 요일 구간 — 주차마다 요일이 다를 수 있다 (2026-08-14) */
   weekdayPeriods: ClassWeekdayPeriodList;
+  /** 유효 개강일 — 회차 날짜를 여기서 센다 */
+  startsOn: string;
 }) {
+  const session = useSession();
+  const { studentFeedback, addStudentFeedback } = useStore();
+  const canEdit = canEditCohortRecord(session, cohortKeyOf(session));
   const [axis, setAxis] = useState<GridAxis>("lesson");
-
-  const rows = [...students].sort((a, b) => {
-    const d = rateOf(a).withMakeup - rateOf(b).withMakeup;
-    return d !== 0 ? d : a.attendanceRate - b.attendanceRate;
-  });
+  /** 보고 있는 요일 — 비어 있으면 전부 본다 */
+  const [dayFilter, setDayFilter] = useState<number[]>([]);
+  /** 보강 기록을 남길 칸 */
+  const [makeupAt, setMakeupAt] = useState<{ student: Student; sess: SessionInfo } | null>(null);
 
   /**
-   * 1주차부터 마지막 완료 주까지 **전부** 그린다 (2026-08-14 리드 지시 — 8주씩 넘기던
-   * 페이지를 없앴다). 8개월치를 좌우 스크롤로 훑는다. 왼쪽이 1주차(개강)다.
+   * 1주차부터 마지막 완료 주까지 **전부** 그린다. **최근 주가 왼쪽**이다 (2026-08-15 리드 지시) —
+   * 열자마자 최근 출결이 이름 옆에 보이고, 옛 주는 오른쪽으로 밀려난다. 맨 오른쪽이 1주차다.
    */
-  const weekNos = Array.from({ length: DONE_WEEKS }, (_, i) => i + 1);
+  const weekNos = useMemo(
+    () => Array.from({ length: DONE_WEEKS }, (_, i) => DONE_WEEKS - i),
+    [],
+  );
   /** 주차 번호 → weeksAgo (최근 완료 주가 DONE_WEEKS번째 주 = ago 0) */
   const agoOf = (weekNo: number) => DONE_WEEKS - weekNo;
+
+  /** 그 주차의 회차들 — 요일 필터를 여기 한 곳에서 건다 */
+  const sessionsOf = (weekNo: number) => {
+    const all = sessionsOfWeek(weekNo, weekdayPeriods);
+    return dayFilter.length === 0 ? all : all.filter((s) => dayFilter.includes(s.weekday));
+  };
+  /** 이 기수에서 쓰는 요일 전부 — 요일 고르기 단추를 여기서 만든다 */
+  const usedWeekdays = useMemo(() => {
+    const set = new Set<number>();
+    for (const w of weekNos) for (const s of sessionsOfWeek(w, weekdayPeriods)) set.add(s.weekday);
+    return [...set].sort((a, b) => a - b);
+  }, [weekNos, weekdayPeriods]);
+
+  /** 회차의 실제 날짜 — 「8/25」. 일요일은 그 주의 첫날이라 월요일 앞에 온다 */
+  const dateOf = (sess: SessionInfo) => {
+    const ymd = addDays(mondayOfWeek(startsOn, sess.weekNo), offsetInWeek(sess.weekday));
+    const [, m, d] = ymd.split("-").map(Number);
+    return `${m}/${d}`;
+  };
+
   const history = useMemo(
-    () => new Map(rows.map((s) => [s.key, studentWeekHistory(s, DONE_WEEKS)])),
-    [rows],
+    () => new Map(students.map((s) => [s.key, studentWeekHistory(s, DONE_WEEKS)])),
+    [students],
   );
+
+  /**
+   * **출석한 사람이 위, 결석이 아래** (2026-08-15 리드 지시 — 종전 「출석률 낮은 사람이 위」를
+   * 뒤집었다). 첫 열쇠는 **가장 최근 회차의 출결**이고, 같으면 보강 포함 출석률이 높은 순이다.
+   */
+  const MARK_RANK: Record<string, number> = {
+    present: 0,
+    makeupDone: 1,
+    makeupPending: 2,
+    unknown: 3,
+    absent: 4,
+  };
+  const sortStudents = (list: Student[]) =>
+    [...list].sort((a, b) => {
+      const ra = MARK_RANK[history.get(a.key)?.[0]?.mark ?? "unknown"] ?? 3;
+      const rb = MARK_RANK[history.get(b.key)?.[0]?.mark ?? "unknown"] ?? 3;
+      if (ra !== rb) return ra - rb;
+      return rateOf(b).withMakeup - rateOf(a).withMakeup;
+    });
+
+  /** **분반별 가로 띠**로 묶는다 (2026-08-15 리드 지시) — 띠 아래에 그 분반 사람들이 온다 */
+  const groups = useMemo(() => {
+    const byDivision = new Map<string, Student[]>();
+    for (const s of students) byDivision.set(s.division, [...(byDivision.get(s.division) ?? []), s]);
+    return [...byDivision.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], "ko"))
+      .map(([division, list]) => ({ division, list: sortStudents(list) }));
+  }, [students, history]);
+
+  /** 전체 순번 — 분반 띠를 건너뛰고 사람만 1부터 센다 */
+  const rows = groups.flatMap((g) => g.list);
+
+  /** 그 회차(또는 주)에 남긴 보강 기록 — 칸에 표시를 덧대고, 창을 열면 목록으로 보여준다 */
+  const makeupsOf = (studentKey: string, sessionNo: number) =>
+    studentFeedback.filter(
+      (f) => f.studentKey === studentKey && f.kind === "makeup" && f.sessionNo === sessionNo,
+    );
 
   /** 기수 평균 행 — 그 주에 출석(대면·보강완료)한 사람 비율 */
   const weekAvg = (weekNo: number) => {
@@ -350,39 +443,38 @@ function AttendanceGrid({
     return Math.round((ok / known.length) * 100);
   };
 
-  /** 엑셀(CSV) 내려받기 — 지금 보이는 축 그대로 23주 전체. BOM을 붙여 엑셀이 한글을 살린다 */
+  /** 엑셀(CSV) 내려받기 — 지금 보이는 축·순서 그대로. BOM을 붙여 엑셀이 한글을 살린다 */
   function downloadCsv() {
     const head =
       axis === "week"
-        ? ["번호", "이름", "분반", ...weekNos.map((w) => `${w}주차`), "보강 포함 %", "대면만 %"]
+        ? ["번호", "이름", "분반", "상태", "보강 포함 %", "대면만 %", ...weekNos.map((w) => `${w}주차`)]
         : [
             "번호",
             "이름",
             "분반",
-            ...weekNos.flatMap((w) =>
-              sessionsOfWeek(w, weekdayPeriods).map(
-                (s) => `${w}주차 ${s.weekdayLabel}(${s.sessionNo}회 ${s.lessonNo}강)`,
-              ),
-            ),
+            "상태",
             "보강 포함 %",
             "대면만 %",
+            ...weekNos.flatMap((w) =>
+              sessionsOf(w).map(
+                (s) => `${w}주차 ${s.weekdayLabel} ${dateOf(s)}(${s.sessionNo}회 ${shortLessonLabel(s)})`,
+              ),
+            ),
           ];
     const lines = rows.map((st, i) => {
       const hist = history.get(st.key) ?? [];
       const r = rateOf(st);
       const glyph = (w: number) => MARK_GLYPH[hist[agoOf(w)]?.mark ?? "unknown"];
       const cells =
-        axis === "week"
-          ? weekNos.map(glyph)
-          : weekNos.flatMap((w) => sessionsOfWeek(w, weekdayPeriods).map(() => glyph(w)));
-      return [i + 1, st.name, st.division, ...cells, r.withMakeup, r.presentOnly];
+        axis === "week" ? weekNos.map(glyph) : weekNos.flatMap((w) => sessionsOf(w).map(() => glyph(w)));
+      return [i + 1, st.name, st.division, STATUS_LABELS[st.status], r.withMakeup, r.presentOnly, ...cells];
     });
-    const avg: (string | number)[] = ["", "우리 기수 평균", ""];
+    const avg: (string | number)[] = ["", "우리 기수 평균", "", "", "", ""];
     for (const w of weekNos) {
       const v = weekAvg(w);
       const cell = v === null ? "-" : `${v}%`;
       if (axis === "week") avg.push(cell);
-      else sessionsOfWeek(w, weekdayPeriods).forEach(() => avg.push(cell));
+      else sessionsOf(w).forEach(() => avg.push(cell));
     }
     const csv = [head, ...lines, avg]
       .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
@@ -400,6 +492,21 @@ function AttendanceGrid({
   /** 붙잡고 끌어서 23주를 훑는다 (2026-08-14) */
   const dragGrid = useDragScroll<HTMLDivElement>();
 
+  /** 출결 칸의 총 개수 — 분반 띠가 남은 칸을 한 번에 덮는 데 쓴다 */
+  const gridCols = Math.max(
+    1,
+    axis === "lesson" ? weekNos.reduce((n, w) => n + sessionsOf(w).length, 0) : weekNos.length,
+  );
+
+  /**
+   * 회차 칸 하나 — 폭을 넓혀 **한 화면에 4주**가 들어온다 (2026-08-15 리드 지시 — 종전 8주가
+   * 한 판에 들어와 빽빽했다). 1280px에서 이름 옆 정보가 323px를 쓰고 남는 622px에 12칸(4주)이
+   * 들어가도록 잡은 값이다 — 더 넓히면 4주째가 잘린다.
+   */
+  const colW = "w-12 min-w-12";
+  /** 이름 옆 정보 칸 — 상태·보강포함·대면만 */
+  const infoTh = "whitespace-nowrap px-2 pb-2 text-right font-medium";
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -408,7 +515,8 @@ function AttendanceGrid({
             {axis === "lesson" ? "진도별" : "주차별"} 출석 상세
           </div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            보강 포함 출석률이 낮은 사람이 위에 옵니다 — 먼저 볼 사람이 먼저 보이게 했습니다.
+            <strong>최근 회차가 왼쪽</strong>이고 오른쪽으로 갈수록 옛 회차입니다 — 맨 오른쪽이 1주차입니다.
+            출석한 분이 위, 결석한 분이 아래로 옵니다.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -442,6 +550,46 @@ function AttendanceGrid({
           </button>
         </div>
       </div>
+
+      {/* 요일 고르기 (2026-08-15 리드 지시) — 한 요일만 남겨 그 요일의 흐름만 본다 */}
+      {axis === "lesson" && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="text-ink-soft">요일</span>
+          <button
+            onClick={() => setDayFilter([])}
+            aria-pressed={dayFilter.length === 0}
+            className={
+              "rounded-lg border px-2 py-1 font-semibold transition " +
+              (dayFilter.length === 0
+                ? "border-zion-700 bg-zion-700 text-white"
+                : "border-zion-200 text-zion-700 hover:bg-zion-50")
+            }
+          >
+            전체
+          </button>
+          {usedWeekdays.map((d) => {
+            const on = dayFilter.includes(d);
+            return (
+              <button
+                key={d}
+                onClick={() =>
+                  setDayFilter((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))
+                }
+                aria-pressed={on}
+                className={
+                  "h-7 w-7 rounded-lg border font-semibold transition " +
+                  (on
+                    ? "border-zion-700 bg-zion-700 text-white"
+                    : "border-zion-200 text-zion-700 hover:bg-zion-50")
+                }
+              >
+                {WEEKDAY_NAMES[d]}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
         {(["present", "makeupDone", "makeupPending", "absent", "unknown"] as const).map((m) => (
           <span key={m} className="flex items-center gap-1 text-ink-soft">
@@ -456,6 +604,12 @@ function AttendanceGrid({
             {MARK_LABEL[m]}
           </span>
         ))}
+        <span className="flex items-center gap-1 text-ink-soft">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-gold-500 bg-gold-100 text-[11px] font-bold text-zion-900">
+            •
+          </span>
+          보강 기록 있음
+        </span>
       </div>
 
       {/*
@@ -471,31 +625,29 @@ function AttendanceGrid({
         <table className="w-max min-w-full text-[13px]">
           <thead>
             <tr className="border-b border-zion-100 text-center text-[11px] text-ink-soft">
-              <th
-                className="sticky z-20 bg-white pb-1"
-                style={{ left: 0, minWidth: STICKY_NO_W }}
-              />
+              <th className="sticky z-20 bg-white pb-1" style={{ left: 0, minWidth: STICKY_NO_W }} />
               <th
                 className="sticky z-20 bg-white pb-1"
                 style={{ left: STICKY_NO_W, minWidth: STICKY_NAME_W }}
               />
-              <th className="pb-1" />
+              <th colSpan={3} className="pb-1" />
               {axis === "lesson" ? (
-                weekNos.map((w) => (
-                  <th
-                    key={w}
-                    colSpan={sessionsOfWeek(w, weekdayPeriods).length}
-                    className={"whitespace-nowrap px-1 pb-1 font-semibold text-zion-700 " + weekEdge}
-                  >
-                    {w}주차
-                  </th>
-                ))
+                weekNos.map((w) =>
+                  sessionsOf(w).length === 0 ? null : (
+                    <th
+                      key={w}
+                      colSpan={sessionsOf(w).length}
+                      className={"whitespace-nowrap px-1 pb-1 font-semibold text-zion-700 " + weekEdge}
+                    >
+                      {w}주차
+                    </th>
+                  ),
+                )
               ) : (
                 <th colSpan={weekNos.length} className={"pb-1 font-semibold text-zion-700 " + weekEdge}>
-                  1~{DONE_WEEKS}주차
+                  {DONE_WEEKS}~1주차
                 </th>
               )}
-              <th colSpan={3} className={"pb-1 " + weekEdge} />
             </tr>
             <tr className="border-b-2 border-zion-200 text-left text-[12px] text-ink-soft">
               <th
@@ -510,89 +662,147 @@ function AttendanceGrid({
               >
                 이름
               </th>
-              <th className="whitespace-nowrap pb-2 pr-2 font-medium">분반</th>
+              {/* 이름 바로 옆 — 종전에는 69칸 건너 맨 오른쪽에 있었다 (2026-08-15 리드 지시) */}
+              <th className="whitespace-nowrap px-2 pb-2 font-medium">상태</th>
+              <th className={infoTh}>보강 포함</th>
+              <th className={infoTh}>대면만</th>
               {axis === "lesson"
                 ? weekNos.flatMap((w) =>
-                    sessionsOfWeek(w, weekdayPeriods).map((sess, i) => (
+                    sessionsOf(w).map((sess, i) => (
                       <th
                         key={sess.sessionNo}
-                        className={
-                          "w-9 px-1 pb-2 text-center font-medium " + (i === 0 ? weekEdge : "")
-                        }
+                        className={`${colW} px-1 pb-2 text-center font-medium ` + (i === 0 ? weekEdge : "")}
                         title={sessionLabelOf(sess)}
                       >
                         {sess.weekdayLabel}
+                        {/* 주차 아래 날짜 (2026-08-15 리드 지시) */}
+                        <span className="block text-[10px] font-normal text-ink-soft">
+                          {dateOf(sess)}
+                        </span>
                         <span className="block text-[9.5px] font-normal text-zion-500">
-                          {sess.lessonNo}강
+                          {shortLessonLabel(sess)}
                         </span>
                       </th>
                     )),
                   )
                 : weekNos.map((w) => (
-                    <th key={w} className={"w-9 px-1 pb-2 text-center font-medium " + weekEdge}>
+                    <th key={w} className={`${colW} px-1 pb-2 text-center font-medium ` + weekEdge}>
                       {w}
+                      <span className="block text-[10px] font-normal text-ink-soft">
+                        {(() => {
+                          const [, m, d] = mondayOfWeek(startsOn, w).split("-").map(Number);
+                          return `${m}/${d}~`;
+                        })()}
+                      </span>
                       <span className="block text-[9.5px] font-normal text-zion-500">주</span>
                     </th>
                   ))}
-              <th className={"whitespace-nowrap pb-2 pl-2 text-right font-medium " + weekEdge}>
-                보강 포함
-              </th>
-              <th className="whitespace-nowrap pb-2 pl-2 text-right font-medium">대면만</th>
-              <th className="whitespace-nowrap pb-2 pl-3 font-medium">상태</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((s, idx) => {
-              const r = rateOf(s);
-              const hist = history.get(s.key) ?? [];
-              const cell = (weekNo: number, key: string | number, title: string, edge: boolean) => {
-                const mark = hist[agoOf(weekNo)]?.mark ?? "unknown";
-                return (
-                  <td key={key} className={"px-1 py-2 text-center " + (edge ? weekEdge : "")}>
-                    <span
-                      className={
-                        "inline-flex h-6 w-6 items-center justify-center rounded border text-[11px] font-bold " +
-                        MARK_TONE[mark]
-                      }
-                      title={`${title} — ${MARK_LABEL[mark]}`}
-                    >
-                      {MARK_GLYPH[mark]}
-                    </span>
-                  </td>
-                );
-              };
-              return (
-                <tr key={s.key} className="group border-b border-zion-100 last:border-0">
+            {groups.map((g) => (
+              <Fragment key={g.division}>
+                {/* 분반 가로 띠 (2026-08-15 리드 지시) */}
+                <tr className="bg-zion-50/80">
                   <td
-                    className="sticky z-10 bg-white py-2 text-center text-[12px] text-ink-soft group-hover:bg-zion-50"
+                    className="sticky z-10 bg-zion-50 py-1.5 text-center text-[11px] font-bold text-zion-700"
                     style={{ left: 0 }}
                   >
-                    {idx + 1}
+                    ▸
                   </td>
                   <td
-                    className="sticky z-10 whitespace-nowrap bg-white py-2 pr-2 font-medium text-ink group-hover:bg-zion-50"
+                    className="sticky z-10 whitespace-nowrap bg-zion-50 py-1.5 pr-2 text-[12px] font-bold text-zion-800"
                     style={{ left: STICKY_NO_W }}
+                    colSpan={4}
                   >
-                    {s.name}
+                    {g.division} · {g.list.length}명
                   </td>
-                  <td className="whitespace-nowrap py-2 pr-2 text-[12px] text-ink-soft">{s.division}</td>
-                  {axis === "lesson"
-                    ? weekNos.flatMap((w) =>
-                        sessionsOfWeek(w, weekdayPeriods).map((sess, i) =>
-                          cell(w, sess.sessionNo, `${w}주차 · ${sessionLabelOf(sess)}`, i === 0),
-                        ),
-                      )
-                    : weekNos.map((w) => cell(w, w, `${w}주차`, true))}
-                  <td className={"py-2 pl-2 text-right font-semibold text-zion-800 " + weekEdge}>
-                    {r.withMakeup}%
-                  </td>
-                  <td className="py-2 pl-2 text-right text-[12px] text-ink-soft">{r.presentOnly}%</td>
-                  <td className="py-2 pl-3">
-                    <StatusBadge status={s.status} />
-                  </td>
+                  <td colSpan={gridCols} />
                 </tr>
-              );
-            })}
+                {g.list.map((s) => {
+                  const r = rateOf(s);
+                  const hist = history.get(s.key) ?? [];
+                  const no = rows.indexOf(s) + 1;
+                  const cell = (
+                    weekNo: number,
+                    key: string | number,
+                    title: string,
+                    edge: boolean,
+                    sess?: SessionInfo,
+                  ) => {
+                    const mark = hist[agoOf(weekNo)]?.mark ?? "unknown";
+                    const notes = sess ? makeupsOf(s.key, sess.sessionNo) : [];
+                    /** 결석·보강예정 칸만 누른다 — 나머지는 남길 것이 없다 */
+                    const openable = sess !== undefined && (mark === "absent" || mark === "makeupPending");
+                    const glyph = (
+                      <span
+                        className={
+                          "relative inline-flex h-6 w-6 items-center justify-center rounded border text-[11px] font-bold " +
+                          MARK_TONE[mark] +
+                          (openable ? " transition hover:ring-2 hover:ring-zion-400" : "")
+                        }
+                      >
+                        {MARK_GLYPH[mark]}
+                        {notes.length > 0 && (
+                          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gold-500" />
+                        )}
+                      </span>
+                    );
+                    const label = `${title} — ${MARK_LABEL[mark]}${
+                      notes.length > 0 ? ` · 보강 기록 ${notes.length}건` : ""
+                    }`;
+                    return (
+                      <td key={key} className={"px-1 py-2 text-center " + (edge ? weekEdge : "")}>
+                        {openable ? (
+                          <button
+                            type="button"
+                            onClick={() => setMakeupAt({ student: s, sess })}
+                            title={`${label} — 눌러서 보강 기록`}
+                            aria-label={`${s.name} ${label} 보강 기록`}
+                          >
+                            {glyph}
+                          </button>
+                        ) : (
+                          <span title={label}>{glyph}</span>
+                        )}
+                      </td>
+                    );
+                  };
+                  return (
+                    <tr key={s.key} className="group border-b border-zion-100">
+                      <td
+                        className="sticky z-10 bg-white py-2 text-center text-[12px] text-ink-soft group-hover:bg-zion-50"
+                        style={{ left: 0 }}
+                      >
+                        {no}
+                      </td>
+                      <td
+                        className="sticky z-10 whitespace-nowrap bg-white py-2 pr-2 font-medium text-ink group-hover:bg-zion-50"
+                        style={{ left: STICKY_NO_W }}
+                      >
+                        {s.name}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2">
+                        <StatusBadge status={s.status} />
+                      </td>
+                      <td className="px-2 py-2 text-right font-semibold text-zion-800">
+                        {r.withMakeup}%
+                      </td>
+                      <td className="px-2 py-2 text-right text-[12px] text-ink-soft">
+                        {r.presentOnly}%
+                      </td>
+                      {axis === "lesson"
+                        ? weekNos.flatMap((w) =>
+                            sessionsOf(w).map((sess, i) =>
+                              cell(w, sess.sessionNo, `${w}주차 · ${sessionLabelOf(sess)}`, i === 0, sess),
+                            ),
+                          )
+                        : weekNos.map((w) => cell(w, w, `${w}주차`, true))}
+                    </tr>
+                  );
+                })}
+              </Fragment>
+            ))}
             {/* 우리 기수 평균 — 맨 아래 한 줄 */}
             <tr className="border-t-2 border-zion-200 bg-zion-50 text-[12px]">
               <td className="sticky z-10 bg-zion-50 py-2" style={{ left: 0 }} />
@@ -602,38 +812,229 @@ function AttendanceGrid({
               >
                 우리 기수 평균
               </td>
-              <td className="py-2" />
+              <td colSpan={3} className="py-2" />
               {weekNos.map((w) => {
                 const v = weekAvg(w);
+                const span = axis === "lesson" ? sessionsOf(w).length : 1;
+                if (span === 0) return null;
                 return (
                   <td
                     key={w}
-                    colSpan={axis === "lesson" ? sessionsOfWeek(w, weekdayPeriods).length : 1}
+                    colSpan={span}
                     className={"px-1 py-2 text-center font-semibold text-zion-700 " + weekEdge}
                   >
                     {v === null ? "—" : `${v}%`}
                   </td>
                 );
               })}
-              <td colSpan={3} className={weekEdge} />
             </tr>
           </tbody>
         </table>
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-        출결 원본은 읽기 전용 시트에서 동기화됩니다 — 이 화면에서 수정할 수 없고, 원본 수정 후 다음
-        동기화를 기다립니다. <strong>왼쪽이 1주차</strong>이고 23주차까지 좌우로 넘겨 봅니다 —
-        번호·이름은 따라다닙니다. 「보강 포함」·「대면만」 비율은 <strong>최근 8주 기준</strong>입니다.
+        출결 원본은 읽기 전용 시트에서 동기화됩니다 — <strong>이 화면에서 출결 자체는 못 고칩니다.</strong>{" "}
+        결석(X)·보강 예정(▽) 칸을 누르면 <strong>보강을 언제 할지·마쳤는지와 메모</strong>를 남기고,
+        그 기록은 수강생 관리의 「보강 · 상담 메모」에도 함께 뜹니다. 「보강 포함」·「대면만」 비율은{" "}
+        <strong>최근 8주 기준</strong>입니다.
         {axis === "lesson" && (
           <>
             {" "}
-            ⚠️ 목업 출결이 주 단위라 <strong>한 주의 세 회차(월·화·목)는 그 주의 표기를 따릅니다</strong> —
-            실연동 시 시트의 회차별 값이 그대로 들어옵니다. 회차·과수 매핑은 시범 값입니다.
+            ⚠️ 목업 출결이 주 단위라 <strong>한 주의 회차들은 그 주의 표기를 따릅니다</strong> —
+            실연동 시 시트의 회차별 값이 그대로 들어옵니다. 회차·강 매핑은 시범 값입니다.
           </>
         )}
       </p>
+
+      {makeupAt && (
+        <MakeupModal
+          student={makeupAt.student}
+          sess={makeupAt.sess}
+          dateLabel={dateOf(makeupAt.sess)}
+          canEdit={canEdit}
+          records={makeupsOf(makeupAt.student.key, makeupAt.sess.sessionNo)}
+          onClose={() => setMakeupAt(null)}
+          onSave={(input) => {
+            addStudentFeedback({
+              studentKey: makeupAt.student.key,
+              kind: "makeup",
+              date: input.date,
+              subject: `${makeupAt.sess.sessionNo}회차 ${shortLessonLabel(makeupAt.sess)} 보강 ${
+                input.state === "done" ? "완료" : "예정"
+              }`,
+              text: input.memo,
+              makeupState: input.state,
+              sessionNo: makeupAt.sess.sessionNo,
+              by: session.name,
+              byRole: session.roleCode,
+            });
+            setMakeupAt(null);
+          }}
+        />
+      )}
     </Card>
+  );
+}
+
+/**
+ * 보강 기록 창 (2026-08-15 리드 지시) — 결석 칸을 눌러 연다.
+ *
+ * ⚠️ **출결을 고치는 창이 아니다**(불변식 3). 원본의 결석은 그대로 두고 「언제 보강하기로
+ * 했는지 / 마쳤는지」와 메모를 옆에 남긴다. 저장된 기록은 `studentFeedback`(kind `makeup`)
+ * 한 곳에 들어가므로 **수강생 상세의 「보강 · 상담 메모」가 같은 것을 읽는다** — 두 벌로
+ * 나눠 저장하지 않는다.
+ */
+function MakeupModal({
+  student,
+  sess,
+  dateLabel,
+  canEdit,
+  records,
+  onClose,
+  onSave,
+}: {
+  student: Student;
+  sess: SessionInfo;
+  dateLabel: string;
+  canEdit: boolean;
+  records: { id: string; date: string; text: string; by: string; makeupState?: "planned" | "done" }[];
+  onClose: () => void;
+  onSave: (input: { date: string; state: "planned" | "done"; memo: string }) => void;
+}) {
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [state, setState] = useState<"planned" | "done">("planned");
+  const [memo, setMemo] = useState("");
+
+  return (
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/50 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="보강 기록"
+      >
+        <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="mb-1 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-[16px] font-bold text-zion-900">{student.name} · 보강 기록</h2>
+              <p className="mt-0.5 text-[12px] text-ink-soft">
+                {sess.weekNo}주차 {sess.weekdayLabel} {dateLabel} · {sess.sessionNo}회차 ·{" "}
+                {`${sess.level} ${sess.lessonNo}강 ${sess.lessonTitle}`.trim()}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              className="shrink-0 rounded p-1 text-ink-soft hover:bg-zion-50"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <p className="mt-3 rounded-lg bg-zion-50 p-2.5 text-[11.5px] leading-relaxed text-ink-soft">
+            출결 원본은 읽기 전용이라 <strong className="text-ink">결석 표시는 그대로 남습니다.</strong>{" "}
+            여기 적는 것은 그 옆에 붙는 보강 기록이고, 수강생 관리의 「보강 · 상담 메모」에도 함께 뜹니다.
+          </p>
+
+          {records.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {records.map((r) => (
+                <li key={r.id} className="rounded-lg border border-zion-100 p-2.5 text-[12px]">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-soft">
+                    <span
+                      className={
+                        "rounded border px-1.5 py-0.5 font-bold " +
+                        (r.makeupState === "done"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700")
+                      }
+                    >
+                      {r.makeupState === "done" ? "완료" : "예정"}
+                    </span>
+                    {r.date} · {r.by}
+                  </div>
+                  {r.text && <p className="mt-1 whitespace-pre-wrap leading-relaxed text-ink">{r.text}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {canEdit ? (
+            <form
+              className="mt-3 space-y-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSave({ date, state, memo: memo.trim() });
+              }}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
+                  보강일
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    aria-label="보강일"
+                    className="rounded-lg border border-zion-200 px-2 py-1 text-[12px] outline-none focus:border-zion-500"
+                  />
+                </label>
+                <div className="flex rounded-lg bg-zion-100 p-0.5">
+                  {(
+                    [
+                      ["planned", "계획"],
+                      ["done", "완료"],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setState(k)}
+                      aria-pressed={state === k}
+                      className={
+                        "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
+                        (state === k
+                          ? "bg-white text-zion-900 shadow-sm"
+                          : "text-zion-600 hover:text-zion-800")
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                rows={3}
+                placeholder="무엇을 어떻게 보강했는지 적습니다 (예: 3강 앞부분 다시, 질문 두 개 남음)"
+                aria-label="보강 메모"
+                className="w-full resize-y rounded-lg border border-zion-200 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border border-zion-200 px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+                >
+                  닫기
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700"
+                >
+                  기록하기
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="mt-3 text-[12px] text-ink-soft">
+              보강 기록은 <strong>해당 기수의 강사·전도사</strong>만 남깁니다.
+            </p>
+          )}
+        </div>
+      </div>
+    </Portal>
   );
 }
 
@@ -681,7 +1082,8 @@ function EightMonthTrend() {
         const n = sessionsThroughWeek(i + 1);
         return {
           at: i,
-          label: xAxis === "session" ? `${n}회차` : `${lessonOfSession(Math.max(1, n)).lessonNo}강`,
+          label:
+            xAxis === "session" ? `${n}회차` : shortLessonLabel(lessonOfSession(Math.max(1, n))),
         };
       });
   }, [xAxis]);
@@ -1136,18 +1538,42 @@ function WeekNoteForm({
 }
 
 /**
- * 기수 비교 — 지파 안과 12지파 전체를 나눠 본다.
+ * 기수 비교 — **같은 회차에서 견준다** (2026-08-15 리드 지시로 축을 갈았다).
+ *
+ * 종전에는 지금 누적 출석률만 줄 세웠다. 그런데 **월 초 개강한 반과 월 말 개강한 반은
+ * 진도가 다르다** — 달력으로 견주면 「우리가 높아 보이는데 알고 보니 상대는 3개월 앞선
+ * 반이고, 정작 우리 진도에서는 그쪽이 더 높았다」가 된다.
+ * 그래서 **개강 후 N회차**를 축으로 놓는다. 이미 앞선 기수도 **그 회차에서 어땠는지**가 보인다.
+ *
  * ⚠️ 담당 범위 밖 지파는 **기수명과 출석률 집계까지만** 보여 준다 (불변식 2 — 집계·통계만 반출).
+ * ⚠️ 회차별 출석률은 `cohort-mock`의 `sessionRateOf`가 만드는 **시범 값**이다(교체 경계).
  */
 function CohortCompare() {
   const session = useSession();
   const [scope, setScope] = useState<"tribe" | "all">("tribe");
 
+  /** 우리 기수가 지금까지 마친 회차 — 비교 자리의 기본값이다 */
+  const myDone = useMemo(
+    () => COHORT_RANKS.find((r) => r.isMine)?.doneSessions ?? sessionsThroughWeek(DONE_WEEKS),
+    [],
+  );
+  const [at, setAt] = useState(myDone);
+  const atLesson = lessonOfSession(at);
+
   const rows = useMemo(() => {
     const list =
       scope === "tribe" ? COHORT_RANKS.filter((r) => r.tribe === COHORT.tribe) : COHORT_RANKS;
-    return [...list].sort((a, b) => b.rate - a.rate);
-  }, [scope]);
+    return list
+      .map((r) => ({ ...r, atRate: sessionRateOf(r, at) }))
+      .sort((a, b) => {
+        // 아직 그 회차에 이르지 못한 기수는 아래로 — 견줄 값이 없다
+        if (a.atRate === null || b.atRate === null) {
+          if (a.atRate === b.atRate) return b.rate - a.rate;
+          return a.atRate === null ? 1 : -1;
+        }
+        return b.atRate - a.atRate;
+      });
+  }, [scope, at]);
 
   // 관리직만 다른 지파까지 본다 — 실무직은 담당 기수가 속한 지파 안에서만 비교
   const canSeeAll = session.roleCode === "headquarters_admin" || session.roleCode === "content_admin";
@@ -1156,9 +1582,11 @@ function CohortCompare() {
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[14px] font-bold text-zion-900">우수 기수 비교</div>
+          <div className="text-[14px] font-bold text-zion-900">같은 회차에서 견주기</div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            출석률이 높은 기수부터 봅니다. 잘 되는 기수의 운영 방식을 참고하기 위한 자리입니다.
+            개강 시점이 다른 기수를 달력으로 견주면 불공정합니다 —{" "}
+            <strong>같은 회차·같은 강에서 어땠는지</strong>로 봅니다. 이미 앞선 기수도 그 진도에서의
+            출석률이 나옵니다.
           </p>
         </div>
         <div className="flex shrink-0 gap-1 rounded-lg bg-zion-100 p-1">
@@ -1187,16 +1615,51 @@ function CohortCompare() {
         </div>
       </div>
 
+      {/* 견줄 회차 고르기 — 기본은 우리 기수가 지금 하고 있는 진도다 */}
+      <div className="mb-4 rounded-xl bg-zion-50 px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[12px] text-ink-soft">
+            견줄 자리{" "}
+            <strong className="text-[13px] text-zion-900">
+              {at}회차 · {atLesson.level} {atLesson.lessonNo}강
+            </strong>
+            {atLesson.title && <span className="ml-1 text-ink-soft">{atLesson.title}</span>}
+          </div>
+          <button
+            onClick={() => setAt(myDone)}
+            disabled={at === myDone}
+            className="shrink-0 rounded-lg border border-zion-200 bg-white px-2.5 py-1 text-[11.5px] font-semibold text-zion-700 transition hover:border-zion-400 disabled:cursor-not-allowed disabled:text-zion-300"
+          >
+            우리 지금 진도({myDone}회차)
+          </button>
+        </div>
+        <input
+          type="range"
+          min={1}
+          max={TOTAL_SESSIONS}
+          value={at}
+          onChange={(e) => setAt(Number(e.target.value))}
+          aria-label="견줄 회차"
+          className="mt-2 w-full accent-zion-700"
+        />
+        <div className="flex justify-between text-[10.5px] text-ink-soft">
+          <span>1회차</span>
+          <span>{TOTAL_SESSIONS}회차</span>
+        </div>
+      </div>
+
       <ol className="space-y-1.5">
         {rows.map((r, i) => (
           <li
             key={`${r.tribe}-${r.church}-${r.cohort}`}
             className={
-              "flex items-center gap-3 rounded-lg px-3 py-2 " +
+              "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 " +
               (r.isMine ? "bg-zion-50 ring-1 ring-zion-300" : "bg-white")
             }
           >
-            <span className="w-5 shrink-0 text-[12px] font-bold text-ink-soft">{i + 1}</span>
+            <span className="w-5 shrink-0 text-[12px] font-bold text-ink-soft">
+              {r.atRate === null ? "—" : i + 1}
+            </span>
             <span className="min-w-0 flex-1 text-[13px] text-ink">
               <span className="font-semibold">{r.cohort}</span>
               <span className="text-ink-soft">
@@ -1204,21 +1667,41 @@ function CohortCompare() {
                 · {r.tribe} 지파 {r.church}
               </span>
               {r.isMine && <span className="ml-1.5 text-[11px] font-semibold text-zion-700">우리 기수</span>}
+              {/* 개강일과 지금 진도 — 「왜 그 회차에 값이 없는지」가 여기서 설명된다 */}
+              <span className="block text-[11px] text-ink-soft">
+                {r.startsOn} 개강 · 지금 {r.doneSessions}회차
+                {r.doneSessions > myDone && " (우리보다 앞섬)"}
+              </span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
-              <span className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-zion-100 sm:block">
-                <span className="block h-full rounded-full bg-zion-700" style={{ width: `${r.rate}%` }} />
-              </span>
-              <span className="text-[13px] font-bold text-zion-800">{r.rate}%</span>
+              {r.atRate === null ? (
+                <span className="text-[11.5px] text-ink-soft">아직 그 회차 전</span>
+              ) : (
+                <>
+                  <span className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-zion-100 sm:block">
+                    <span
+                      className="block h-full rounded-full bg-zion-700"
+                      style={{ width: `${r.atRate}%` }}
+                    />
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-[13px] font-bold text-zion-800">{r.atRate}%</span>
+                    <span className="block text-[10.5px] text-ink-soft">지금 누적 {r.rate}%</span>
+                  </span>
+                </>
+              )}
             </span>
           </li>
         ))}
       </ol>
 
       <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
-        다른 지파는 <strong className="text-ink">기수명과 출석률 집계까지만</strong> 표시합니다 — 수강생
-        개인정보는 담당 범위 밖으로 나가지 않습니다.
+        큰 숫자는 <strong className="text-ink">고른 회차에서의 출석률</strong>이고, 작은 숫자는 그 기수의
+        지금 누적 출석률입니다 — 둘이 다르면 진도가 달라서입니다. 다른 지파는{" "}
+        <strong className="text-ink">기수명과 출석률 집계까지만</strong> 표시합니다 — 수강생 개인정보는
+        담당 범위 밖으로 나가지 않습니다.
         {!canSeeAll && " 12지파 전체 비교는 총회 범위 계정에서 볼 수 있습니다."}
+        {" "}회차별 값은 시범 데이터입니다.
       </p>
     </Card>
   );
