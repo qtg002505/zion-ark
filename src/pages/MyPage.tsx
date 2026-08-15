@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "../components/TransitionLink";
-import { Clock, Palette, Star, Trash2 } from "lucide-react";
+import { Clock, Palette, Star, Trash2, UserPlus, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel } from "../lib/permissions";
@@ -25,10 +25,21 @@ import { PageHeader, Card } from "./common";
  */
 export function MyPage() {
   const session = useSession();
-  const { favorites, activityLogs, materials, counselingTips, counselCases, toggleFavorite, clearActivity } =
-    useStore();
+  const {
+    favorites,
+    activityLogs,
+    materials,
+    counselingTips,
+    counselCases,
+    toggleFavorite,
+    clearActivity,
+    authorFollows,
+    toggleAuthorFollow,
+  } = useStore();
 
   const mineFav = favorites.filter((f) => f.userName === session.name);
+  /** 내가 팔로우한 강사 (2026-08-15) */
+  const myFollows = authorFollows.filter((f) => f.userName === session.name);
   const mineLog = activityLogs.filter((l) => l.userName === session.name);
 
   /**
@@ -84,6 +95,52 @@ export function MyPage() {
           <Palette size={15} className="text-zion-600" /> 화면 밝기
         </div>
         <ThemeChoice />
+      </Card>
+
+      {/*
+        내가 팔로우한 강사 (2026-08-15 리드 지시 — 「내가 팔로우한 강사님 항목도 볼 수 있도록」).
+        자료 상세에서 「작성자 팔로우」를 누르면 여기 모이고, 이름을 누르면 그 사람의 자료만 나온다.
+      */}
+      <Card className="mt-4">
+        <div className="mb-2 flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
+          <UserPlus size={15} className="text-zion-600" /> 팔로우한 강사 {myFollows.length}
+        </div>
+        {myFollows.length === 0 ? (
+          <p className="py-6 text-center text-[13px] leading-relaxed text-ink-soft">
+            팔로우한 강사가 없습니다.
+            <br />
+            자료를 열고 「작성자 팔로우」를 누르면 여기에 모입니다.
+          </p>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {myFollows
+              .slice()
+              .sort((a, b) => b.followedAt.localeCompare(a.followedAt))
+              .map((f) => (
+                <li
+                  key={f.author}
+                  className="flex items-center gap-1.5 rounded-lg border border-zion-100 py-1.5 pl-2.5 pr-1.5"
+                >
+                  {/* 그 강사의 자료만 보기 — 자료실 검색이 작성자도 찾는다(2026-08-15) */}
+                  <Link
+                    viewTransition
+                    to={`/library?q=${encodeURIComponent(f.author)}`}
+                    className="text-[13px] font-semibold text-zion-800 hover:underline"
+                  >
+                    {f.author}
+                  </Link>
+                  <button
+                    onClick={() => toggleAuthorFollow(session.name, f.author)}
+                    aria-label={`${f.author} 팔로우 해제`}
+                    title="팔로우 해제"
+                    className="rounded p-1 text-ink-soft transition hover:bg-zion-50 hover:text-red-600"
+                  >
+                    <X size={13} />
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
       </Card>
 
       <div className="mt-4 grid grid-cols-2 gap-4 max-md:grid-cols-1">

@@ -38,7 +38,6 @@ import {
 } from "../lib/cohort-calendar";
 import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { LineChart } from "../components/LineChart";
-import { Accordion } from "../components/Accordion";
 import {
   lessonOfSession,
   sessionLabelOf,
@@ -59,7 +58,20 @@ import type { Student } from "../lib/types";
 import { PageHeader, Card, StatTile, StatusBadge, EnrollmentStatusBadge } from "./common";
 
 type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
-const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"];
+
+/**
+ * 탭 정본 — **사이드바(`nav.ts`)의 「기수 현황」 하위 항목과 같은 순서·같은 이름**이다
+ * (2026-08-15 리드 지시로 사이드바에서도 펼쳐 본다). 한쪽만 고치면 두 곳이 어긋난다.
+ */
+export const COHORT_TABS: { id: Tab; label: string }[] = [
+  { id: "summary", label: "기수 요약" },
+  { id: "attendance", label: "출석 현황" },
+  { id: "trend", label: "주간 흐름" },
+  { id: "compare", label: "비교" },
+  { id: "divisions", label: "분반별 현황" },
+];
+const TABS = COHORT_TABS;
+const TAB_IDS: Tab[] = COHORT_TABS.map((t) => t.id);
 
 
 /**
@@ -77,12 +89,20 @@ export function CohortStatus() {
    * 출석 격자의 칸·회차 번호가 전부 이 값을 따른다 (2026-08-14 리드 지시).
    */
   const { weekdayPeriods, startsOn } = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   /**
-   * 옛 딥링크(`?tab=attendance`)를 그대로 받는다 — 2026-08-15에 탭을 아코디언으로 바꿨지만
-   * 메인·전체현황에서 걸어 둔 링크가 죽으면 안 된다. 그 항목이 **열린 채로** 뜬다.
+   * 지금 탭은 **주소가 정본**이다 (2026-08-15 리드 수정 지시).
+   *
+   * 잠깐 아코디언으로 바꿨다가 되돌렸다 — 리드 지시는 「**왼쪽 대카테고리에서 펼치고**,
+   * 우측 큰 창에서는 지난번처럼 가로 열로 눌러서」다. 그래서 사이드바(`nav.ts`)에
+   * 다섯 항목이 `?tab=…`로 걸리고, 이 화면은 그 값을 그대로 읽어 탭을 고른다.
+   * ⚠️ `useState` 초기값으로 두면 **사이드바에서 다른 항목을 눌러도 화면이 안 바뀐다**
+   * (컴포넌트가 그대로 살아 있어 초기값이 다시 안 읽힌다) — 파생 값으로 둔 이유다.
    */
-  const initialTab = TAB_IDS.includes(searchParams.get("tab") as Tab) ? (searchParams.get("tab") as Tab) : "summary";
+  const tab: Tab = TAB_IDS.includes(searchParams.get("tab") as Tab)
+    ? (searchParams.get("tab") as Tab)
+    : "summary";
+  const setTab = (next: Tab) => setSearchParams(next === "summary" ? {} : { tab: next });
 
   const divisions = visibleDivisions(session, DIVISIONS);
   const students = STUDENTS.filter((s) => divisions.includes(s.division));
@@ -120,23 +140,29 @@ export function CohortStatus() {
       />
 
       {/*
-        **탭 대신 아코디언**이다 (2026-08-15 리드 지시 — 「항목들이 아코디언 형식으로」).
-        탭은 한 번에 하나만 보이지만 아코디언은 필요한 것을 여럿 펼쳐 나란히 볼 수 있다.
-        ⚠️ 접힌 항목은 **그려지지 않는다**(`Accordion`이 열린 것만 렌더한다) — 출석 격자처럼
-        무거운 화면이 다섯 개 한꺼번에 뜨지 않는다.
-        ⚠️ `deferOffscreen`은 켜지 않는다 — 출석 격자 안에 모달(보강 기록·특강)이 있어
-        `contain: paint`에 갇힌다(`Accordion` 주석의 그 함정이다).
-        옛 딥링크(`?tab=attendance`)는 그대로 받는다 — 그 항목이 열린 채로 뜬다.
+        가로 탭 (2026-08-15 리드 수정 지시로 **되돌렸다**). 잠깐 아코디언으로 바꿨으나
+        「왼쪽 대카테고리에서 펼치고, 우측 큰 창은 지난번처럼 가로 열」이 리드의 뜻이다.
+        누르면 주소(`?tab=`)가 바뀌므로 **사이드바 항목과 이 탭이 늘 같은 곳을 가리킨다.**
       */}
-      <Accordion
-        initialOpenIds={[initialTab]}
-        items={[
-          {
-            id: "summary",
-            title: "기수 요약",
-            hint: "등록·수강 인원과 보강 포함 출석률",
-            content: (
-              <>
+      <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="기수 현황 탭">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={
+              "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition sm:px-4 " +
+              (tab === t.id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "summary" && (
+        <>
           <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
             <StatTile label="등록 수강생" value={`${students.length}명`} sub={`${divisions.length}개 분반`} accent />
             <StatTile
@@ -230,46 +256,26 @@ export function CohortStatus() {
               ))}
             </div>
           </Card>
-              </>
-            ),
-          },
-          {
-            id: "attendance",
-            title: "출석 현황",
-            hint: "회차별 출결 격자 · 보강 기록 · 특강",
-            content: (
-              <AttendanceGrid
-                students={students}
-                weekdayPeriods={weekdayPeriods}
-                startsOn={startsOn}
-              />
-            ),
-          },
-          {
-            id: "trend",
-            title: "주간 흐름",
-            hint: "8개월 꺾은선과 주차별 사유·극복",
-            content: (
-              <>
-                <EightMonthTrend />
-                <div className="mt-4">
-                  <WeeklyTrend rows={WEEKLY_RATES} />
-                </div>
-              </>
-            ),
-          },
-          {
-            id: "compare",
-            title: "비교",
-            hint: "같은 회차에서 다른 기수와 견주기",
-            content: <CohortCompare />,
-          },
-          {
-            id: "divisions",
-            title: "분반별 현황",
-            hint: "분반마다 누가 있고 몇 %인지",
-            content: (
-              <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+        </>
+      )}
+
+      {tab === "attendance" && (
+        <AttendanceGrid students={students} weekdayPeriods={weekdayPeriods} startsOn={startsOn} />
+      )}
+
+      {tab === "trend" && (
+        <>
+          <EightMonthTrend />
+          <div className="mt-4">
+            <WeeklyTrend rows={WEEKLY_RATES} />
+          </div>
+        </>
+      )}
+
+      {tab === "compare" && <CohortCompare />}
+
+      {tab === "divisions" && (
+        <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
           {divisions.map((d) => {
             const group = students.filter((s) => s.division === d);
             const active = group.filter((s) => enrollmentStatusOf(s) === "수강").length;
@@ -294,13 +300,10 @@ export function CohortStatus() {
                   수강 {active} · 탈락·유급 {group.length - active}
                 </div>
               </Card>
-                    );
-                  })}
-              </div>
-            ),
-          },
-        ]}
-      />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

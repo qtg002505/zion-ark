@@ -48,6 +48,8 @@ export function Library() {
       folders={LIBRARY_FOLDERS}
       folder={folder}
       onSelectFolder={(next) => setParams(next ? { folder: next } : {})}
+      /* 마이페이지의 「팔로우한 강사」가 `?q=이름`으로 넘어온다 (2026-08-15) */
+      initialQuery={params.get("q")}
       scopeAll
       categoryFilter={category}
       openId={params.get("open")}

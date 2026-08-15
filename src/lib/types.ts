@@ -94,14 +94,43 @@ export const INSTRUCTOR_OTHER_FOLDERS = ["예배설교"];
 export const GYOBUNGI_FOLDERS = ["교분기 초등", "교분기 중등", "교분기 고등"];
 
 /**
- * **강의 도우미가 품는 폴더 전부** — 밭갈이 네 파트 + 예배설교 + 교분기 셋.
+ * **우수 판서** 폴더 — 초·중·고 각 단계에 하나씩 (2026-08-15 리드 지시로 신설).
+ * 잘 쓴 판서를 모아 두는 자리다. 등록·열람 규칙은 다른 강의 도우미 폴더와 같다.
+ */
+export const BOARD_WRITING_FOLDERS = ["우수 판서 초등", "우수 판서 중등", "우수 판서 고등"];
+
+/**
+ * **강의 도우미가 품는 폴더 전부** — 밭갈이 네 파트 + 예배설교 + 흐름교육 셋 + 우수 판서 셋.
  * `/teaching` 화면이 이 목록 안의 폴더만 연다 (그 밖의 폴더 이름이 오면 첫 폴더로 되돌린다).
  */
 export const INSTRUCTOR_EARLY_FOLDERS = [
   ...INSTRUCTOR_BATGARI_FOLDERS,
   ...INSTRUCTOR_OTHER_FOLDERS,
   ...GYOBUNGI_FOLDERS,
+  ...BOARD_WRITING_FOLDERS,
 ];
+
+/**
+ * 폴더 **표기 이름** — 저장값과 화면 문구를 가르는 자리 (2026-08-15).
+ *
+ * 리드가 「교분기 → 흐름교육」으로 이름을 바꿨다. 그런데 폴더 이름은 **저장된 자료의
+ * `folderPath`에 그대로 들어 있어** 값을 바꾸면 그 자료들이 폴더에서 빠진다
+ * (2026-08-07에 실제로 겪은 사고다 · 불변식 10). 그래서 **값은 그대로 두고 표기만** 바꾼다 —
+ * 교제(`FELLOWSHIP_LABELS`)에서 「청년회 → 청년」을 처리한 것과 같은 방식이다.
+ *
+ * ⚠️ 새 폴더를 만들 때는 처음부터 바뀐 이름으로 짓는다(우수 판서가 그렇다) — 이 표는
+ * **이미 저장된 값이 있는 폴더**를 위한 것이다.
+ */
+export const FOLDER_DISPLAY_LABELS: Record<string, string> = {
+  "교분기 초등": "흐름교육 초등",
+  "교분기 중등": "흐름교육 중등",
+  "교분기 고등": "흐름교육 고등",
+};
+
+/** 화면에 낼 폴더 이름 — 표에 없으면 저장값 그대로다 */
+export function folderLabel(folder: string): string {
+  return FOLDER_DISPLAY_LABELS[folder] ?? folder;
+}
 
 /**
  * 전도사 도우미 「보강 자료」 폴더 (2026-08-06 카테고리 확정).

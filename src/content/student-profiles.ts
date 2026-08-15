@@ -161,6 +161,14 @@ export interface StudentStatusOverride {
   teacherName?: string;
   helperName?: string;
   /**
+   * 인교섬 연락처 (2026-08-15 리드 지시 — 「인교섬 파트에 인교섬 핸드폰 번호가 뜨게끔」).
+   * 담당자가 직접 적는다. 없으면 시범 번호(`demoGuidePhone`)가 자리를 채운다.
+   * ⚠️ **수강생 전화와 같은 마스킹**을 쓴다 — 사명자 번호도 개인정보다.
+   */
+  guidePhone?: string;
+  teacherPhone?: string;
+  helperPhone?: string;
+  /**
    * 나이·생년월일·전화·주소 — 마팔에서 처음 오지만 중간에 바뀌기도 해 담당자가 직접
    * 고쳐 쓸 수 있게 했다(2026-08-13 추가). 없으면 씨앗 값(`StudentProfile`)을 쓴다
    */
@@ -308,6 +316,20 @@ export const SAJU_ELEMENTS: SajuElement[] = ["목", "화", "토", "금", "수"];
  * 일주(간지 두 글자) — 실제 사주 계산이 아니라 생년월일에서 결정론적으로 뽑은 시범 표시값이다
  * (불변식 6). 같은 사람은 항상 같은 값이 나오지만, 만세력 계산과는 무관하다.
  */
+/**
+ * 인교섬 시범 연락처 (2026-08-15) — 이름에서 **결정적으로** 만든 가짜 번호다.
+ *
+ * ⚠️ **실존 번호가 아니다**(불변식 6 — 목업은 가상 인물이어야 한다). 마팔 연동 전까지
+ * 자리를 채우는 값이고, 담당자가 적은 값(`StudentStatusOverride.guidePhone` 등)이 있으면
+ * 그쪽이 이긴다. 이름이 같으면 번호도 같아 화면을 새로 고쳐도 안 흔들린다.
+ */
+export function demoGuidePhone(name: string): string {
+  const seed = [...name].reduce((n, c) => n + c.charCodeAt(0), 0);
+  const mid = String(1000 + (seed % 9000));
+  const tail = String(1000 + ((seed * 7) % 9000));
+  return `010-${mid}-${tail}`;
+}
+
 export function iljuOf(birthDate: string): string {
   const n = Number(birthDate.replace(/-/g, "")) || 0;
   return `${HEAVENLY_STEMS[n % 10]}${EARTHLY_BRANCHES[n % 12]}`;

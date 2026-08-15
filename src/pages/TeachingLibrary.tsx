@@ -1,10 +1,12 @@
 import { useSearchParams } from "react-router-dom";
 import {
+  BOARD_WRITING_FOLDERS,
   GYOBUNGI_FOLDERS,
   INSTRUCTOR_BATGARI_FOLDERS,
   INSTRUCTOR_EARLY_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
   MATERIAL_LEVELS,
+  folderLabel,
   type MaterialLevel,
 } from "../lib/types";
 import { FolderLibrary } from "../components/FolderLibrary";
@@ -38,22 +40,34 @@ export function TeachingLibrary() {
   const level = rawLevel && MATERIAL_LEVELS.includes(rawLevel) ? rawLevel : null;
 
   const inBatgari = folder !== null && INSTRUCTOR_BATGARI_FOLDERS.includes(folder);
+  /** 흐름교육(저장값은 「교분기 …」 그대로다 — 표기만 바뀌었다) */
   const inGyobungi = folder !== null && GYOBUNGI_FOLDERS.includes(folder);
+  /** 우수 판서 (2026-08-15 신설) */
+  const inBoardWriting = folder !== null && BOARD_WRITING_FOLDERS.includes(folder);
 
   return (
     <FolderLibrary
-      crumb={inBatgari ? "강의 도우미 · 밭갈이" : inGyobungi ? "강의 도우미 · 교분기" : "강의 도우미"}
-      title={featuredOnly ? `우수 교안 · 특강${level ? ` (${level})` : ""}` : (folder ?? "강의 자료 전체")}
+      /* ⚠️ 폴더 이름은 저장값 그대로 쓰고, **화면에는 `folderLabel`을 거쳐** 낸다 (2026-08-15) */
+      crumb={inBatgari ? "강의 도우미 · 밭갈이" : inGyobungi ? "강의 도우미 · 흐름교육" : "강의 도우미"}
+      title={
+        featuredOnly
+          ? `우수 교안 · 특강${level ? ` (${level})` : ""}`
+          : folder
+            ? folderLabel(folder)
+            : "강의 자료 전체"
+      }
       desc={
         featuredOnly
           ? `${level ? `${level} 단계의 ` : ""}우수 교안과 특강 자료입니다. 단계 표시가 없는 자료는 공통으로 모든 단계에 보입니다.`
           : inGyobungi
             ? "총회 표준본이 위에 고정되고, 그 아래 우리 지파의 보충 자료가 이어집니다. 다른 지파의 보충 자료는 보이지 않습니다."
-            : inBatgari
-              ? "이 파트에서 쓰는 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
-              : folder === INSTRUCTOR_OTHER_FOLDERS[0]
-                ? "예배설교 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
-                : "밭갈이 네 파트와 예배설교 · 교분기 자료입니다. 파트는 왼쪽 메뉴에서 고릅니다."
+            : inBoardWriting
+              ? "잘 쓴 판서를 모아 두는 자리입니다. 사진·PPT·영상 링크를 자료 하나에 함께 답니다."
+              : inBatgari
+                ? "이 파트에서 쓰는 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
+                : folder === INSTRUCTOR_OTHER_FOLDERS[0]
+                  ? "예배설교 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
+                  : "밭갈이 네 파트와 예배설교 · 흐름교육 · 우수 판서 자료입니다. 파트는 왼쪽 메뉴에서 고릅니다."
       }
       folders={INSTRUCTOR_EARLY_FOLDERS}
       folder={folder}
@@ -63,8 +77,10 @@ export function TeachingLibrary() {
       openId={params.get("open")}
       emptyNote={
         inGyobungi
-          ? "등록된 교분기 자료가 없습니다. 표준본은 콘텐츠 관리자·총회 신학부장이, 지파 보충본은 지파 신학부장이 올립니다."
-          : "이 파트에 등록된 자료가 없습니다. 원본을 받으면 여기에 올립니다."
+          ? "등록된 흐름교육 자료가 없습니다. 표준본은 콘텐츠 관리자·총회 신학부장이, 지파 보충본은 지파 신학부장이 올립니다."
+          : inBoardWriting
+            ? "등록된 우수 판서가 없습니다. 잘 쓴 판서를 올려 두면 다음 강사가 그대로 참고합니다."
+            : "이 파트에 등록된 자료가 없습니다. 원본을 받으면 여기에 올립니다."
       }
     />
   );

@@ -11,7 +11,6 @@ import { StudentsDashboard } from "./pages/StudentsDashboard";
 import { StudentDetailPage } from "./pages/StudentDetailPage";
 import { Main } from "./pages/Main";
 import { Compose } from "./pages/Compose";
-import { LectureDigest } from "./pages/LectureDigest";
 import { Library } from "./pages/Library";
 import { TeachingLibrary } from "./pages/TeachingLibrary";
 import { TendencyAnalysis } from "./pages/TendencyAnalysis";
@@ -81,7 +80,12 @@ function Routed() {
         <Route path="/signals" element={<Navigate to="/students-dashboard" replace />} />
         <Route path="/compose" element={<Compose />} />
         {/* 강의 후에 받아쓴 글을 정리하는 화면 — /compose(강의 전)와 짝이다 (2026-08-13) */}
-        <Route path="/digest" element={<LectureDigest />} />
+        {/*
+          「강의 녹취 정리」는 2026-08-15 리드 지시로 없앴다 — 경로는 지우지 않고 강의 도우미로
+          넘긴다(북마크·옛 링크가 죽지 않게, `/signals`·`/care`와 같은 처리).
+          되살릴 때는 git 이력에서 `pages/LectureDigest.tsx`와 `lib/transcript-digest.ts`를 꺼낸다.
+        */}
+        <Route path="/digest" element={<Navigate to="/teaching" replace />} />
         <Route path="/library" element={<Library />} />
         {/* 강의 도우미 안의 자료실 — 밭갈이 각 파트·예배설교 (2026-08-13) */}
         <Route path="/teaching" element={<TeachingLibrary />} />

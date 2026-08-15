@@ -122,7 +122,16 @@ export function StudentsDashboard() {
         (2026-08-13 지적). title을 이 화면 이름("수강생 현황")으로 바꾸고, 그 아래
         정보 한 줄(desc)은 뺐다 — 지파·교회·기수·조회범위는 아래 필터 줄에서 이미 보인다.
       */}
-      <PageHeader crumb="수강생 관리 도우미" title="수강생 현황" />
+      {/*
+        이름을 「AI 성장 추천」으로 바꿨다 (2026-08-15 리드 지시 — 종전 「수강생 현황」).
+        화면이 하는 일은 그대로다: 명단을 보고, 줄을 누르면 그 사람의 상세(등급·추천 액션·
+        연결 자료)가 열린다. AI 분석이 **추천 특강·교안·분반으로 이어지는 것**이 이 화면의 뜻이다.
+      */}
+      <PageHeader
+        crumb="수강생 관리 도우미"
+        title="AI 성장 추천"
+        desc="등급과 추천 액션을 보고, 줄을 누르면 그 수강생에게 맞는 교안·보강 자료로 바로 이어집니다."
+      />
 
       {/* 상단 필터 — 분반(전도사) 선택은 아래 목록 왼쪽 패널에서 한다 */}
       <Card className="mb-4">
@@ -297,7 +306,31 @@ export function StudentsDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(({ student: s, profile: p, grade, yuwol, fellowship, enrollmentStatus, registrationType }) => (
+                      {/*
+                        「전체 분반」일 때도 **분반 띠로 나뉘어 보인다** (2026-08-15 리드 지시 —
+                        「분반별로 나눠지지만 전체가 보이도록」). 출석 격자의 분반 띠와 같은 방식이다.
+                        분반 하나를 고른 상태에서는 띠가 군더더기라 안 그린다.
+                      */}
+                      {(divisionFilter === "all"
+                        ? [...new Set(filtered.map((r) => r.student.division))].sort((a, b) =>
+                            a.localeCompare(b, "ko"),
+                          )
+                        : [divisionFilter]
+                      ).flatMap((div) => [
+                        divisionFilter === "all" ? (
+                          <tr key={`band-${div}`} className="bg-zion-50/80">
+                            <td colSpan={9} className="py-1.5 pr-2 text-[11.5px] font-bold text-zion-800">
+                              ▸ {div}
+                              <span className="ml-1.5 font-normal text-ink-soft">
+                                {DIVISION_EVANGELISTS[div] ?? ""} ·{" "}
+                                {filtered.filter((r) => r.student.division === div).length}명
+                              </span>
+                            </td>
+                          </tr>
+                        ) : null,
+                        ...filtered
+                          .filter((r) => r.student.division === div)
+                          .map(({ student: s, profile: p, grade, yuwol, fellowship, enrollmentStatus, registrationType }) => (
                         <tr
                           key={s.key}
                           // 줄을 누르면 바로 상세가 열린다 — 요약 패널을 걷어냈으므로 한 단계로 간다
@@ -334,7 +367,8 @@ export function StudentsDashboard() {
                             {p.note}
                           </td>
                         </tr>
-                      ))}
+                          )),
+                      ])}
                     </tbody>
                   </table>
                 </div>

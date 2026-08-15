@@ -22,6 +22,7 @@ import {
   MATERIAL_LIKE_KINDS,
   MATERIAL_LIKE_LABELS,
   ROLE_LABELS,
+  folderLabel,
   type LibraryCategory,
   type LibraryMaterial,
   type MaterialLevel,
@@ -86,6 +87,7 @@ export function FolderLibrary({
   categoryFilter = null,
   levelFilter = null,
   openId = null,
+  initialQuery = null,
   emptyNote,
   children,
 }: {
@@ -116,6 +118,11 @@ export function FolderLibrary({
    * `?open=<id>`를 화면(자료실·강의 도우미)이 읽어 넘긴다. 마운트 때 한 번만 연다.
    */
   openId?: string | null;
+  /**
+   * 처음부터 넣어 둘 검색어 (2026-08-15) — 마이페이지의 「팔로우한 강사」가
+   * `/library?q=이름`으로 넘어온다. 검색은 작성자도 찾으므로 그 사람의 자료만 남는다.
+   */
+  initialQuery?: string | null;
   /** 자료가 없을 때 덧붙일 안내 (폴더 성격에 따라 다르다) */
   emptyNote?: string;
   /** 목록 위에 끼울 화면별 안내 */
@@ -144,7 +151,7 @@ export function FolderLibrary({
     toggleAuthorFollow,
   } = useStore();
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [sort, setSort] = useState<MaterialSortKey>("recent");
   /** 팔로우한 작성자 자료만 보기 (2026-08-15 리드 제안) */
   const [followedOnly, setFollowedOnly] = useState(false);
@@ -403,7 +410,8 @@ export function FolderLibrary({
       {/* 지금 보고 있는 폴더. 폴더 **목록**은 왼쪽 사이드바에만 둔다 */}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-ink-soft">
         <FolderOpen size={14} className="shrink-0 text-zion-500" />
-        <span className="font-semibold text-ink">{folder ?? title}</span>
+        {/* ⚠️ 저장값이 아니라 **표기 이름**을 낸다 (2026-08-15 — 교분기 → 흐름교육) */}
+        <span className="font-semibold text-ink">{folder ? folderLabel(folder) : title}</span>
         <span>· {list.length}건</span>
         {folder && onSelectFolder && (
           <button onClick={() => onSelectFolder(null)} className="font-semibold text-zion-700 hover:underline">
@@ -469,7 +477,7 @@ export function FolderLibrary({
               </span>
               <h2 className="mt-1 text-[17px] font-bold text-zion-900">{selected.title}</h2>
               <div className="mt-1 text-[12px] text-ink-soft">
-                {(selected.folderPath ?? []).join(" › ") || "폴더 없음"}
+                {(selected.folderPath ?? []).map(folderLabel).join(" › ") || "폴더 없음"}
                 {" · "}
                 {LIBRARY_CATEGORY_LABELS[selected.category]}
                 {selected.level && ` · ${selected.level}`}
@@ -839,7 +847,7 @@ function MaterialForm({
               >
                 {folders.map((f) => (
                   <option key={f} value={f}>
-                    {f}
+                    {folderLabel(f)}
                   </option>
                 ))}
               </select>

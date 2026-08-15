@@ -16,6 +16,7 @@ import {
   FELLOWSHIP_LABELS,
   ENROLLMENT_STATUS_DEFAULT,
   fellowshipOf,
+  demoGuidePhone,
   iljuOf,
   ohaengOf,
   birthCalendarOf,
@@ -275,6 +276,13 @@ export function StudentDetailPage({
   const guideName = override?.guideName ?? p.guideName;
   const teacherName = override?.teacherName ?? p.teacherName;
   const helperName = override?.helperName ?? p.helperName;
+  /**
+   * 인교섬 연락처 (2026-08-15) — 담당자가 적은 값이 없으면 **시범 번호**가 자리를 채운다.
+   * ⚠️ 시범 번호는 이름에서 만든 가짜다(불변식 6) — 마팔 연동 시 실제 값으로 바뀐다.
+   */
+  const guidePhone = override?.guidePhone ?? demoGuidePhone(p.guideName);
+  const teacherPhone = override?.teacherPhone ?? demoGuidePhone(p.teacherName);
+  const helperPhone = override?.helperPhone ?? demoGuidePhone(p.helperName);
   const birthDate = override?.birthDate ?? p.birthDate;
   const phone = override?.phone ?? p.phone;
   const address = override?.address ?? p.address;
@@ -312,9 +320,10 @@ export function StudentDetailPage({
   const cautions = readSignals(student).signals.map((s) => s.text);
   if (cautions.length === 0) cautions.push("관찰된 주의 신호가 없습니다");
 
-  // ⚠️ 과거 AI 점수를 기록해 둔 적이 없어, 지금 점수로 거꾸로 추정한 참고용 3개월 추세다 —
-  // 실제 이력이 아니다. 원본 이력이 쌓이면 이 자리를 실측값으로 바꾼다
-  const trend = [Math.max(0, score - 22), Math.max(0, score - 10), score];
+  /*
+    ⚠️ 여기 있던 `trend`(3개월 추정 추세)는 2026-08-15 리드 지시로 화면과 함께 걷어냈다 —
+    과거 점수 이력이 없어 지금 점수로 지어낸 값이었다. 실제 이력이 쌓이면 되살린다.
+  */
 
   return (
     <div>
@@ -807,51 +816,70 @@ export function StudentDetailPage({
         <Card className="flex h-full flex-col">
           <SectionTitle bar>인교섬</SectionTitle>
           {mode === "view" ? (
-            // 다른 요약과 같은 SummaryRow 격자로 통일한다(2026-08-13)
-            <dl className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-[12px]">
-              <SummaryRow label="인도자" value={guideName} />
-              <SummaryRow label="교사" value={teacherName} />
-              <SummaryRow label="섬김이" value={helperName} />
+            /*
+              이름 아래 **연락처**가 함께 나온다 (2026-08-15 리드 지시 — 「인교섬 핸드폰 번호가
+              뜨게끔」). ⚠️ 사명자 번호도 개인정보라 **수강생 전화와 같은 마스킹**을 쓰고,
+              한 번 눌러야 전체가 보인다(해제는 감사 로그에 남는다).
+            */
+            <dl className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-[12px] max-sm:grid-cols-1">
+              {(
+                [
+                  ["인도자", guideName, guidePhone],
+                  ["교사", teacherName, teacherPhone],
+                  ["섬김이", helperName, helperPhone],
+                ] as const
+              ).map(([label, name, phoneValue]) => (
+                <div key={label} className="min-w-0">
+                  <SummaryRow label={label} value={name} />
+                  <div className="mt-0.5 pl-[3.2rem] max-sm:pl-0">
+                    <MaskedRow
+                      label="연락처"
+                      masked={maskPhone(phoneValue)}
+                      full={phoneValue}
+                      onReveal={() =>
+                        logStudentAccess(session.name, session.roleCode, student.key, "reveal_phone")
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
             </dl>
           ) : (
-            // 원래 마팔 자료에서 오지만 중간에 바뀌기도 해 직접 고쳐 쓸 수 있게 했다(2026-08-13)
+            /*
+              원래 마팔 자료에서 오지만 중간에 바뀌기도 해 직접 고쳐 쓸 수 있게 했다(2026-08-13).
+              연락처 칸은 2026-08-15에 더했다 — 이름 아래 한 칸씩이다.
+            */
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <div>
-                <div className="mb-1 text-[11px] font-semibold text-ink-soft">인도자</div>
-                <input
-                  type="text"
-                  value={guideName}
-                  onChange={(e) =>
-                    setStudentStatus(student.key, { guideName: e.target.value }, session.name, session.roleCode)
-                  }
-                  aria-label="인도자"
-                  className="w-full rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
-                />
-              </div>
-              <div>
-                <div className="mb-1 text-[11px] font-semibold text-ink-soft">교사</div>
-                <input
-                  type="text"
-                  value={teacherName}
-                  onChange={(e) =>
-                    setStudentStatus(student.key, { teacherName: e.target.value }, session.name, session.roleCode)
-                  }
-                  aria-label="교사"
-                  className="w-full rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
-                />
-              </div>
-              <div>
-                <div className="mb-1 text-[11px] font-semibold text-ink-soft">섬김이</div>
-                <input
-                  type="text"
-                  value={helperName}
-                  onChange={(e) =>
-                    setStudentStatus(student.key, { helperName: e.target.value }, session.name, session.roleCode)
-                  }
-                  aria-label="섬김이"
-                  className="w-full rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
-                />
-              </div>
+              {(
+                [
+                  ["인도자", guideName, guidePhone, "guideName", "guidePhone"],
+                  ["교사", teacherName, teacherPhone, "teacherName", "teacherPhone"],
+                  ["섬김이", helperName, helperPhone, "helperName", "helperPhone"],
+                ] as const
+              ).map(([label, name, phoneValue, nameField, phoneField]) => (
+                <div key={label}>
+                  <div className="mb-1 text-[11px] font-semibold text-ink-soft">{label}</div>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) =>
+                      setStudentStatus(student.key, { [nameField]: e.target.value }, session.name, session.roleCode)
+                    }
+                    aria-label={label}
+                    className="w-full rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
+                  />
+                  <input
+                    type="tel"
+                    value={phoneValue}
+                    onChange={(e) =>
+                      setStudentStatus(student.key, { [phoneField]: e.target.value }, session.name, session.roleCode)
+                    }
+                    aria-label={`${label} 연락처`}
+                    placeholder="010-0000-0000"
+                    className="mt-1 w-full rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
+                  />
+                </div>
+              ))}
             </div>
           )}
 
@@ -1142,42 +1170,15 @@ export function StudentDetailPage({
             </ul>
           </div>
 
-          <div className="rounded-lg border border-zion-100 p-3">
-            <div className="mb-1.5 text-[12px] font-semibold text-ink-soft">성장 추세 (참고용 추정)</div>
-            <svg viewBox="0 0 120 44" preserveAspectRatio="none" className="h-12 w-full">
-              <polyline
-                points={trend.map((v, i) => `${(i / (trend.length - 1)) * 120},${42 - (v / 100) * 38}`).join(" ")}
-                fill="none"
-                vectorEffect="non-scaling-stroke"
-                className="stroke-zion-700"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {trend.map((v, i) => (
-                <circle
-                  key={i}
-                  cx={(i / (trend.length - 1)) * 120}
-                  cy={42 - (v / 100) * 38}
-                  r="0"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                  className="stroke-zion-700"
-                />
-              ))}
-            </svg>
-            <div className="mt-1 flex justify-between text-[9.5px] text-ink-soft">
-              <span>2개월 전 · {trend[0]}</span>
-              <span>1개월 전 · {trend[1]}</span>
-              <span>이번 달 · {trend[2]}</span>
-            </div>
-          </div>
         </div>
 
+        {/*
+          ⚠️ 「성장 추세」 꺾은선은 **2026-08-15 리드 지시로 뺐다.** 과거 점수를 기록해 둔 적이
+          없어 지금 점수로 지어낸 추정선이었다 — 사실이 아닌 그림은 없는 편이 낫다.
+          실제 점수 이력이 쌓이면 실측값으로 되살린다(git 이력에 남아 있다).
+        */}
         <p className="mt-3 text-[10.5px] leading-relaxed text-ink-soft">
-          ⚠️ 성장 추세는 과거 점수를 기록해 둔 적이 없어 지금 점수를 바탕으로 추정한 참고용
-          값입니다 — 실제 이력이 아닙니다. 원본 이력이 쌓이면 실측값으로 바꿉니다.
+          출결에서 계산한 값입니다 — 사람의 신앙·인격을 판정하지 않습니다.
           {penalty > 0 && ` (관찰 신호 가중치 -${penalty} 반영됨)`}
         </p>
       </Card>

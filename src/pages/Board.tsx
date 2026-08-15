@@ -46,8 +46,8 @@ export function Board() {
   return (
     <div>
       <PageHeader
-        crumb="건의 · 의견"
-        title="건의 · 의견"
+        crumb="게시판"
+        title="게시판"
         desc="플랫폼을 쓰다가 느낀 건의·불편·감사를 남기는 자리입니다. 비밀글은 작성자 본인과 총회 관리자, 해당 지파 신학부장만 봅니다."
         action={
           <button

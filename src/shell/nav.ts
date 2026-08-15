@@ -5,8 +5,10 @@ import {
   EVANGELIST_MAKEUP_FOLDERS,
   INSTRUCTOR_BATGARI_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
+  folderLabel,
 } from "../lib/types";
 import { MISSION_CENTER_VIEW_ROLES, SITE_USAGE_VIEW_ROLES } from "../lib/permissions";
+import { COHORT_TABS } from "../pages/CohortStatus";
 import {
   Home,
   LayoutDashboard,
@@ -31,7 +33,6 @@ import {
   Leaf,
   TreeDeciduous,
   Layers,
-  FileText,
   CalendarDays,
   MessagesSquare,
   FolderClosed,
@@ -41,6 +42,7 @@ import {
   MapPin,
   MessageSquarePlus,
   Activity,
+  PenLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -135,15 +137,30 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "홈", icon: Home, to: "/" },
   { label: "전체 현황", icon: LayoutDashboard, to: "/overview" },
 
-  /** 1. 기수 현황 — 한 기수를 깊게 파고드는 자리. 조직별 운영 영역 */
+  /**
+   * 1. 기수 현황 — 한 기수를 깊게 파고드는 자리. 조직별 운영 영역.
+   *
+   * **화면의 다섯 탭이 사이드바에서도 펼쳐진다** (2026-08-15 리드 지시 —
+   * 「왼쪽 대카테고리를 보는 곳에서 펼쳐지게, 우측 큰 창에서는 지난번처럼 가로 열로」).
+   * ⚠️ 이름·순서는 `CohortStatus`의 `COHORT_TABS`가 정본이다 — 여기서 읽어 만든다.
+   * 자료실 폴더를 `LIBRARY_FOLDERS` 한 곳에서 읽는 것과 같은 원칙이다(두 곳에 적지 않는다).
+   */
   {
     label: "기수 현황",
     icon: Gauge,
-    items: [
-      { to: "/cohort", label: "기수 현황", icon: GraduationCap },
-      /* 2026-08-13 리드 지시 — 주간 보기가 생겨 「월간·주간 계획」으로 이름을 바꿨다 (경로 불변) */
-      { to: "/plan", label: "월간·주간 계획", icon: CalendarDays },
+    subGroups: [
+      {
+        label: "기수 현황",
+        icon: GraduationCap,
+        items: COHORT_TABS.map((t) => ({
+          to: t.id === "summary" ? "/cohort" : `/cohort?tab=${t.id}`,
+          label: t.label,
+          icon: GraduationCap,
+        })),
+      },
     ],
+    /* 2026-08-13 리드 지시 — 주간 보기가 생겨 「월간·주간 계획」으로 이름을 바꿨다 (경로 불변) */
+    items: [{ to: "/plan", label: "월간·주간 계획", icon: CalendarDays }],
   },
 
   /**
@@ -176,8 +193,14 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
           { to: "/lessons", label: "초등 강의자료", icon: BookText },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("초등")}`, label: "우수 교안·특강", icon: Star },
-          // ⚠️ folder 값은 encodeURIComponent — 활성 판정이 location.search(인코딩된 값)와 견주기 때문
-          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: "교분기", icon: BookOpenText },
+          /* 우수 판서 (2026-08-15 리드 지시로 신설) — 잘 쓴 판서를 모으는 자리 */
+          { to: `/teaching?folder=${encodeURIComponent("우수 판서 초등")}`, label: "우수 판서", icon: PenLine },
+          /*
+            ⚠️ folder 값은 encodeURIComponent — 활성 판정이 location.search(인코딩된 값)와 견주기 때문.
+            ⚠️ **저장값은 「교분기 초등」 그대로이고 표기만 「흐름교육」이다** (2026-08-15) —
+            폴더 값을 바꾸면 이미 저장된 자료가 폴더에서 빠진다(불변식 10 · `folderLabel`).
+          */
+          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: folderLabel("교분기 초등").replace(" 초등", ""), icon: BookOpenText },
         ],
       },
       {
@@ -186,7 +209,8 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
           { to: "/lessons?course=middle", label: "중등 강의자료", icon: BookText, badge: "준비 중" },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("중등")}`, label: "우수 교안·특강", icon: Star },
-          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: "교분기", icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("우수 판서 중등")}`, label: "우수 판서", icon: PenLine },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: folderLabel("교분기 중등").replace(" 중등", ""), icon: BookOpenText },
         ],
       },
       {
@@ -195,7 +219,8 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
           { to: "/lessons?course=high", label: "고등 강의자료", icon: BookText },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("고등")}`, label: "우수 교안·특강", icon: Star },
-          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: "교분기", icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("우수 판서 고등")}`, label: "우수 판서", icon: PenLine },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: folderLabel("교분기 고등").replace(" 고등", ""), icon: BookOpenText },
         ],
       },
       {
@@ -207,13 +232,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
     /*
       직속 항목은 보조 도구라 하위 묶음 뒤에 놓인다.
-      「자료 모으기」는 **강의 전**(주제어로 사이트 자료를 모은다), 「녹취 정리」는 **강의 후**
-      (밖에서 받아쓴 글을 사이트가 자른다)라 짝을 이룬다 (2026-08-13).
+      ⚠️ **「강의 녹취 정리」(`/digest`)는 2026-08-15 리드 지시로 없앴다.** 경로는 리다이렉트로
+      남긴다(북마크가 죽지 않게) — 되살릴 때는 git 이력에서 `pages/LectureDigest.tsx`를 꺼낸다.
     */
-    items: [
-      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
-      { to: "/digest", label: "강의 녹취 정리", icon: FileText },
-    ],
+    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
   },
 
   /**
@@ -267,7 +289,8 @@ const NAV_GROUPS: NavGroup[] = [
       그 값을 쓰기 때문이다. 화면만 걷어낸 것이다.
     */
     items: [
-      { to: "/students-dashboard", label: "수강생 현황", icon: Users },
+      /* 2026-08-15 리드 지시 — 「수강생 현황」에서 이름을 바꿨다 (경로 불변) */
+      { to: "/students-dashboard", label: "AI 성장 추천", icon: Sparkles },
       /*
         수강생 성향 분석 (2026-08-13 신설, 같은 날 개편) — 수강생을 고르면 기록된 에니어그램
         유형의 원문(성장과정·단계향상·관리팁·보강 성구)을 그대로 보여 준다.
@@ -403,7 +426,8 @@ const NAV_GROUPS: NavGroup[] = [
    * 실무자가 총회 신학부장·개발자에게 남기는 플랫폼 의견 창구다. 기존 순서는 안 건드리고
    * 맨 뒤에 붙였다 — 12지파 선교센터를 더할 때와 같은 원칙이다.
    */
-  { label: "건의 · 의견", icon: MessageSquarePlus, to: "/board" },
+  /* 2026-08-15 리드 지시 — 이름을 「게시판」으로 바꿨다 (경로·저장 구조는 그대로) */
+  { label: "게시판", icon: MessageSquarePlus, to: "/board" },
 ];
 
 /** 대주제가 품은 모든 항목 (직속 + 하위 묶음) */
