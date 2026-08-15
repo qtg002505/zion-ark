@@ -6,12 +6,16 @@ import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf, isFieldStaff, studentScopeLabel } from "../lib/permissions";
 import { STUDENTS, COHORT, DIVISIONS, SCHEDULE } from "../content/cohort-mock";
 import {
+  WEEKDAY_NAMES,
   effectiveSchedule,
   newcomerEndOf,
+  normalizeWeekdayPeriods,
   progressPct,
   scheduleSummary,
+  type ClassWeekdayPeriodList,
 } from "../lib/cohort-calendar";
 import { readAll } from "../lib/attendance-signals";
+import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import {
   GRADES,
   GRADE_LABELS,
@@ -64,7 +68,8 @@ export function Overview() {
   /** 화면에서 고친 일정이 있으면 그 값 — 진행률·요약·달력이 전부 이걸 본다 */
   const cohortKey = `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`;
   const sched = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKey);
-  const summary = scheduleSummary(sched.startsOn, sched.endsOn);
+  // 수업 요일이 기수 도중에 바뀌므로 회차 수는 요일 구간까지 넘겨야 맞는다 (2026-08-14)
+  const summary = scheduleSummary(sched.startsOn, sched.endsOn, sched.weekdayPeriods);
   const progress = progressPct(sched.startsOn, sched.endsOn, todayYmd());
   const canEditSchedule = canEditCohortRecord(session, cohortKeyOf(session)) && cohortKeyOf(session) === cohortKey;
   const schedNote = scheduleOverrides.find((o) => o.cohortKey === cohortKey);
@@ -77,6 +82,8 @@ export function Overview() {
 
   /** 교차표에서 이름을 누르면 상세 팝업 (수강생 현황과 같은 방식) */
   const [modalKey, setModalKey] = useState<string | null>(null);
+  /** 교차표를 붙잡고 끌어서 넘긴다 (2026-08-14) — 문턱이 있어 이름 클릭은 그대로 산다 */
+  const dragMatrix = useDragScroll<HTMLDivElement>();
 
   /**
    * 명단 한 줄 — 등급·오픈 여부를 한 자리에 모은다 (2026-08-10 리드 지시).
@@ -208,6 +215,20 @@ export function Overview() {
             </div>
           ))}
         </div>
+        {/*
+          수업 요일 (2026-08-14 리드 지시) — **기수 도중에 바뀐다.**
+          개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는 일·수·목이 될 수 있어
+          「기수 하나 = 요일 하나」로는 못 담는다. 「N주차부터 이 요일」 구간으로 고친다.
+        */}
+        <WeekdayPeriodsEditor
+          periods={sched.weekdayPeriods}
+          lastWeek={summary.weeks}
+          canEdit={canEditSchedule}
+          onSave={(next) =>
+            setSchedule(cohortKey, { weekdayPeriods: next }, session.name, session.roleCode)
+          }
+        />
+
         {schedNote && (
           <p className="mt-2 text-[11px] text-ink-soft">
             일정 수정: {schedNote.updatedBy} · {schedNote.updatedAt.slice(0, 10)}
@@ -215,7 +236,7 @@ export function Overview() {
         )}
         {!canEditSchedule && (
           <p className="mt-2 text-[11px] text-ink-soft">
-            일정은 해당 기수의 강사·전도사가 고칩니다.
+            일정과 수업 요일은 해당 기수의 강사·전도사가 고칩니다.
           </p>
         )}
 
@@ -286,8 +307,12 @@ export function Overview() {
           </div>
         </div>
 
-        {/* 좁은 화면에서는 표만 가로로 넘긴다 */}
-        <div className="-mx-1 overflow-x-auto px-1">
+        {/* 좁은 화면에서는 표만 가로로 넘긴다 — 붙잡고 끌어도 넘어간다 (2026-08-14) */}
+        <div
+          ref={dragMatrix.ref}
+          onPointerDown={dragMatrix.onPointerDown}
+          className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
+        >
           <table className="w-full min-w-[560px] text-[13px]">
             <thead>
               <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
@@ -408,6 +433,197 @@ export function Overview() {
       </p>
 
       {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
+    </div>
+  );
+}
+
+/**
+ * 수업 요일 구간 편집기 (2026-08-14 리드 지시).
+ *
+ * 기수 도중에 수업 요일이 바뀐다 — 개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는
+ * 일·수·목이 될 수 있다. 그래서 **「N주차부터 이 요일」 구간을 여러 개** 둔다.
+ *
+ * - 첫 구간은 언제나 1주차부터다(그 앞이 빈칸이 되지 않게 `normalizeWeekdayPeriods`가 강제)
+ * - 요일은 0=일 … 6=토라 정렬하면 「일·화·목」처럼 쓰는 순서가 저절로 맞는다
+ * - 저장은 「고침」을 눌러야 반영된다 — 요일을 하나씩 켤 때마다 저장하면 잠깐씩
+ *   요일 0개인 상태가 저장돼 회차 계산이 흔들린다
+ *
+ * ⚠️ 요일을 바꾸면 **총 수업 횟수와 회차↔진도 매핑이 따라 움직인다.** 주차 번호와
+ * 주차 라벨(그 주 목요일 기준)은 안 바뀐다 — 저장된 주차 기록이 그 규칙으로 조인되기
+ * 때문이다(`cohort-calendar` 주석). 세 요일 조합에 목요일이 다 들어 있어 이 전제는 유지된다.
+ */
+function WeekdayPeriodsEditor({
+  periods,
+  lastWeek,
+  canEdit,
+  onSave,
+}: {
+  periods: ClassWeekdayPeriodList;
+  lastWeek: number;
+  canEdit: boolean;
+  onSave: (next: ClassWeekdayPeriodList) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<ClassWeekdayPeriodList>(periods);
+  const [error, setError] = useState<string | null>(null);
+
+  function start() {
+    setDraft(normalizeWeekdayPeriods(periods));
+    setError(null);
+    setOpen(true);
+  }
+
+  function toggleDay(idx: number, day: number) {
+    setDraft((prev) =>
+      prev.map((p, i) =>
+        i !== idx
+          ? p
+          : {
+              ...p,
+              weekdays: p.weekdays.includes(day)
+                ? p.weekdays.filter((d) => d !== day)
+                : [...p.weekdays, day].sort((a, b) => a - b),
+            },
+      ),
+    );
+  }
+
+  function save() {
+    if (draft.some((p) => p.weekdays.length === 0)) {
+      setError("요일을 하나도 안 고른 구간이 있습니다.");
+      return;
+    }
+    const froms = draft.map((p) => p.fromWeek);
+    if (new Set(froms).size !== froms.length) {
+      setError("시작 주차가 겹칩니다.");
+      return;
+    }
+    onSave(normalizeWeekdayPeriods(draft));
+    setOpen(false);
+  }
+
+  return (
+    <div className="mt-3 rounded-lg bg-zion-50 px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[12px] text-ink-soft">수업 요일</div>
+          <div className="mt-0.5 text-[13px] font-bold text-zion-900">
+            {normalizeWeekdayPeriods(periods)
+              .map((p, i, arr) => {
+                const to = i + 1 < arr.length ? arr[i + 1].fromWeek - 1 : lastWeek;
+                const range = to > p.fromWeek ? `${p.fromWeek}~${to}주` : `${p.fromWeek}주~`;
+                return `${range} ${p.weekdays.map((d) => WEEKDAY_NAMES[d]).join("·")}`;
+              })
+              .join("  /  ")}
+          </div>
+        </div>
+        {canEdit && !open && (
+          <button
+            onClick={start}
+            className="shrink-0 rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:border-zion-400"
+          >
+            요일 고치기
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="mt-3 border-t border-zion-200 pt-3">
+          <div className="space-y-2">
+            {draft.map((p, idx) => (
+              <div key={idx} className="flex flex-wrap items-center gap-2 rounded-lg bg-white px-2.5 py-2">
+                <label className="flex items-center gap-1 text-[12px] text-ink-soft">
+                  <input
+                    type="number"
+                    min={1}
+                    max={Math.max(1, lastWeek)}
+                    value={p.fromWeek}
+                    disabled={idx === 0}
+                    onChange={(e) =>
+                      setDraft((prev) =>
+                        prev.map((q, i) =>
+                          i === idx ? { ...q, fromWeek: Math.max(1, Number(e.target.value) || 1) } : q,
+                        ),
+                      )
+                    }
+                    aria-label={`${idx + 1}번째 구간 시작 주차`}
+                    className="w-14 rounded border border-zion-100 px-1.5 py-1 text-[12px] outline-none focus:border-zion-500 disabled:bg-zion-50 disabled:text-ink-soft"
+                  />
+                  주차부터
+                </label>
+                <span className="flex flex-wrap gap-1">
+                  {WEEKDAY_NAMES.map((name, day) => {
+                    const on = p.weekdays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => toggleDay(idx, day)}
+                        aria-pressed={on}
+                        className={
+                          "h-7 w-7 rounded-lg border text-[12px] font-semibold transition " +
+                          (on
+                            ? "border-zion-700 bg-zion-700 text-white"
+                            : "border-zion-200 text-ink-soft hover:bg-zion-50")
+                        }
+                      >
+                        {name}
+                      </button>
+                    );
+                  })}
+                </span>
+                {idx > 0 && (
+                  <button
+                    onClick={() => setDraft((prev) => prev.filter((_, i) => i !== idx))}
+                    className="ml-auto text-[11px] font-semibold text-ink-soft hover:underline"
+                  >
+                    구간 삭제
+                  </button>
+                )}
+                {idx === 0 && (
+                  <span className="ml-auto text-[10.5px] text-ink-soft">개강 구간 — 항상 1주차</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() =>
+              setDraft((prev) => [
+                ...prev,
+                {
+                  fromWeek: Math.min(lastWeek, (prev[prev.length - 1]?.fromWeek ?? 1) + 4),
+                  weekdays: [0, 2, 4],
+                },
+              ])
+            }
+            className="mt-2 rounded-lg border border-dashed border-zion-300 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-white"
+          >
+            + 요일이 바뀌는 구간 추가
+          </button>
+
+          {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
+
+          <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+            ⚠️ 요일을 바꾸면 <strong>총 수업 횟수와 회차·진도 매핑이 따라 움직입니다.</strong>{" "}
+            주차 번호와 주차 라벨은 그대로입니다 — 저장된 주차 기록이 끊어지지 않게 했습니다.
+          </p>
+
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-1.5 text-[12px] text-ink-soft hover:bg-white"
+            >
+              취소
+            </button>
+            <button
+              onClick={save}
+              className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700"
+            >
+              고침
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

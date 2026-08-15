@@ -413,9 +413,28 @@ export interface ScheduleOverride {
   cohortKey: string;
   startsOn?: string;
   endsOn?: string;
+  /**
+   * 수업 요일 구간 (2026-08-14 리드 지시) — **기수 도중에 요일이 바뀐다.**
+   * 개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는 일·수·목으로 바뀔 수 있어
+   * 「기수 하나 = 요일 하나」로는 담기지 않는다. 그래서 **N주차부터 이 요일**을 뜻하는
+   * 구간 목록으로 둔다. 비어 있으면 기본값(월·화·목) 한 구간이다.
+   * 실연동 시 `cohorts` 또는 별도 일정 테이블의 요일 구간 컬럼에 대응한다.
+   */
+  weekdayPeriods?: ClassWeekdayPeriod[];
   updatedBy: string;
   updatedByRole: RoleCode;
   updatedAt: string;
+}
+
+/**
+ * 「N주차부터 이 요일로 수업한다」 한 구간 (2026-08-14).
+ * `weekdays`는 `Date.getDay()` 값 — 0=일 … 6=토. 정렬하면 일(0)이 먼저 오므로
+ * 「일화목」 같은 표기 순서가 그대로 나온다.
+ */
+export interface ClassWeekdayPeriod {
+  /** 이 구간이 시작되는 주차 (1부터). 첫 구간은 항상 1이다 */
+  fromWeek: number;
+  weekdays: number[];
 }
 
 /**

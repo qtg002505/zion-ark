@@ -18,15 +18,17 @@ import {
   COHORT_FUNNEL,
   COHORT_STAFF,
   DONE_WEEKS,
+  SCHEDULE,
   TOTAL_SESSIONS,
   WEEKLY_RATES,
   COHORT_RANKS,
   studentWeekHistory,
   type WeeklyRate,
 } from "../content/cohort-mock";
+import { effectiveSchedule, type ClassWeekdayPeriodList } from "../lib/cohort-calendar";
+import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { LineChart } from "../components/LineChart";
 import {
-  SESSION_WEEKDAY_LABELS,
   lessonOfSession,
   sessionLabelOf,
   sessionsOfWeek,
@@ -56,7 +58,12 @@ const TAB_IDS: Tab[] = ["summary", "attendance", "trend", "compare", "divisions"
  */
 export function CohortStatus() {
   const session = useSession();
-  const { studentStatusOverrides } = useStore();
+  const { studentStatusOverrides, scheduleOverrides } = useStore();
+  /**
+   * 수업 요일 구간 — 화면에서 고친 값이 있으면 그것, 없으면 기본(월·화·목).
+   * 출석 격자의 칸·회차 번호가 전부 이 값을 따른다 (2026-08-14 리드 지시).
+   */
+  const { weekdayPeriods } = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
   const [searchParams] = useSearchParams();
   const initialTab = TAB_IDS.includes(searchParams.get("tab") as Tab) ? (searchParams.get("tab") as Tab) : "summary";
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -219,7 +226,9 @@ export function CohortStatus() {
         </>
       )}
 
-      {tab === "attendance" && <AttendanceGrid students={students} />}
+      {tab === "attendance" && (
+        <AttendanceGrid students={students} weekdayPeriods={weekdayPeriods} />
+      )}
 
       {tab === "trend" && (
         <>
@@ -304,7 +313,14 @@ type GridAxis = "lesson" | "week";
 const STICKY_NO_W = 40;
 const STICKY_NAME_W = 76;
 
-function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
+function AttendanceGrid({
+  students,
+  weekdayPeriods,
+}: {
+  students: typeof STUDENTS;
+  /** 그 기수의 수업 요일 구간 — 주차마다 요일이 다를 수 있다 (2026-08-14) */
+  weekdayPeriods: ClassWeekdayPeriodList;
+}) {
   const [axis, setAxis] = useState<GridAxis>("lesson");
 
   const rows = [...students].sort((a, b) => {
@@ -344,8 +360,8 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
             "이름",
             "분반",
             ...weekNos.flatMap((w) =>
-              sessionsOfWeek(w).map(
-                (s) => `${w}주차 ${SESSION_WEEKDAY_LABELS[s.slot]}(${s.sessionNo}회 ${s.lessonNo}강)`,
+              sessionsOfWeek(w, weekdayPeriods).map(
+                (s) => `${w}주차 ${s.weekdayLabel}(${s.sessionNo}회 ${s.lessonNo}강)`,
               ),
             ),
             "보강 포함 %",
@@ -358,7 +374,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
       const cells =
         axis === "week"
           ? weekNos.map(glyph)
-          : weekNos.flatMap((w) => sessionsOfWeek(w).map(() => glyph(w)));
+          : weekNos.flatMap((w) => sessionsOfWeek(w, weekdayPeriods).map(() => glyph(w)));
       return [i + 1, st.name, st.division, ...cells, r.withMakeup, r.presentOnly];
     });
     const avg: (string | number)[] = ["", "우리 기수 평균", ""];
@@ -366,7 +382,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
       const v = weekAvg(w);
       const cell = v === null ? "-" : `${v}%`;
       if (axis === "week") avg.push(cell);
-      else sessionsOfWeek(w).forEach(() => avg.push(cell));
+      else sessionsOfWeek(w, weekdayPeriods).forEach(() => avg.push(cell));
     }
     const csv = [head, ...lines, avg]
       .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
@@ -379,8 +395,10 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
     URL.revokeObjectURL(a.href);
   }
 
-  /** 주차 경계선 — 월·화·목 세 칸이 한 짝이라 주가 바뀌는 자리에 세로줄을 세운다 */
+  /** 주차 경계선 — 한 주의 수업 요일들이 한 짝이라 주가 바뀌는 자리에 세로줄을 세운다 */
   const weekEdge = "border-l-2 border-zion-200";
+  /** 붙잡고 끌어서 23주를 훑는다 (2026-08-14) */
+  const dragGrid = useDragScroll<HTMLDivElement>();
 
   return (
     <Card>
@@ -443,8 +461,13 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
       {/*
         23주 전체를 좌우로 훑는 자리. 표만 가로로 넘어가고 본문은 안 밀린다.
         `w-max`라 칸이 눌려 찌그러지지 않는다 — 대신 번호·이름이 왼쪽에 붙박인다.
+        **붙잡고 끌어도 넘어간다** (2026-08-14 리드 지시) — `useDragScroll` 참고.
       */}
-      <div className="-mx-1 overflow-x-auto px-1">
+      <div
+        ref={dragGrid.ref}
+        onPointerDown={dragGrid.onPointerDown}
+        className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
+      >
         <table className="w-max min-w-full text-[13px]">
           <thead>
             <tr className="border-b border-zion-100 text-center text-[11px] text-ink-soft">
@@ -461,7 +484,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
                 weekNos.map((w) => (
                   <th
                     key={w}
-                    colSpan={sessionsOfWeek(w).length}
+                    colSpan={sessionsOfWeek(w, weekdayPeriods).length}
                     className={"whitespace-nowrap px-1 pb-1 font-semibold text-zion-700 " + weekEdge}
                   >
                     {w}주차
@@ -490,7 +513,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
               <th className="whitespace-nowrap pb-2 pr-2 font-medium">분반</th>
               {axis === "lesson"
                 ? weekNos.flatMap((w) =>
-                    sessionsOfWeek(w).map((sess, i) => (
+                    sessionsOfWeek(w, weekdayPeriods).map((sess, i) => (
                       <th
                         key={sess.sessionNo}
                         className={
@@ -498,7 +521,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
                         }
                         title={sessionLabelOf(sess)}
                       >
-                        {SESSION_WEEKDAY_LABELS[sess.slot]}
+                        {sess.weekdayLabel}
                         <span className="block text-[9.5px] font-normal text-zion-500">
                           {sess.lessonNo}강
                         </span>
@@ -555,7 +578,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
                   <td className="whitespace-nowrap py-2 pr-2 text-[12px] text-ink-soft">{s.division}</td>
                   {axis === "lesson"
                     ? weekNos.flatMap((w) =>
-                        sessionsOfWeek(w).map((sess, i) =>
+                        sessionsOfWeek(w, weekdayPeriods).map((sess, i) =>
                           cell(w, sess.sessionNo, `${w}주차 · ${sessionLabelOf(sess)}`, i === 0),
                         ),
                       )
@@ -585,7 +608,7 @@ function AttendanceGrid({ students }: { students: typeof STUDENTS }) {
                 return (
                   <td
                     key={w}
-                    colSpan={axis === "lesson" ? sessionsOfWeek(w).length : 1}
+                    colSpan={axis === "lesson" ? sessionsOfWeek(w, weekdayPeriods).length : 1}
                     className={"px-1 py-2 text-center font-semibold text-zion-700 " + weekEdge}
                   >
                     {v === null ? "—" : `${v}%`}
@@ -866,6 +889,8 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
   const [picked, setPicked] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const max = 100;
+  /** 막대를 붙잡고 끌어서 넘긴다 (2026-08-14) — 문턱이 있어 막대 클릭은 그대로 산다 */
+  const dragTrend = useDragScroll<HTMLDivElement>();
 
   const cohortKey = cohortKeyOf(session);
   const canEdit = canEditCohortRecord(session, cohortKey);
@@ -901,7 +926,12 @@ function WeeklyTrend({ rows }: { rows: WeeklyRate[] }) {
         표시되며, 누르면 그 주에 무슨 일이 있었는지 볼 수 있습니다. 좌우 단추로 주차를 넘깁니다.
       </p>
 
-      <div className="-mx-1 overflow-x-auto px-1">
+      {/* 막대도 붙잡고 끌어서 넘긴다 (2026-08-14 리드 지시) */}
+      <div
+        ref={dragTrend.ref}
+        onPointerDown={dragTrend.onPointerDown}
+        className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
+      >
         <div className="flex min-w-[520px] items-end gap-2" role="img" aria-label="주간 출석률과 지파 평균 비교">
           {pageRows.map((r, i) => {
             const globalIndex = page * TREND_PAGE + i;

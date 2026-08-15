@@ -1,4 +1,4 @@
-import type { ScheduleOverride } from "./types";
+import type { ClassWeekdayPeriod, ScheduleOverride } from "./types";
 
 /**
  * 기수 달력 산수 — 수업일 세기 · 주차 계산 · 진행률.
@@ -8,8 +8,63 @@ import type { ScheduleOverride } from "./types";
  * `YYYY-MM-DD`로만 다룬다 (UTC 변환 금지 — 자정 근처에 하루가 밀린다).
  */
 
-/** 수업 요일 — 월·화·목 (2026-08-13 리드 확정: 8개월 · 월화목 수업) */
+/**
+ * 수업 요일 기본값 — 월·화·목 (2026-08-13 리드 확정: 8개월 · 월화목 수업).
+ *
+ * ⚠️ **이건 기본값일 뿐 고정이 아니다** (2026-08-14 리드 지시). 기수 도중에 요일이
+ * 바뀐다 — 개강~6개월차는 월·화·목, 6~8개월차는 일·화·목 또는 일·수·목이 될 수 있다.
+ * 그래서 실제 요일은 `ClassWeekdayPeriod[]`(구간 목록)로 받고, 인자를 안 주면 이 값을
+ * 쓴다. 요일을 읽는 곳은 전부 `weekdaysOfWeek()`를 거친다 — 상수를 직접 보지 않는다.
+ */
 export const CLASS_WEEKDAYS = [1, 2, 4];
+
+/** 요일 이름 — `Date.getDay()` 순서 (0=일) */
+export const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** 화면·목업이 함께 쓰는 구간 목록 타입 별칭 — import 줄을 짧게 유지한다 */
+export type ClassWeekdayPeriodList = ClassWeekdayPeriod[];
+
+/** 기본 구간 — 개강부터 끝까지 월·화·목 한 구간 */
+export const DEFAULT_WEEKDAY_PERIODS: ClassWeekdayPeriod[] = [
+  { fromWeek: 1, weekdays: CLASS_WEEKDAYS },
+];
+
+/**
+ * 구간 목록을 안전한 꼴로 다듬는다 — 빈 목록·뒤섞인 순서·1주차 누락을 여기서 흡수한다.
+ * 읽는 쪽은 항상 이 함수를 거치므로 저장된 값이 어떻든 화면이 깨지지 않는다.
+ */
+export function normalizeWeekdayPeriods(periods?: ClassWeekdayPeriod[]): ClassWeekdayPeriod[] {
+  const clean = (periods ?? [])
+    .filter((p) => p.weekdays.length > 0)
+    .map((p) => ({
+      fromWeek: Math.max(1, Math.round(p.fromWeek)),
+      // 정렬해 두면 0=일이 앞에 와 「일화목」 표기 순서가 저절로 맞는다
+      weekdays: [...new Set(p.weekdays)].sort((a, b) => a - b),
+    }))
+    .sort((a, b) => a.fromWeek - b.fromWeek);
+  if (clean.length === 0) return DEFAULT_WEEKDAY_PERIODS;
+  // 첫 구간은 반드시 1주차부터여야 그 앞 주차가 빈칸이 되지 않는다
+  return clean[0].fromWeek === 1 ? clean : [{ ...clean[0], fromWeek: 1 }, ...clean.slice(1)];
+}
+
+/** N주차에 적용되는 수업 요일 — 그 주차 이하에서 가장 늦게 시작한 구간을 쓴다 */
+export function weekdaysOfWeek(weekNo: number, periods?: ClassWeekdayPeriod[]): number[] {
+  const list = normalizeWeekdayPeriods(periods);
+  let hit = list[0];
+  for (const p of list) if (p.fromWeek <= weekNo) hit = p;
+  return hit.weekdays;
+}
+
+/**
+ * 그 주 시작일(월요일)에서 요일 d까지의 날 수.
+ * ⚠️ **일요일은 그 주의 끝(월+6)으로 친다** — ISO 주(월요일 시작)를 그대로 쓰기 때문이다.
+ * 주차 번호·주차 라벨(목요일 기준)이 이 전제 위에 서 있어 바꾸면 저장된 기록이 끊어진다.
+ * 「일화목」에서 일요일을 **화요일 앞**으로 보는 해석도 가능하다 — 그때는 그 일요일이
+ * 앞 주차에 속하게 되므로, 리드 확인 후 이 함수 한 곳만 고친다.
+ */
+export function offsetInWeek(weekday: number): number {
+  return weekday === 0 ? 6 : weekday - 1;
+}
 
 function parse(ymd: string): Date {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -32,13 +87,18 @@ function diffDays(a: string, b: string): number {
   return Math.round((parse(b).getTime() - parse(a).getTime()) / 86_400_000);
 }
 
-/** 개강~종강 사이의 수업일(월·화·목) 수. ⚠️ 공휴일을 빼지 않는다 — 아래 `scheduleSummary` 주석 */
-export function countClassDays(start: string, end: string): number {
+/**
+ * 개강~종강 사이의 수업일 수.
+ * 요일이 기수 도중에 바뀌므로 **그 날이 속한 주차의 요일**로 판정한다(2026-08-14).
+ * ⚠️ 공휴일을 빼지 않는다 — 아래 `scheduleSummary` 주석 참고.
+ */
+export function countClassDays(start: string, end: string, periods?: ClassWeekdayPeriod[]): number {
+  const list = normalizeWeekdayPeriods(periods);
   let n = 0;
   const d = parse(start);
   const stop = parse(end).getTime();
   while (d.getTime() <= stop) {
-    if (CLASS_WEEKDAYS.includes(d.getDay())) n++;
+    if (weekdaysOfWeek(weekNoOf(start, fmt(d)), list).includes(d.getDay())) n++;
     d.setDate(d.getDate() + 1);
   }
   return n;
@@ -76,7 +136,11 @@ export function progressPct(start: string, end: string, today: string): number {
 }
 
 /** 일정 요약 — 「총 8개월 · 35주 · 수업 105회」에 쓰는 값들 */
-export function scheduleSummary(start: string, end: string): { months: number; weeks: number; sessions: number } {
+export function scheduleSummary(
+  start: string,
+  end: string,
+  periods?: ClassWeekdayPeriod[],
+): { months: number; weeks: number; sessions: number } {
   const s = parse(start);
   const e = parse(end);
   const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
@@ -87,7 +151,7 @@ export function scheduleSummary(start: string, end: string): { months: number; w
     ③ 실연동 시 정본은 출결 시트다. 휴강을 반영하려면 여기서 `HOLIDAYS_2026`에 걸린
     월·화·목을 빼면 된다(2026년 기준 7일 → 98회).
   */
-  return { months, weeks, sessions: countClassDays(start, end) };
+  return { months, weeks, sessions: countClassDays(start, end, periods) };
 }
 
 /** 새신자교육 종강 예정일 = 종강 예정일 + 2주 (2026-08-13 리드 확정 — 저장하지 않고 항상 파생) */
@@ -103,10 +167,24 @@ export function effectiveSchedule(
   base: { startsOn: string; endsOn: string },
   overrides: ScheduleOverride[],
   cohortKey: string,
-): { startsOn: string; endsOn: string } {
+): { startsOn: string; endsOn: string; weekdayPeriods: ClassWeekdayPeriod[] } {
   const ov = overrides.find((o) => o.cohortKey === cohortKey);
   return {
     startsOn: ov?.startsOn ?? base.startsOn,
     endsOn: ov?.endsOn ?? base.endsOn,
+    // 저장된 구간이 없으면 기본(월·화·목) 한 구간 — 읽는 쪽이 분기하지 않게 여기서 채운다
+    weekdayPeriods: normalizeWeekdayPeriods(ov?.weekdayPeriods),
   };
+}
+
+/** 「1~26주 월·화·목 / 27주~ 일·화·목」처럼 사람이 읽는 한 줄 */
+export function weekdayPeriodsLabel(periods: ClassWeekdayPeriod[], lastWeek?: number): string {
+  const list = normalizeWeekdayPeriods(periods);
+  return list
+    .map((p, i) => {
+      const to = i + 1 < list.length ? list[i + 1].fromWeek - 1 : lastWeek;
+      const range = to && to > p.fromWeek ? `${p.fromWeek}~${to}주` : `${p.fromWeek}주~`;
+      return `${range} ${p.weekdays.map((d) => WEEKDAY_NAMES[d]).join("·")}`;
+    })
+    .join(" / ");
 }

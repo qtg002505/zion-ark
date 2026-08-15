@@ -41,7 +41,8 @@ export function Main() {
     store.scheduleOverrides,
     `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`,
   );
-  const summary = scheduleSummary(sched.startsOn, sched.endsOn);
+  // 요일 구간까지 넘겨야 수업 회차가 맞는다 — 기수 도중에 요일이 바뀐다 (2026-08-14)
+  const summary = scheduleSummary(sched.startsOn, sched.endsOn, sched.weekdayPeriods);
   const progress = progressPct(sched.startsOn, sched.endsOn, todayYmd());
 
   /** 홈·전체 현황을 뺀 나머지가 카테고리다 */

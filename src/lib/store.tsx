@@ -3,6 +3,7 @@ import type {
   ActivityLog,
   BoardPost,
   BoardReply,
+  ClassWeekdayPeriod,
   PersonalEvent,
   CounselCase,
   CounselingTip,
@@ -499,10 +500,13 @@ interface StoreValue {
     editedByRole: RoleCode;
   }) => void;
   saveWeekNote: (input: WeekNote) => void;
-  /** 개강일·종강 예정일 수정 — 준 필드만 갈아 끼운다. 권한 대조는 화면이 먼저 한다 */
+  /**
+   * 개강일·종강 예정일·**수업 요일 구간** 수정 — 준 필드만 갈아 끼운다.
+   * 권한 대조는 화면이 먼저 한다 (`canEditCohortRecord`).
+   */
   setSchedule: (
     cohortKey: string,
-    patch: { startsOn?: string; endsOn?: string },
+    patch: { startsOn?: string; endsOn?: string; weekdayPeriods?: ClassWeekdayPeriod[] },
     updatedBy: string,
     updatedByRole: RoleCode,
   ) => void;
@@ -998,6 +1002,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             cohortKey,
             startsOn: patch.startsOn ?? prev?.startsOn,
             endsOn: patch.endsOn ?? prev?.endsOn,
+            // 수업 요일 구간 (2026-08-14) — 넘기지 않으면 종전 값을 그대로 둔다
+            weekdayPeriods: patch.weekdayPeriods ?? prev?.weekdayPeriods,
             updatedBy,
             updatedByRole,
             updatedAt: nowIso(),

@@ -1,4 +1,9 @@
-import { CLASS_WEEKDAYS, countClassDays } from "../lib/cohort-calendar";
+import {
+  WEEKDAY_NAMES,
+  countClassDays,
+  weekdaysOfWeek,
+  type ClassWeekdayPeriodList,
+} from "../lib/cohort-calendar";
 import { elementaryLessons } from "./elementary-lessons";
 import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
 
@@ -17,20 +22,16 @@ import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
  * 실제 기수의 진도표와 다르다 — 화면에도 시범 값임을 표기한다.
  */
 
-/** 주당 회차 수 — 월·화·목 (cohort-calendar의 확정 수업 요일) */
-export const SESSIONS_PER_WEEK = CLASS_WEEKDAYS.length;
-
-/** 수업 요일 표기 — CLASS_WEEKDAYS(1=월, 2=화, 4=목) 순서 그대로 */
-export const SESSION_WEEKDAY_LABELS = CLASS_WEEKDAYS.map(
-  (d) => ["일", "월", "화", "수", "목", "금", "토"][d],
-);
-
 export interface SessionInfo {
   /** 1부터 — 개강 후 N회차 */
   sessionNo: number;
-  /** 몇 주차의 몇 번째 수업인지 (요일 라벨은 SESSION_WEEKDAY_LABELS[slot]) */
+  /** 몇 주차의 몇 번째 수업인지 */
   weekNo: number;
   slot: number;
+  /** 그 주차에 적용되는 요일 (0=일 … 6=토) — 구간에 따라 주마다 다를 수 있다 */
+  weekday: number;
+  /** 요일 한 글자 — 「월」·「일」 */
+  weekdayLabel: string;
   /** 이 회차의 진도 — 초등 강 번호·제목 (시범 값) */
   lessonNo: number;
   lessonTitle: string;
@@ -49,23 +50,44 @@ export function lessonOfSession(sessionNo: number): { lessonNo: number; title: s
   return { lessonNo: lesson.lessonNo, title: lesson.title };
 }
 
-/** 주차 번호(1부터) → 그 주의 회차들 */
-export function sessionsOfWeek(weekNo: number): SessionInfo[] {
-  return Array.from({ length: SESSIONS_PER_WEEK }, (_, slot) => {
-    const sessionNo = (weekNo - 1) * SESSIONS_PER_WEEK + slot + 1;
-    const lesson = lessonOfSession(sessionNo);
-    return { sessionNo, weekNo, slot, lessonNo: lesson.lessonNo, lessonTitle: lesson.title };
-  }).filter((s) => s.sessionNo <= TOTAL_SESSIONS);
+/**
+ * 주차 번호(1부터) → 그 주의 회차들.
+ *
+ * ⚠️ **요일은 주차마다 다를 수 있다** (2026-08-14 리드 지시 — 6개월차 이후 월→일/수로
+ * 바뀐다). 그래서 `periods`를 받아 그 주차의 요일을 그때그때 읽는다. 안 주면 기본
+ * (월·화·목)이다. 회차 번호는 **앞 주차들의 실제 수업 수를 더해** 매긴다 —
+ * 주당 회차 수가 구간마다 달라질 수 있어 `주차×3`으로 계산하면 어긋난다.
+ */
+export function sessionsOfWeek(weekNo: number, periods?: ClassWeekdayPeriodList): SessionInfo[] {
+  const days = weekdaysOfWeek(weekNo, periods);
+  const before = sessionsThroughWeek(weekNo - 1, periods);
+  return days
+    .map((weekday, slot) => {
+      const sessionNo = before + slot + 1;
+      const lesson = lessonOfSession(sessionNo);
+      return {
+        sessionNo,
+        weekNo,
+        slot,
+        weekday,
+        weekdayLabel: WEEKDAY_NAMES[weekday],
+        lessonNo: lesson.lessonNo,
+        lessonTitle: lesson.title,
+      };
+    })
+    .filter((s) => s.sessionNo <= TOTAL_SESSIONS);
 }
 
-/** 그 주차까지 마친 회차 수 — 흐름 그래프의 「회차별」 X축 라벨이 쓴다 */
-export function sessionsThroughWeek(weekNo: number): number {
-  return Math.min(TOTAL_SESSIONS, weekNo * SESSIONS_PER_WEEK);
+/** 그 주차까지 마친 회차 수 — 구간마다 주당 회차가 다를 수 있어 하나씩 더한다 */
+export function sessionsThroughWeek(weekNo: number, periods?: ClassWeekdayPeriodList): number {
+  let n = 0;
+  for (let w = 1; w <= weekNo; w++) n += weekdaysOfWeek(w, periods).length;
+  return Math.min(TOTAL_SESSIONS, n);
 }
 
-/** 회차 라벨 — 「12회차 · 3강 예언」 형태 (지시문 예시 형식) */
+/** 회차 라벨 — 「12회차 · 월 · 3강 예언」 형태 */
 export function sessionLabelOf(s: SessionInfo): string {
-  return `${s.sessionNo}회차 · ${s.lessonNo}강 ${s.lessonTitle}`;
+  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.lessonNo}강 ${s.lessonTitle}`;
 }
 
 /** 짧은 강 제목 — 표 머리처럼 좁은 자리용 */

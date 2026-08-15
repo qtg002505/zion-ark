@@ -4,6 +4,7 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { visibleDivisions } from "../lib/permissions";
 import { STUDENTS, DIVISIONS, COHORT } from "../content/cohort-mock";
+import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import {
   STUDENT_PROFILES,
   DIVISION_EVANGELISTS,
@@ -52,6 +53,8 @@ export function StudentsDashboard() {
   const [query, setQuery] = useState("");
   /** 상세는 팝업으로 연다 — 페이지를 옮기면 필터·스크롤을 잃는다 (2026-08-10 리드 지시) */
   const [modalKey, setModalKey] = useState<string | null>(null);
+  /** 표를 붙잡고 끌어서 넘긴다 (2026-08-14 리드 지시) */
+  const dragTable = useDragScroll<HTMLDivElement>();
 
   const overrideByKey = useMemo(
     () => Object.fromEntries(studentStatusOverrides.map((o) => [o.studentKey, o])),
@@ -266,8 +269,15 @@ export function StudentsDashboard() {
               {filtered.length === 0 ? (
                 <p className="py-8 text-center text-[13px] text-ink-soft">조건에 맞는 수강생이 없습니다.</p>
               ) : (
-                <div className="-mx-1 overflow-x-auto px-1">
-                  {/* 열이 늘어 좁은 화면에서는 표만 가로로 넘긴다 — 본문은 밀리지 않는다 */}
+                <div
+                  ref={dragTable.ref}
+                  onPointerDown={dragTable.onPointerDown}
+                  className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
+                >
+                  {/*
+                    열이 늘어 좁은 화면에서는 표만 가로로 넘긴다 — 본문은 밀리지 않는다.
+                    붙잡고 끌어도 넘어간다 (2026-08-14) — 문턱이 있어 줄 클릭은 그대로 산다.
+                  */}
                   <table className="w-full min-w-[720px] text-[12px]">
                     <thead>
                       <tr className="border-b border-zion-100 text-left text-[11px] text-ink-soft">
