@@ -1,5 +1,7 @@
 import type { AttendanceMark, Student, WeeklyAttendance } from "../lib/types";
 import { countClassDays, mondayOfWeek, weekLabelOf, weekNoOf } from "../lib/cohort-calendar";
+import { CHECKLIST_STANDARDS } from "./checklist-standards";
+import type { ChecklistProgress, CourseLevel } from "./student-profiles";
 
 /**
  * 시범 기수 목업 데이터 — 실제 개인정보 아님 (전원 가상 인물).
@@ -367,3 +369,53 @@ export const COHORT_STAFF: { name: string; role: string }[] = [
   { name: "박세움", role: "전도사" },
   { name: "정도움", role: "전도사" },
 ];
+
+/**
+ * 단계 항목 점수 **시범 값** (2026-08-15 — 「지금 우리 기수는?」 화면용).
+ *
+ * 담당자가 매긴 실제 점수(`checklistProgress`)는 아직 하나도 없다. 그러면 새 화면이 통째로
+ * 비어 리드가 모양을 볼 수 없으므로, **결정적 규칙으로 만든 시범 점수**를 깔아 둔다
+ * (`COHORT_FUNNEL`·`sessionRateOf`와 같은 취급 · 불변식 6 — 가상 인물).
+ *
+ * ⚠️ **담당자가 실제로 매긴 점수가 있으면 그쪽이 이긴다** — 화면이 (수강생·단계·항목·질문)
+ * 키로 실제 기록을 덮어 쓴다. 실연동에서는 이 배열을 통째로 지우면 된다(교체 경계).
+ * ⚠️ 규칙: **출석률이 좋은 사람이 대체로 점수도 높다.** 지어낸 상관이지만 화면이
+ * 앞뒤가 맞아야 모양을 판단할 수 있다. 고등은 아직 안 나간 단계라 **비워 둔다** —
+ * 「아직 안 봄」이 어떻게 보이는지도 확인해야 하기 때문이다.
+ */
+export function demoChecklistProgress(): ChecklistProgress[] {
+  const out: ChecklistProgress[] = [];
+  const levels: CourseLevel[] = ["초등", "중등"];
+  for (const level of levels) {
+    const standard = CHECKLIST_STANDARDS[level];
+    for (const s of STUDENTS) {
+      const base = Math.round((s.attendanceRate / 100) * 5); // 0~5 — 출석이 좋으면 높다
+      const seed = [...s.key].reduce((n, c) => n + c.charCodeAt(0), 0);
+      for (const g of standard.groups) {
+        // 중등은 앞 세 항목까지만 봤다고 둔다 — 진행 중인 단계라 뒤쪽이 비어야 자연스럽다
+        if (level === "중등" && g.no > 3) continue;
+        /*
+          ⚠️ **항목마다 치우침을 준다.** 사람 편차(출석률)만 쓰면 항목 평균이 전부 한 구간에
+          몰려 **강점도 약점도 하나도 안 나온다** — 처음 만들었을 때 실제로 54~65%에 다 몰렸다.
+          기수는 원래 「잘 되는 항목과 안 되는 항목」이 갈리므로 그 모습이 나와야 화면을 판단할 수 있다.
+        */
+        const groupBias = ((g.no * 3) % 5) - 2; // -2 … +2
+        g.questions.forEach((_, qIndex) => {
+          const wobble = ((seed + g.no * 7 + qIndex * 3) % 3) - 1; // -1 · 0 · +1
+          const score = Math.max(0, Math.min(5, base + groupBias + wobble));
+          out.push({
+            studentKey: s.key,
+            level,
+            groupNo: g.no,
+            qIndex,
+            score,
+            updatedBy: "시범 값",
+            updatedByRole: "instructor",
+            updatedAt: `${SCHEDULE.startsOn}T09:00:00.000Z`,
+          });
+        });
+      }
+    }
+  }
+  return out;
+}

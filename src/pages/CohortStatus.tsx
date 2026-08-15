@@ -38,6 +38,7 @@ import {
 } from "../lib/cohort-calendar";
 import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { LineChart } from "../components/LineChart";
+import { CohortNow } from "./CohortNow";
 import {
   lessonOfSession,
   sessionLabelOf,
@@ -57,7 +58,7 @@ import { ENROLLMENT_STATUS_DEFAULT, type EnrollmentStatus } from "../content/stu
 import type { Student } from "../lib/types";
 import { PageHeader, Card, StatTile, StatusBadge, EnrollmentStatusBadge } from "./common";
 
-type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
+type Tab = "summary" | "now" | "attendance" | "trend" | "compare" | "divisions";
 
 /**
  * 탭 정본 — **사이드바(`nav.ts`)의 「기수 현황」 하위 항목과 같은 순서·같은 이름**이다
@@ -65,6 +66,8 @@ type Tab = "summary" | "attendance" | "trend" | "compare" | "divisions";
  */
 export const COHORT_TABS: { id: Tab; label: string }[] = [
   { id: "summary", label: "기수 요약" },
+  /* 2026-08-15 리드 지시로 신설 — 단계 기준표를 기수 단위로 뒤집어 본다 */
+  { id: "now", label: "지금 우리 기수는?" },
   { id: "attendance", label: "출석 현황" },
   { id: "trend", label: "주간 흐름" },
   { id: "compare", label: "비교" },
@@ -258,6 +261,8 @@ export function CohortStatus() {
           </Card>
         </>
       )}
+
+      {tab === "now" && <CohortNow students={students} />}
 
       {tab === "attendance" && (
         <AttendanceGrid students={students} weekdayPeriods={weekdayPeriods} startsOn={startsOn} />
