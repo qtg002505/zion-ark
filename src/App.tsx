@@ -1,6 +1,6 @@
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { canViewMissionCenters } from "./lib/permissions";
+import { canViewMissionCenters, canViewSiteUsage } from "./lib/permissions";
 import { StoreProvider } from "./lib/store";
 import { PlayerProvider } from "./shell/player";
 import { Layout } from "./shell/Layout";
@@ -25,6 +25,7 @@ import { WeeklyPlanPage } from "./pages/WeeklyPlanPage";
 import { CounselCases } from "./pages/CounselCases";
 import { Counseling } from "./pages/Counseling";
 import { Centers } from "./pages/Centers";
+import { SiteUsage } from "./pages/SiteUsage";
 import { MyPage } from "./pages/MyPage";
 
 function Routed() {
@@ -59,6 +60,14 @@ function Routed() {
         <Route
           path="/centers"
           element={canViewMissionCenters(session) ? <Centers /> : <Navigate to="/" replace />}
+        />
+        {/*
+          사이트 이용 현황 — **지파 신학부장 이상만** (2026-08-15 리드 지시).
+          12지파 선교센터와 같은 세 겹 방어다: 메뉴 숨김 · 라우트 가드 · (연동 시) API 403.
+        */}
+        <Route
+          path="/usage"
+          element={canViewSiteUsage(session) ? <SiteUsage /> : <Navigate to="/" replace />}
         />
         {/*
           종전 「수강생 목록」은 2026-08-10에 「수강생 현황」으로 **병합**됐다 (리드 지시).

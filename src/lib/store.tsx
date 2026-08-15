@@ -6,6 +6,7 @@ import type {
   BoardReply,
   ClassWeekdayPeriod,
   MaterialLikeKind,
+  SiteVisit,
   SpecialSession,
   SpecialAttendance,
   PersonalEvent,
@@ -88,6 +89,10 @@ const MATERIAL_VIEW_KEY = "zion_ark_material_views";
 const AUTHOR_FOLLOW_KEY = "zion_ark_author_follows";
 const SPECIAL_SESSION_KEY = "zion_ark_special_sessions";
 const SPECIAL_ATTENDANCE_KEY = "zion_ark_special_attendance";
+/** 사이트 방문 집계 (2026-08-15) — 계정·날짜 하나당 한 줄. 실연동 시 서버가 기록한다 */
+const SITE_VISIT_KEY = "zion_ark_site_visits";
+/** 방문 기록 보관 한도 — 열람 기록(ACTIVITY_LIMIT)과 같은 방식으로 건수로만 막는다 */
+const SITE_VISIT_LIMIT = 2000;
 
 function nowIso() {
   return new Date().toISOString();
@@ -486,6 +491,12 @@ interface StoreValue {
   /** 특강 출결 — (특강, 수강생) 하나당 한 줄. 같은 칸을 다시 찍으면 갈아 끼운다 */
   specialAttendance: SpecialAttendance[];
   setSpecialAttendance: (input: Omit<SpecialAttendance, "markedAt">) => void;
+  /**
+   * 사이트 방문 (2026-08-15 리드 지시) — **계정·날짜 하나당 한 줄**.
+   * 화면(`Layout`)이 로그인 상태로 뜰 때 한 번 부른다. 집계만 화면에 나간다(불변식 2).
+   */
+  siteVisits: SiteVisit[];
+  logSiteVisit: (input: { userName: string; tribe: string; roleCode: RoleCode }) => void;
   /* 인기 교안 인프라 (2026-08-14 FB-04 · Q-02 추천안) */
   materialRatings: MaterialRating[];
   /** 별점 — 사용자당 1건 upsert (1~5) */
@@ -523,7 +534,8 @@ interface StoreValue {
     createdBy: string;
     createdByRole: RoleCode;
   }) => void;
-  markNoteHelpful: (id: string) => void;
+  /** 강의 자료 도움됨 — **계정당 1회 토글** (2026-08-15 리드 지시. 종전 무한 카운터) */
+  markNoteHelpful: (id: string, userName: string) => void;
   /** 주간계획 저장 — 이전 내용을 이력으로 남긴다 (여럿이 함께 고치기 때문) */
   savePlan: (input: {
     cohortKey: string;
@@ -821,6 +833,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [specialAttendance, setSpecialAttendanceState] = useState<SpecialAttendance[]>(() =>
     loadPlain<SpecialAttendance>(SPECIAL_ATTENDANCE_KEY),
   );
+  const [siteVisits, setSiteVisits] = useState<SiteVisit[]>(() => loadPlain<SiteVisit>(SITE_VISIT_KEY));
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -1056,6 +1069,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(SPECIAL_ATTENDANCE_KEY, JSON.stringify(next));
         setSpecialAttendanceState(next);
       },
+      siteVisits,
+      logSiteVisit: ({ userName, tribe, roleCode }) => {
+        const date = nowIso().slice(0, 10);
+        // 같은 사람이 같은 날 또 들어와도 한 줄이다 — 「몇 사람이 썼나」를 보는 자리다
+        if (siteVisits.some((v) => v.userName === userName && v.date === date)) return;
+        const next = [...siteVisits, { userName, tribe, roleCode, date, visitedAt: nowIso() }].slice(
+          -SITE_VISIT_LIMIT,
+        );
+        localStorage.setItem(SITE_VISIT_KEY, JSON.stringify(next));
+        setSiteVisits(next);
+      },
       addEntry: (input) => {
         const item: WorkspaceEntry = { id: uid(), ...input, createdAt: nowIso() };
         persistEntries([item, ...entries]);
@@ -1064,9 +1088,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const item: LessonNote = { id: uid(), ...input, createdAt: nowIso(), helpful: 0 };
         persistNotes([item, ...lessonNotes]);
       },
-      markNoteHelpful: (id) => {
+      markNoteHelpful: (id, userName) => {
+        /*
+          **계정당 1회 토글** (2026-08-15 리드 지시 — 「도움됨 누르는 것도 계정마다 1번만」).
+          종전에는 숫자 카운터라 같은 사람이 무한히 누를 수 있었다 — 자료 추천·상담 사례가
+          2026-08-10·13에 같은 이유로 바꾼 계약(`helpfulBy`)을 여기도 그대로 쓴다.
+          ⚠️ 옛 값(`helpful` 숫자)은 지우지 않는다(불변식 10) — 화면이 둘을 합쳐 센다.
+        */
         persistNotes(
-          lessonNotes.map((n) => (n.id === id ? { ...n, helpful: n.helpful + 1 } : n)),
+          lessonNotes.map((n) => {
+            if (n.id !== id) return n;
+            const list = n.helpfulBy ?? [];
+            return {
+              ...n,
+              helpfulBy: list.includes(userName)
+                ? list.filter((x) => x !== userName)
+                : [...list, userName],
+            };
+          }),
         );
       },
       savePlan: ({ cohortKey, week, body, editedBy, editedByRole }) => {
@@ -1539,6 +1578,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authorFollows,
       specialSessions,
       specialAttendance,
+      siteVisits,
       persistPlanEntries,
       persistLessonResources,
       persistReactions,

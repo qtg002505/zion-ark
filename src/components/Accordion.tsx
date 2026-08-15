@@ -17,12 +17,19 @@ export function Accordion({
   items,
   resetKey,
   defaultOpenFirst = true,
+  initialOpenIds,
   compact = false,
   deferOffscreen = false,
 }: {
   items: AccordionItem[];
   resetKey?: string;
   defaultOpenFirst?: boolean;
+  /**
+   * 처음부터 열어 둘 항목 (2026-08-15) — **딥링크가 있는 화면**을 위한 것이다.
+   * 기수 현황이 `?tab=attendance`로 들어오면 그 항목이 열린 채로 뜬다.
+   * 주면 `defaultOpenFirst`보다 이 값이 이긴다.
+   */
+  initialOpenIds?: string[];
   compact?: boolean;
   /**
    * 화면 밖 소주제를 그리지 않는다 (2026-08-11).
@@ -37,9 +44,18 @@ export function Accordion({
    */
   deferOffscreen?: boolean;
 }) {
+  const initialKey = (initialOpenIds ?? []).join("|");
   const initial = useMemo(
-    () => new Set(defaultOpenFirst && items.length > 0 ? [items[0].id] : []),
-    [items, defaultOpenFirst],
+    () =>
+      new Set(
+        initialOpenIds && initialOpenIds.length > 0
+          ? initialOpenIds
+          : defaultOpenFirst && items.length > 0
+            ? [items[0].id]
+            : [],
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, defaultOpenFirst, initialKey],
   );
   const [open, setOpen] = useState<Set<string>>(initial);
 
@@ -49,9 +65,17 @@ export function Accordion({
   const idsKey = items.map((i) => i.id).join("|");
   const firstId = items.length > 0 ? items[0].id : null;
   useEffect(() => {
-    setOpen(new Set(defaultOpenFirst && firstId ? [firstId] : []));
+    setOpen(
+      new Set(
+        initialOpenIds && initialOpenIds.length > 0
+          ? initialOpenIds
+          : defaultOpenFirst && firstId
+            ? [firstId]
+            : [],
+      ),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resetKey, idsKey, defaultOpenFirst]);
+  }, [resetKey, idsKey, defaultOpenFirst, initialKey]);
 
   function toggle(id: string) {
     setOpen((prev) => {

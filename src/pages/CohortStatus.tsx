@@ -33,10 +33,12 @@ import {
   effectiveSchedule,
   mondayOfWeek,
   offsetInWeek,
+  scheduleSummary,
   type ClassWeekdayPeriodList,
 } from "../lib/cohort-calendar";
 import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { LineChart } from "../components/LineChart";
+import { Accordion } from "../components/Accordion";
 import {
   lessonOfSession,
   sessionLabelOf,
@@ -76,8 +78,11 @@ export function CohortStatus() {
    */
   const { weekdayPeriods, startsOn } = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
   const [searchParams] = useSearchParams();
+  /**
+   * 옛 딥링크(`?tab=attendance`)를 그대로 받는다 — 2026-08-15에 탭을 아코디언으로 바꿨지만
+   * 메인·전체현황에서 걸어 둔 링크가 죽으면 안 된다. 그 항목이 **열린 채로** 뜬다.
+   */
   const initialTab = TAB_IDS.includes(searchParams.get("tab") as Tab) ? (searchParams.get("tab") as Tab) : "summary";
-  const [tab, setTab] = useState<Tab>(initialTab);
 
   const divisions = visibleDivisions(session, DIVISIONS);
   const students = STUDENTS.filter((s) => divisions.includes(s.division));
@@ -94,14 +99,6 @@ export function CohortStatus() {
   );
   const enrollmentStatusOf = (s: Student): EnrollmentStatus =>
     overrideByKey[s.key]?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT;
-
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "summary", label: "기수 요약" },
-    { id: "attendance", label: "출석 현황" },
-    { id: "trend", label: "주간 흐름" },
-    { id: "compare", label: "기수 비교" },
-    { id: "divisions", label: "분반별 현황" },
-  ];
 
   /*
     「출석률 분포」 히스토그램은 2026-08-14 피드백 CHG-01(담당자 확정 지시)로 뺐다 —
@@ -122,25 +119,24 @@ export function CohortStatus() {
         desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 진도 ${TOTAL_SESSIONS}회 · 조회 범위 ${studentScopeLabel(session)} (시범 목업 데이터)`}
       />
 
-      <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="기수 현황 탭">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={
-              "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition sm:px-4 " +
-              (tab === t.id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "summary" && (
-        <>
+      {/*
+        **탭 대신 아코디언**이다 (2026-08-15 리드 지시 — 「항목들이 아코디언 형식으로」).
+        탭은 한 번에 하나만 보이지만 아코디언은 필요한 것을 여럿 펼쳐 나란히 볼 수 있다.
+        ⚠️ 접힌 항목은 **그려지지 않는다**(`Accordion`이 열린 것만 렌더한다) — 출석 격자처럼
+        무거운 화면이 다섯 개 한꺼번에 뜨지 않는다.
+        ⚠️ `deferOffscreen`은 켜지 않는다 — 출석 격자 안에 모달(보강 기록·특강)이 있어
+        `contain: paint`에 갇힌다(`Accordion` 주석의 그 함정이다).
+        옛 딥링크(`?tab=attendance`)는 그대로 받는다 — 그 항목이 열린 채로 뜬다.
+      */}
+      <Accordion
+        initialOpenIds={[initialTab]}
+        items={[
+          {
+            id: "summary",
+            title: "기수 요약",
+            hint: "등록·수강 인원과 보강 포함 출석률",
+            content: (
+              <>
           <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
             <StatTile label="등록 수강생" value={`${students.length}명`} sub={`${divisions.length}개 분반`} accent />
             <StatTile
@@ -234,26 +230,46 @@ export function CohortStatus() {
               ))}
             </div>
           </Card>
-        </>
-      )}
-
-      {tab === "attendance" && (
-        <AttendanceGrid students={students} weekdayPeriods={weekdayPeriods} startsOn={startsOn} />
-      )}
-
-      {tab === "trend" && (
-        <>
-          <EightMonthTrend />
-          <div className="mt-4">
-            <WeeklyTrend rows={WEEKLY_RATES} />
-          </div>
-        </>
-      )}
-
-      {tab === "compare" && <CohortCompare />}
-
-      {tab === "divisions" && (
-        <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+              </>
+            ),
+          },
+          {
+            id: "attendance",
+            title: "출석 현황",
+            hint: "회차별 출결 격자 · 보강 기록 · 특강",
+            content: (
+              <AttendanceGrid
+                students={students}
+                weekdayPeriods={weekdayPeriods}
+                startsOn={startsOn}
+              />
+            ),
+          },
+          {
+            id: "trend",
+            title: "주간 흐름",
+            hint: "8개월 꺾은선과 주차별 사유·극복",
+            content: (
+              <>
+                <EightMonthTrend />
+                <div className="mt-4">
+                  <WeeklyTrend rows={WEEKLY_RATES} />
+                </div>
+              </>
+            ),
+          },
+          {
+            id: "compare",
+            title: "비교",
+            hint: "같은 회차에서 다른 기수와 견주기",
+            content: <CohortCompare />,
+          },
+          {
+            id: "divisions",
+            title: "분반별 현황",
+            hint: "분반마다 누가 있고 몇 %인지",
+            content: (
+              <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
           {divisions.map((d) => {
             const group = students.filter((s) => s.division === d);
             const active = group.filter((s) => enrollmentStatusOf(s) === "수강").length;
@@ -278,10 +294,13 @@ export function CohortStatus() {
                   수강 {active} · 탈락·유급 {group.length - active}
                 </div>
               </Card>
-            );
-          })}
-        </div>
-      )}
+                    );
+                  })}
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -377,14 +396,23 @@ function AttendanceGrid({
   const [includeSpecial, setIncludeSpecial] = useState(false);
   /** 특강을 더할 주차 — null이면 창이 닫혀 있다 */
   const [specialFormWeek, setSpecialFormWeek] = useState<number | null>(null);
+  /**
+   * 회차 차례 (2026-08-15 리드 지시) — 기본은 **최신순**이다.
+   * ⚠️ 주차만이 아니라 **주 안의 요일까지 뒤집는다** — 「월화수목금」이 아니라 「금목수화월」로
+   * 놓여야 연속 결석이 한 덩어리로 보인다는 것이 리드의 지적이다.
+   */
+  const [newestFirst, setNewestFirst] = useState(true);
 
   /**
    * 1주차부터 마지막 완료 주까지 **전부** 그린다. **최근 주가 왼쪽**이다 (2026-08-15 리드 지시) —
    * 열자마자 최근 출결이 이름 옆에 보이고, 옛 주는 오른쪽으로 밀려난다. 맨 오른쪽이 1주차다.
    */
   const weekNos = useMemo(
-    () => Array.from({ length: DONE_WEEKS }, (_, i) => DONE_WEEKS - i),
-    [],
+    () =>
+      newestFirst
+        ? Array.from({ length: DONE_WEEKS }, (_, i) => DONE_WEEKS - i)
+        : Array.from({ length: DONE_WEEKS }, (_, i) => i + 1),
+    [newestFirst],
   );
   /** 주차 번호 → weeksAgo (최근 완료 주가 DONE_WEEKS번째 주 = ago 0) */
   const agoOf = (weekNo: number) => DONE_WEEKS - weekNo;
@@ -417,10 +445,17 @@ function AttendanceGrid({
   type GridCol =
     | { kind: "regular"; key: string; sess: SessionInfo }
     | { kind: "special"; key: string; sp: SpecialSession };
-  const colsOf = (weekNo: number): GridCol[] => [
-    ...sessionsOf(weekNo).map((sess) => ({ kind: "regular" as const, key: `r${sess.sessionNo}`, sess })),
-    ...specialsOf(weekNo).map((sp) => ({ kind: "special" as const, key: `s${sp.id}`, sp })),
-  ];
+  const colsOf = (weekNo: number): GridCol[] => {
+    const cols: GridCol[] = [
+      ...sessionsOf(weekNo).map((sess) => ({ kind: "regular" as const, key: `r${sess.sessionNo}`, sess })),
+      ...specialsOf(weekNo).map((sp) => ({ kind: "special" as const, key: `s${sp.id}`, sp })),
+    ];
+    /*
+      최신순이면 **주 안의 차례도 뒤집는다** (2026-08-15 리드 지시) — 「금목수화월」로 놓여야
+      최근 결석이 왼쪽에서 이어지는 덩어리로 보인다. 오래된순이면 원래 차례(월화목)다.
+    */
+    return newestFirst ? [...cols].reverse() : cols;
+  };
   /** 이 기수에서 쓰는 요일 전부 — 요일 고르기 단추를 여기서 만든다 */
   const usedWeekdays = useMemo(() => {
     const set = new Set<number>();
@@ -619,7 +654,16 @@ function AttendanceGrid({
             {axis === "lesson" ? "진도별" : "주차별"} 출석 상세
           </div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            <strong>최근 회차가 왼쪽</strong>이고 오른쪽으로 갈수록 옛 회차입니다 — 맨 오른쪽이 1주차입니다.
+            {newestFirst ? (
+              <>
+                <strong>최근 회차가 왼쪽</strong>입니다 — 주 안에서도 목·화·월 차례라 연속 결석이 한
+                덩어리로 보입니다. 맨 오른쪽이 1주차입니다.
+              </>
+            ) : (
+              <>
+                <strong>1주차가 왼쪽</strong>입니다 — 개강부터 차례대로 봅니다.
+              </>
+            )}{" "}
             출석한 분이 위, 결석한 분이 아래로 옵니다.
           </p>
         </div>
@@ -651,6 +695,30 @@ function AttendanceGrid({
             리드가 「특강은 포함되지 않고 메인강의만 포함되도록」이라고 못박았고,
             「특강을 포함해서도 볼 수 있는 필터」를 함께 요청했다.
           */}
+          {/* 차례 뒤집기 (2026-08-15 리드 지시) — 주차와 요일이 함께 뒤집힌다 */}
+          <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="회차 차례">
+            {(
+              [
+                [true, "최신순"],
+                [false, "오래된순"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={label}
+                role="tab"
+                aria-selected={newestFirst === v}
+                onClick={() => setNewestFirst(v)}
+                className={
+                  "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
+                  (newestFirst === v
+                    ? "bg-white text-zion-900 shadow-sm"
+                    : "text-zion-600 hover:text-zion-800")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setIncludeSpecial((v) => !v)}
             aria-pressed={includeSpecial}
@@ -790,7 +858,7 @@ function AttendanceGrid({
                 )
               ) : (
                 <th colSpan={weekNos.length} className={"pb-1 font-semibold text-zion-700 " + weekEdge}>
-                  {DONE_WEEKS}~1주차
+                  {newestFirst ? `${DONE_WEEKS}~1주차` : `1~${DONE_WEEKS}주차`}
                 </th>
               )}
             </tr>
@@ -1971,7 +2039,16 @@ function WeekNoteForm({
  */
 function CohortCompare() {
   const session = useSession();
+  const { scheduleOverrides } = useStore();
   const [scope, setScope] = useState<"tribe" | "all">("tribe");
+
+  /**
+   * 우리 기수의 개월수는 **전체 현황의 일정에서 온다** (2026-08-15 리드 지시 — 「전체현황에
+   * 나와 있는 데이터와 연동」). 화면에서 개강·종강을 고치면 이 값이 따라 움직인다 —
+   * 목업의 `months`를 쓰면 고친 일정과 어긋난다.
+   */
+  const mySchedule = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
+  const myMonths = scheduleSummary(mySchedule.startsOn, mySchedule.endsOn).months;
 
   /** 우리 기수가 지금까지 마친 회차 — 비교 자리의 기본값이다 */
   const myDone = useMemo(
@@ -1985,7 +2062,8 @@ function CohortCompare() {
     const list =
       scope === "tribe" ? COHORT_RANKS.filter((r) => r.tribe === COHORT.tribe) : COHORT_RANKS;
     return list
-      .map((r) => ({ ...r, atRate: sessionRateOf(r, at) }))
+      // 우리 기수의 개월수만 화면 일정에서 덮어쓴다 — 남의 기수는 목업 값 그대로다
+      .map((r) => ({ ...r, months: r.isMine ? myMonths : r.months, atRate: sessionRateOf(r, at) }))
       .sort((a, b) => {
         // 아직 그 회차에 이르지 못한 기수는 아래로 — 견줄 값이 없다
         if (a.atRate === null || b.atRate === null) {
@@ -1994,20 +2072,25 @@ function CohortCompare() {
         }
         return b.atRate - a.atRate;
       });
-  }, [scope, at]);
+  }, [scope, at, myMonths]);
 
-  // 관리직만 다른 지파까지 본다 — 실무직은 담당 기수가 속한 지파 안에서만 비교
-  const canSeeAll = session.roleCode === "headquarters_admin" || session.roleCode === "content_admin";
+  /*
+    **12지파 전체 비교는 누구나 본다** (2026-08-15 리드 지시 — 「비교를 12지파 전체로도
+    볼 수 있도록」). 종전에는 총회 범위 계정만 봤다.
+    ⚠️ 불변식 2에 어긋나지 않는다 — 이 탭이 내보내는 것은 **기수명과 출석률 집계**뿐이고
+    수강생 개인 정보는 어떤 형태로도 들어가지 않는다.
+  */
 
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[14px] font-bold text-zion-900">같은 회차에서 견주기</div>
+          {/* 이름은 「비교」다 (2026-08-15 리드 지시 — 「같은 회차에서 견주기」에서 바꿨다) */}
+          <div className="text-[14px] font-bold text-zion-900">비교</div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
             개강 시점이 다른 기수를 달력으로 견주면 불공정합니다 —{" "}
             <strong>같은 회차·같은 강에서 어땠는지</strong>로 봅니다. 이미 앞선 기수도 그 진도에서의
-            출석률이 나옵니다.
+            출석률이 나옵니다. <strong>기수마다 과정 개월수가 다르므로</strong> 이름 옆에 함께 적습니다.
           </p>
         </div>
         <div className="flex shrink-0 gap-1 rounded-lg bg-zion-100 p-1">
@@ -2020,14 +2103,9 @@ function CohortCompare() {
             <button
               key={id}
               onClick={() => setScope(id)}
-              disabled={id === "all" && !canSeeAll}
               className={
                 "rounded-md px-3 py-1.5 text-[12px] font-semibold transition " +
-                (scope === id
-                  ? "bg-white text-zion-900 shadow-sm"
-                  : id === "all" && !canSeeAll
-                    ? "cursor-not-allowed text-zion-300"
-                    : "text-zion-600 hover:text-zion-800")
+                (scope === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
               }
             >
               {label}
@@ -2086,6 +2164,13 @@ function CohortCompare() {
             </span>
             <span className="min-w-0 flex-1 text-[13px] text-ink">
               <span className="font-semibold">{r.cohort}</span>
+              {/*
+                과정 개월수 (2026-08-15 리드 지시) — 지파마다 6~8개월로 달라서, 같은 회차라도
+                **어느 속도의 과정인지**를 알아야 견줄 수 있다. 타 지파 것도 함께 보인다.
+              */}
+              <span className="ml-1 rounded bg-zion-100 px-1.5 py-0.5 text-[10.5px] font-bold text-zion-700">
+                {r.months}개월
+              </span>
               <span className="text-ink-soft">
                 {" "}
                 · {r.tribe} 지파 {r.church}
@@ -2123,9 +2208,8 @@ function CohortCompare() {
         큰 숫자는 <strong className="text-ink">고른 회차에서의 출석률</strong>이고, 작은 숫자는 그 기수의
         지금 누적 출석률입니다 — 둘이 다르면 진도가 달라서입니다. 다른 지파는{" "}
         <strong className="text-ink">기수명과 출석률 집계까지만</strong> 표시합니다 — 수강생 개인정보는
-        담당 범위 밖으로 나가지 않습니다.
-        {!canSeeAll && " 12지파 전체 비교는 총회 범위 계정에서 볼 수 있습니다."}
-        {" "}회차별 값은 시범 데이터입니다.
+        담당 범위 밖으로 나가지 않습니다. <strong className="text-ink">우리 기수의 개월수는 전체
+        현황의 일정</strong>에서 오고, 다른 기수는 그 기수에 적힌 값입니다. 회차별 값은 시범 데이터입니다.
       </p>
     </Card>
   );

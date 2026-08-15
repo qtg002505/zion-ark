@@ -174,6 +174,25 @@ export const MATERIAL_LEVELS: MaterialLevel[] = ["초등", "중등", "고등"];
 export type MaterialScope = "common" | `tribe:${string}`;
 
 /**
+ * 사이트 방문 기록 (2026-08-15 리드 지시 — 「아크 사이트를 많이 쓰는지 확인」).
+ *
+ * ⚠️ **계정·날짜 하나당 한 줄**이다 — 같은 사람이 하루에 여러 번 들어와도 한 줄이다.
+ * 「몇 번 눌렀나」가 아니라 「몇 사람이 썼나」를 보는 자리이기 때문이다.
+ * ⚠️ 화면에는 **집계만** 낸다(불변식 2) — 이름은 저장하되 보여 주지 않는다. 이름을 남기는
+ * 이유는 같은 사람의 재방문을 걸러 내기 위해서다(그것 말고는 쓰지 않는다).
+ * 실연동 시 서버가 세션에서 기록한다 — 브라우저 저장은 지우면 그만이라 정본이 아니다.
+ */
+export interface SiteVisit {
+  /** 중복 제거용 — 화면에 내보내지 않는다 */
+  userName: string;
+  tribe: string;
+  roleCode: RoleCode;
+  /** YYYY-MM-DD */
+  date: string;
+  visitedAt: string;
+}
+
+/**
  * 특강 (2026-08-15 리드 지시) — 정규 수업 요일 밖에서 따로 여는 강의.
  *
  * 「주차마다 특강을 추가할 수 있게 · 다른 요일에도 · 출석도 자유롭게 추가」가 지시다.
@@ -415,8 +434,17 @@ export interface LessonNote {
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;
-  /** 도움이 됐다고 표시한 사람 수 */
+  /**
+   * 도움이 됐다고 표시한 사람 수 — **옛 방식**(2026-08-15에 1인 1표로 바뀌었다).
+   * ⚠️ 지우지 않는다(불변식 10): 이미 쌓인 값이 있어 지우면 그 표들이 사라진다.
+   * 새 표는 `helpfulBy`로 들어가고, 화면은 **둘을 합쳐** 센다.
+   */
   helpful: number;
+  /**
+   * 도움됨을 누른 사람들 — **1인 1표 토글** (2026-08-15 리드 지시).
+   * 자료 추천(`LibraryMaterial.helpfulBy`)·상담 사례와 같은 계약이다.
+   */
+  helpfulBy?: string[];
 }
 
 /**

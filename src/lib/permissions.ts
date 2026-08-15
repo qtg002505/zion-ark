@@ -201,6 +201,26 @@ export function canViewMissionCenters(s: Session): boolean {
 }
 
 /**
+ * 사이트 이용 현황 열람 (2026-08-15 리드 지시 — 「아크 사이트를 많이 쓰는지 확인」).
+ *
+ * **지파 신학부장 이상**이다 — 12지파 선교센터와 같은 범위 판단(조직 범위가 지파보다 넓은
+ * 역할 전부)이지만 **목록을 따로 둔다**: 한쪽 기준이 바뀌어도 다른 쪽이 딸려 움직이면 안 된다.
+ *
+ * ⚠️ 이 화면은 **집계만** 보여 준다(불변식 2) — 누가 언제 들어왔는지는 안 보인다.
+ * 사람 단위 접속 기록은 감사 로그(`studentAccessLogs`)의 영역이고, 여기는 「몇 명」뿐이다.
+ */
+export const SITE_USAGE_VIEW_ROLES: RoleCode[] = [
+  "tribe_admin",
+  "headquarters_admin",
+  "content_admin",
+  "security_auditor",
+];
+
+export function canViewSiteUsage(s: Session): boolean {
+  return SITE_USAGE_VIEW_ROLES.includes(s.roleCode);
+}
+
+/**
  * 역할에 맞는 다음 화면 (ORG_CHART §6).
  * 관리직은 담당 기수가 없어 "내 기수" 화면이 비므로 전체현황으로 보낸다.
  * 편의 기능일 뿐 권한이 아니다 — 어느 화면이든 서버가 다시 검증한다(불변식 1).

@@ -40,7 +40,16 @@ export function Layout() {
   });
   const location = useLocation();
   const session = useSession();
-  const { logView } = useStore();
+  const { logView, logSiteVisit } = useStore();
+
+  /**
+   * 사이트 방문 기록 (2026-08-15 리드 지시 — 「아크 사이트를 많이 쓰는지 확인」).
+   * 로그인한 채로 화면이 뜨면 하루 한 번 남는다 — store가 같은 날 재방문을 거른다.
+   * ⚠️ 화면에는 **집계만** 나간다(불변식 2). 이름은 재방문을 거르는 데만 쓴다.
+   */
+  useEffect(() => {
+    logSiteVisit({ userName: session.name, tribe: session.tribe, roleCode: session.roleCode });
+  }, [session.name, session.tribe, session.roleCode, logSiteVisit]);
 
   useEffect(() => {
     try {

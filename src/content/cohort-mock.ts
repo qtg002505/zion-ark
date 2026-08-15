@@ -271,6 +271,13 @@ export interface CohortRank {
   startsOn: string;
   /** 지금까지 마친 회차 — 이 기수가 어디까지 나갔는지 */
   doneSessions: number;
+  /**
+   * 과정 개월수 (2026-08-15 리드 지시 — 「지파마다 수업 개월수가 다르기도 함(8~6개월)」).
+   * 기수 이름 옆에 붙어, 같은 회차라도 **어느 속도로 가는 과정인지**가 함께 보인다.
+   * ⚠️ 우리 기수는 이 값이 아니라 **전체 현황의 일정**(`effectiveSchedule`)에서 온다 —
+   * 화면에서 개강·종강을 고치면 그쪽이 정본이라 목업 값과 어긋나면 안 된다.
+   */
+  months: number;
   /** 우리 기수인지 */
   isMine?: boolean;
 }
@@ -281,14 +288,14 @@ export interface CohortRank {
  * 아래 `sessionRateOf`가 결정적 규칙으로 만든다(시범 값 · 불변식 6).
  */
 export const COHORT_RANKS: CohortRank[] = [
-  { tribe: "요한", church: "과천교회", cohort: "115기", rate: 91, startsOn: "2026-05-04", doneSessions: 42 },
-  { tribe: "요한", church: "안양교회", cohort: "112기", rate: 87, startsOn: "2025-12-01", doneSessions: 105 },
-  { tribe: "요한", church: "과천교회", cohort: "113기", rate: 80, startsOn: "2026-03-02", doneSessions: 69, isMine: true },
-  { tribe: "요한", church: "수원교회", cohort: "114기", rate: 76, startsOn: "2026-03-30", doneSessions: 57 },
-  { tribe: "바돌로매", church: "대구교회", cohort: "108기", rate: 94, startsOn: "2025-09-01", doneSessions: 105 },
-  { tribe: "베드로", church: "부산교회", cohort: "121기", rate: 89, startsOn: "2026-06-01", doneSessions: 30 },
-  { tribe: "마태", church: "광주교회", cohort: "110기", rate: 85, startsOn: "2025-11-03", doneSessions: 105 },
-  { tribe: "도마", church: "대전교회", cohort: "119기", rate: 83, startsOn: "2026-04-06", doneSessions: 51 },
+  { tribe: "요한", church: "과천교회", cohort: "115기", rate: 91, startsOn: "2026-05-04", doneSessions: 42, months: 8 },
+  { tribe: "요한", church: "안양교회", cohort: "112기", rate: 87, startsOn: "2025-12-01", doneSessions: 105, months: 8 },
+  { tribe: "요한", church: "과천교회", cohort: "113기", rate: 80, startsOn: "2026-03-02", doneSessions: 69, months: 8, isMine: true },
+  { tribe: "요한", church: "수원교회", cohort: "114기", rate: 76, startsOn: "2026-03-30", doneSessions: 57, months: 7 },
+  { tribe: "바돌로매", church: "대구교회", cohort: "108기", rate: 94, startsOn: "2025-09-01", doneSessions: 105, months: 6 },
+  { tribe: "베드로", church: "부산교회", cohort: "121기", rate: 89, startsOn: "2026-06-01", doneSessions: 30, months: 6 },
+  { tribe: "마태", church: "광주교회", cohort: "110기", rate: 85, startsOn: "2025-11-03", doneSessions: 105, months: 7 },
+  { tribe: "도마", church: "대전교회", cohort: "119기", rate: 83, startsOn: "2026-04-06", doneSessions: 51, months: 8 },
 ];
 
 /**

@@ -32,11 +32,18 @@ export function LessonNotes({
   const { lessonNotes, addLessonNote, markNoteHelpful } = useStore();
   const [formOpen, setFormOpen] = useState(false);
 
+  /**
+   * 도움됨 수 — **옛 카운터와 새 1인 1표를 합쳐** 센다 (2026-08-15).
+   * 종전 값(`helpful`)을 버리면 이미 쌓인 표가 사라진다(불변식 10).
+   */
+  const helpfulCount = (n: { helpful: number; helpfulBy?: string[] }) =>
+    n.helpful + (n.helpfulBy?.length ?? 0);
+
   const notes = useMemo(
     () =>
       lessonNotes
         .filter((n) => n.lessonKey === lessonKey)
-        .sort((a, b) => b.helpful - a.helpful || b.createdAt.localeCompare(a.createdAt)),
+        .sort((a, b) => helpfulCount(b) - helpfulCount(a) || b.createdAt.localeCompare(a.createdAt)),
     [lessonNotes, lessonKey],
   );
 
@@ -88,12 +95,24 @@ export function LessonNotes({
                 </span>
               </div>
               <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{n.body}</p>
-              <button
-                onClick={() => markNoteHelpful(n.id)}
-                className="mt-2 flex items-center gap-1 rounded-lg border border-zion-100 px-2 py-1 text-[11px] font-medium text-ink-soft transition hover:border-zion-300 hover:text-zion-700"
-              >
-                <ThumbsUp size={11} /> 도움됨 {n.helpful > 0 && n.helpful}
-              </button>
+              {/* 도움됨 — **계정당 1회 토글** (2026-08-15 리드 지시. 다시 누르면 내 표가 빠진다) */}
+              {(() => {
+                const mine = (n.helpfulBy ?? []).includes(session.name);
+                return (
+                  <button
+                    onClick={() => markNoteHelpful(n.id, session.name)}
+                    aria-pressed={mine}
+                    className={
+                      "mt-2 flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition " +
+                      (mine
+                        ? "border-gold-500 bg-gold-100 text-gold-700"
+                        : "border-zion-100 text-ink-soft hover:border-zion-300 hover:text-zion-700")
+                    }
+                  >
+                    <ThumbsUp size={11} /> 도움됨 {helpfulCount(n) > 0 && helpfulCount(n)}
+                  </button>
+                );
+              })()}
             </li>
           ))}
           </ul>

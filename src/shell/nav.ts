@@ -6,7 +6,7 @@ import {
   INSTRUCTOR_BATGARI_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
 } from "../lib/types";
-import { MISSION_CENTER_VIEW_ROLES } from "../lib/permissions";
+import { MISSION_CENTER_VIEW_ROLES, SITE_USAGE_VIEW_ROLES } from "../lib/permissions";
 import {
   Home,
   LayoutDashboard,
@@ -40,6 +40,7 @@ import {
   RefreshCw,
   MapPin,
   MessageSquarePlus,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
@@ -389,6 +390,13 @@ const NAV_GROUPS: NavGroup[] = [
    * 2026-08-14 FB-10 — **지파 신학부장 이상만** 본다. 역할 목록은 permissions.ts가 정본.
    */
   { label: "12지파 선교센터", icon: MapPin, to: "/centers", restrictTo: MISSION_CENTER_VIEW_ROLES },
+
+  /**
+   * 사이트 이용 현황 (2026-08-15 리드 지시 — 「아크 사이트를 많이 쓰는지 확인」).
+   * **지파 신학부장 이상만** 본다. 기존 순서를 건드리지 않고 뒤에 붙였다 —
+   * 12지파 선교센터·건의 게시판을 더할 때와 같은 원칙이다.
+   */
+  { label: "사이트 이용 현황", icon: Activity, to: "/usage", restrictTo: SITE_USAGE_VIEW_ROLES },
 
   /**
    * 건의·의견 게시판 (2026-08-14 피드백 FB-09 — 신설).
