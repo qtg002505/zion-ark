@@ -681,8 +681,14 @@ function AttendanceGrid({
 
   /** 주차 경계선 — 한 주의 수업 요일들이 한 짝이라 주가 바뀌는 자리에 세로줄을 세운다 */
   const weekEdge = "border-l-2 border-zion-200";
-  /** 붙잡고 끌어서 23주를 훑는다 (2026-08-14) */
-  const dragGrid = useDragScroll<HTMLDivElement>();
+  /**
+   * 붙잡고 끌어서 23주를 훑는다 (2026-08-14).
+   * ⚠️ **차례·축·요일 필터가 바뀌면 맨 왼쪽으로 되돌린다** (2026-08-15) — 칸이 통째로
+   * 재배열되는데 스크롤 자리가 남아 있으면 엉뚱한 주차가 보이고 붙박이 칸 아래로 잘린다.
+   */
+  const dragGrid = useDragScroll<HTMLDivElement>(
+    `${axis}|${newestFirst}|${dayFilter.join(",")}`,
+  );
 
   /** 출결 칸의 총 개수 — 분반 띠가 남은 칸을 한 번에 덮는 데 쓴다 */
   const gridCols = Math.max(
