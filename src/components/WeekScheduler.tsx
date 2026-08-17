@@ -40,25 +40,41 @@ function weekStart(d: Date): Date {
 export function WeekScheduler() {
   const session = useSession();
   const { personalEvents, addPersonalEvent, deletePersonalEvent } = useStore();
-  const [offset, setOffset] = useState(0); // 0 = 이번 주
+  /**
+   * 주간/월간 보기 (2026-08-17 리드 지시 — 「월간 일정 관리도 자유롭게」).
+   * 같은 일정 저장소를 두 눈금으로 보는 것뿐이다 — 월간에서 넣은 일정이 주간에도 그대로 있다.
+   */
+  const [view, setView] = useState<"week" | "month">("week");
+  const [offset, setOffset] = useState(0); // 0 = 이번 주 / 이번 달 (보기 단위를 따른다)
   /** 고른 날짜 + 누른 칸 — 팝오버가 그 자리에서 열리게 (2026-08-10 리드 지시) */
   const [openDay, setOpenDay] = useState<{ date: string; anchor: HTMLElement } | null>(null);
 
   const base = useMemo(() => {
+    if (view === "month") {
+      const n = new Date();
+      return new Date(n.getFullYear(), n.getMonth() + offset, 1);
+    }
     const s = weekStart(new Date());
     s.setDate(s.getDate() + offset * 7);
     return s;
-  }, [offset]);
+  }, [offset, view]);
 
-  const days = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(base);
-        d.setDate(d.getDate() + i);
-        return d;
-      }),
-    [base],
-  );
+  /**
+   * 보이는 날들 — 주간은 7일, 월간은 그 달 전부.
+   * 월간 격자의 앞쪽 빈칸은 `leadBlanks`로 따로 둔다(날짜가 아니라서 목록에 안 섞는다).
+   */
+  const days = useMemo(() => {
+    if (view === "month") {
+      const last = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      return Array.from({ length: last }, (_, i) => new Date(base.getFullYear(), base.getMonth(), i + 1));
+    }
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [base, view]);
+  const leadBlanks = view === "month" ? base.getDay() : 0;
 
   const mine = personalEvents.filter((e) => e.userName === session.name);
 
@@ -84,7 +100,10 @@ export function WeekScheduler() {
   }, [session, days]);
 
   const today = kstToday();
-  const rangeLabel = `${base.getMonth() + 1}월 ${base.getDate()}일 ~ ${days[6].getMonth() + 1}월 ${days[6].getDate()}일`;
+  const rangeLabel =
+    view === "month"
+      ? `${base.getFullYear()}년 ${base.getMonth() + 1}월`
+      : `${base.getMonth() + 1}월 ${base.getDate()}일 ~ ${days[6].getMonth() + 1}월 ${days[6].getDate()}일`;
 
   /**
    * 캘린더 파일(.ics)로 내보낸다 — 휴대전화 캘린더에 넣으면 **기기가 하루 전 알림**을 준다.
@@ -99,8 +118,9 @@ export function WeekScheduler() {
       "PRODID:-//ZION ARK//personal schedule//KO",
       "CALSCALE:GREGORIAN",
     ];
-    const weekSet = new Set(days.map(ymd));
-    for (const e of mine.filter((x) => weekSet.has(x.date))) {
+    // 보이는 범위(주간 7일 / 월간 한 달)를 그대로 내보낸다
+    const visibleSet = new Set(days.map(ymd));
+    for (const e of mine.filter((x) => visibleSet.has(x.date))) {
       const [y, m, d] = e.date.split("-").map(Number);
       const [hh, mm] = (e.time || "09:00").split(":").map(Number);
       const start = new Date(y, m - 1, d, hh || 9, mm || 0);
@@ -139,12 +159,37 @@ export function WeekScheduler() {
     <Card className="mt-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
-          <CalendarDays size={15} className="text-zion-600" /> 내 주간 일정
+          <CalendarDays size={15} className="text-zion-600" /> 내 일정
+        </div>
+        {/* 주간 ↔ 월간 (2026-08-17 리드 지시) — 기수 달력의 월간/주간 토글과 같은 모양 */}
+        <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="일정 보기">
+          {(
+            [
+              ["week", "주간"],
+              ["month", "월간"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => {
+                setView(v);
+                setOffset(0); // 보기 단위가 다르므로 자리를 처음으로 되돌린다
+              }}
+              className={
+                "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
+                (view === v ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+              }
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setOffset((v) => v - 1)}
-            aria-label="지난 주"
+            aria-label={view === "month" ? "지난 달" : "지난 주"}
             className="rounded-lg border border-zion-200 p-1 text-zion-700 transition hover:bg-zion-50"
           >
             <ChevronLeft size={14} />
@@ -152,7 +197,7 @@ export function WeekScheduler() {
           <span className="min-w-[130px] text-center text-[12px] font-semibold text-ink">{rangeLabel}</span>
           <button
             onClick={() => setOffset((v) => v + 1)}
-            aria-label="다음 주"
+            aria-label={view === "month" ? "다음 달" : "다음 주"}
             className="rounded-lg border border-zion-200 p-1 text-zion-700 transition hover:bg-zion-50"
           >
             <ChevronRight size={14} />
@@ -162,7 +207,7 @@ export function WeekScheduler() {
               onClick={() => setOffset(0)}
               className="rounded-lg border border-zion-200 px-2 py-1 text-[11px] font-semibold text-zion-700 hover:bg-zion-50"
             >
-              이번 주
+              {view === "month" ? "이번 달" : "이번 주"}
             </button>
           )}
         </div>
@@ -176,7 +221,82 @@ export function WeekScheduler() {
         </button>
       </div>
 
+      {/*
+        월간 격자 (2026-08-17) — 한 달을 한눈에 보고 아무 날이나 눌러 넣는다.
+        칸은 작게 유지하고(제목 2건 + 나머지 건수) 자세한 것은 팝오버에서 본다.
+        좁은 화면에서도 7칸을 유지한다 — 달력은 접으면 달력이 아니게 된다.
+      */}
+      {view === "month" && (
+        <div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold">
+            {WEEKDAYS.map((w, i) => (
+              <div key={w} className={i === 0 ? "text-red-500" : i === 6 ? "text-zion-600" : "text-ink-soft"}>
+                {w}
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {Array.from({ length: leadBlanks }, (_, i) => (
+              <div key={`blank-${i}`} />
+            ))}
+            {days.map((d) => {
+              const key = ymd(d);
+              const list = mine
+                .filter((e) => e.date === key)
+                .sort((a, b) => a.time.localeCompare(b.time));
+              const cakes = birthdays.get(key) ?? [];
+              const isToday = key === today;
+              const dow = d.getDay();
+              return (
+                <button
+                  key={key}
+                  onClick={(e) => setOpenDay({ date: key, anchor: e.currentTarget })}
+                  className={
+                    "min-h-[64px] rounded-lg border p-1 text-left align-top transition hover:border-zion-400 " +
+                    (isToday ? "border-zion-500 bg-zion-50/60" : "border-zion-100 bg-white")
+                  }
+                >
+                  <span
+                    className={
+                      "text-[11px] font-bold " +
+                      (dow === 0 ? "text-red-500" : dow === 6 ? "text-zion-600" : isToday ? "text-zion-700" : "text-ink")
+                    }
+                  >
+                    {d.getDate()}
+                  </span>
+                  {cakes.length > 0 && (
+                    <span className="mt-0.5 flex items-center gap-0.5 text-[9.5px] font-semibold text-gold-700">
+                      <Cake size={9} className="shrink-0" />
+                      <span className="truncate max-sm:hidden">{cakes[0]}</span>
+                      {cakes.length > 1 && <span>+{cakes.length - 1}</span>}
+                    </span>
+                  )}
+                  {list.slice(0, 2).map((e) => (
+                    <span
+                      key={e.id}
+                      className="mt-0.5 block truncate rounded bg-zion-50 px-1 text-[10px] leading-snug text-ink max-sm:hidden"
+                    >
+                      {e.title}
+                    </span>
+                  ))}
+                  {/* 좁은 화면에서는 제목 대신 점으로 — 칸이 좁아 글자가 뭉개진다 */}
+                  {list.length > 0 && (
+                    <span className="mt-0.5 hidden text-[10px] font-semibold text-zion-700 max-sm:block">
+                      {list.length}건
+                    </span>
+                  )}
+                  {list.length > 2 && (
+                    <span className="block text-[9.5px] text-ink-soft max-sm:hidden">외 {list.length - 2}건</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 요일 7칸 — 좁은 화면에서는 2칸, 더 좁으면 1칸으로 접힌다 */}
+      {view === "week" && (
       <div className="grid grid-cols-7 gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
         {days.map((d, i) => {
           const key = ymd(d);
@@ -244,6 +364,7 @@ export function WeekScheduler() {
           );
         })}
       </div>
+      )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
         <strong className="text-ink">나만 보는 일정</strong>입니다 — 기수 전체가 함께 쓰는 계획은{" "}

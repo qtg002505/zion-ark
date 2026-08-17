@@ -512,11 +512,19 @@ export interface PlanRevision {
  *
  * 권한은 종전과 같다 — **해당 기수의 강사·전도사만** 고친다(`canEditCohortRecord`).
  */
-export type PlanEntryKind = "progress" | "makeup" | "event" | "note";
+/**
+ * 달력 항목 종류 — `counsel`(상담)·`visit`(심방)은 2026-08-17 리드 지시로 더했다.
+ * **전방 추가**라 이미 저장된 항목은 그대로 유효하다.
+ * ⚠️ 상담·심방 계획에는 **수강생 이름을 적지 않는다** — 달력은 기수 공유 화면이다.
+ * 누구를 만났는지의 기록은 수강생 상세의 「보강 · 상담 메모」에 남긴다(그쪽은 담당 범위 안이다).
+ */
+export type PlanEntryKind = "progress" | "makeup" | "counsel" | "visit" | "event" | "note";
 
 export const PLAN_ENTRY_LABELS: Record<PlanEntryKind, string> = {
   progress: "진도",
   makeup: "보강",
+  counsel: "상담",
+  visit: "심방",
   event: "행사",
   note: "메모",
 };

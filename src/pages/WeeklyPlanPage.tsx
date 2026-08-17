@@ -16,6 +16,7 @@ import {
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf, isFieldStaff } from "../lib/permissions";
+import { scanPII } from "../lib/privacy";
 import { PLAN_ENTRY_LABELS, ROLE_LABELS, type PlanEntry, type PlanEntryKind } from "../lib/types";
 import { COHORT, SCHEDULE, STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
@@ -33,11 +34,14 @@ const WEEKS = ["8월 1주", "7월 4주", "7월 3주", "7월 2주", "7월 1주"];
 const KIND_TONE: Record<PlanEntryKind, string> = {
   progress: "bg-zion-700 text-white",
   makeup: "bg-gold-100 text-gold-700 border border-gold-500/50",
+  /* 상담·심방 (2026-08-17 리드 지시) — 상태색 계열로 갈라 한눈에 구분된다 */
+  counsel: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  visit: "bg-red-50 text-red-600 border border-red-200",
   event: "bg-zion-100 text-zion-800 border border-zion-300",
   note: "bg-white text-ink-soft border border-zion-200",
 };
 
-const KIND_ORDER: PlanEntryKind[] = ["progress", "makeup", "event", "note"];
+const KIND_ORDER: PlanEntryKind[] = ["progress", "makeup", "counsel", "visit", "event", "note"];
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 /* ── 날짜 도우미 — 로컬 시간 기준으로만 다룬다 (UTC로 바꾸면 하루가 밀린다) ── */
@@ -695,6 +699,8 @@ function DayPopover({
   const [movingId, setMovingId] = useState<string | null>(null);
   const [moveDate, setMoveDate] = useState(date);
   const titleRef = useRef<HTMLInputElement | null>(null);
+  /** 수강생 개인정보가 스치면 바로 알린다 — 상담·심방(2026-08-17)이 생기며 더 중요해졌다 */
+  const piiWarnings = useMemo(() => scanPII(title), [title]);
 
   const entries = entriesOf(date);
   const d = new Date(date + "T00:00:00");
@@ -909,9 +915,24 @@ function DayPopover({
             ref={titleRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="예) 비유한 짐승과 머리 / 목요일 저녁 보강 (3명)"
+            placeholder={
+              kind === "counsel" || kind === "visit"
+                ? "예) 오전 상담 2건 / 오후 심방 — 이름은 적지 않습니다"
+                : "예) 비유한 짐승과 머리 / 목요일 저녁 보강 (3명)"
+            }
             className="min-w-0 flex-1 basis-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
           />
+          {/*
+            상담·심방은 수강생 이름을 적기 쉬운 자리다 — 달력은 기수 공유 화면이라
+            이름이 오르면 안 된다. scanPII는 실수를 잡는 그물이고 안내가 먼저다(게시판과 같은 방식).
+            누구를 만났는지는 수강생 상세의 「보강 · 상담 메모」에 남긴다.
+          */}
+          {piiWarnings.length > 0 && (
+            <p className="basis-full rounded-lg bg-gold-100/60 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-ink">
+              <strong className="font-bold">지워 주세요:</strong> {piiWarnings.join(" · ")} — 달력은
+              기수 공유 화면입니다. 누구인지는 수강생 상세의 「보강 · 상담 메모」에 남깁니다.
+            </p>
+          )}
           <label className="flex items-center gap-1.5 text-[12px] text-ink">
             <input
               type="checkbox"
@@ -949,6 +970,8 @@ function ProgressUpload({ cohortKey }: { cohortKey: string }) {
       ["날짜", "구분", "회차", "내용"],
       ["2026-08-11", "진도", "60", "예) 비유한 짐승과 머리"],
       ["2026-08-13", "보강", "", "예) 목요일 저녁 보강"],
+      ["2026-08-14", "상담", "", "예) 오전 상담 2건"],
+      ["2026-08-16", "심방", "", "예) 오후 심방"],
       ["2026-08-17", "행사", "", "예) 새신자 교육"],
     ];
     downloadBlob(buildXlsx(rows, "진도표"), "진도표_양식.xlsx");
@@ -957,6 +980,8 @@ function ProgressUpload({ cohortKey }: { cohortKey: string }) {
   const KIND_BY_LABEL: Record<string, PlanEntryKind> = {
     진도: "progress",
     보강: "makeup",
+    상담: "counsel",
+    심방: "visit",
     행사: "event",
     메모: "note",
   };
