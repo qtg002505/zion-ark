@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import { Link } from "../components/TransitionLink";
-import { ArrowRight, Megaphone, Search } from "lucide-react";
+import { ArrowRight, CalendarDays, Megaphone, Search } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { isFieldStaff, landingPath, studentScopeLabel } from "../lib/permissions";
-import { COHORT, SCHEDULE } from "../content/cohort-mock";
+import { cohortKeyOf, isFieldStaff, landingPath, studentScopeLabel } from "../lib/permissions";
+import { PLAN_ENTRY_LABELS } from "../lib/types";
+import { COHORT, SCHEDULE, STUDENTS } from "../content/cohort-mock";
+import { STUDENT_PROFILES } from "../content/student-profiles";
 import { effectiveSchedule, progressPct, scheduleSummary } from "../lib/cohort-calendar";
 import { newGroups } from "../lib/nav-badges";
 import { visibleNavGroups, groupItems } from "../shell/nav";
@@ -14,6 +16,61 @@ import heroImg from "../assets/hero-ark.jpg?inline";
 function todayYmd(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * 오늘 요약 (2026-08-18 리드 승인 ②) — 로그인하자마자 「오늘 무엇이 있는지」가 보인다.
+ * 기수 일정·내 일정·담당 수강생 생일을 세어 한 줄로 낸다. 없으면 없다고 말한다 —
+ * 빈 자리를 감추면 「오늘 아무것도 없는 게 맞나?」를 확인하러 들어가게 된다.
+ */
+function TodayCard() {
+  const session = useSession();
+  const { planEntries, personalEvents } = useStore();
+  const today = todayYmd();
+  const cohortKey = cohortKeyOf(session);
+
+  const cohortToday = planEntries.filter((p) => p.cohortKey === cohortKey && p.date === today);
+  const mineToday = personalEvents.filter(
+    (e) =>
+      e.userName === session.name &&
+      (e.date === today ||
+        (e.repeat === "weekly" &&
+          e.date <= today &&
+          new Date(e.date + "T00:00:00").getDay() === new Date(today + "T00:00:00").getDay())),
+  );
+  const birthdayNames = isFieldStaff(session)
+    ? STUDENTS.filter((s) => STUDENT_PROFILES[s.key]?.birthDate?.slice(5) === today.slice(5)).map(
+        (s) => s.name,
+      )
+    : [];
+
+  const parts: string[] = [];
+  for (const p of cohortToday.slice(0, 3)) parts.push(`${PLAN_ENTRY_LABELS[p.kind]} ${p.title}`);
+  if (cohortToday.length > 3) parts.push(`외 ${cohortToday.length - 3}건`);
+  if (mineToday.length > 0) parts.push(`내 일정 ${mineToday.length}건`);
+  if (birthdayNames.length > 0) parts.push(`${birthdayNames.join("·")} 생일`);
+
+  return (
+    <Card>
+      <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
+        <CalendarDays size={15} className="text-zion-600" /> 오늘
+      </div>
+      <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
+        {parts.length === 0 ? (
+          <>적힌 일정이 없습니다.</>
+        ) : (
+          parts.join(" · ")
+        )}{" "}
+        <Link viewTransition to="/plan" className="font-semibold text-zion-700 hover:underline">
+          기수 달력
+        </Link>
+        {" · "}
+        <Link viewTransition to="/my" className="font-semibold text-zion-700 hover:underline">
+          내 일정
+        </Link>
+      </p>
+    </Card>
+  );
 }
 
 /**
@@ -237,6 +294,9 @@ export function Main() {
             {isFieldStaff(session) ? "기수 현황" : "전체 현황"} <ArrowRight size={14} />
           </Link>
         </Card>
+
+        {/* 오늘 요약 (2026-08-18 리드 승인 ②) — 로그인하자마자 오늘 무엇이 있는지 한 줄로 */}
+        <TodayCard />
 
         <Card>
           <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">

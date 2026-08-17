@@ -767,6 +767,37 @@ export interface PersonalEvent {
   /** HH:MM — 비워 두면 종일 일정 */
   time: string;
   title: string;
+  /**
+   * 매주 반복 (2026-08-18 리드 승인 아이디어 ④) — 이 날부터 같은 요일마다 되풀이된다.
+   * 전방 추가 — 값이 없으면 한 번짜리 일정이다. 지우면 반복 전체가 지워진다(회차 단위 예외 없음).
+   */
+  repeat?: "weekly";
+  createdAt: string;
+}
+
+/**
+ * 개인 메모장 (2026-08-18 리드 지시) — 마이페이지 상단의 자유 메모.
+ * 계정당 한 장이고 본인만 본다. 일정과 달리 내보내기가 없어 반출 경로도 없다.
+ */
+export interface PersonalMemo {
+  userName: string;
+  text: string;
+  updatedAt: string;
+}
+
+/**
+ * 기수 회의록 (2026-08-18 리드 지시) — 기수 달력 화면에서 회의 내용을 남긴다.
+ * 주간계획과 같은 권한이다: **해당 기수의 강사·전도사만** 쓰고, 열람은 담당 범위 안에서 누구나.
+ * ⚠️ 기수 공유 기록이므로 **수강생 개인정보를 적지 않는다** — 화면이 `scanPII`로 거른다.
+ */
+export interface CohortMeetingNote {
+  id: string;
+  cohortKey: string;
+  /** 회의 날짜 YYYY-MM-DD */
+  date: string;
+  body: string;
+  createdBy: string;
+  createdByRole: RoleCode;
   createdAt: string;
 }
 

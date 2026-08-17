@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Portal } from "../components/Portal";
 import {
   Cake,
+  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   History,
   Lock,
+  NotebookPen,
   PencilLine,
   Plus,
   Star,
@@ -562,6 +564,9 @@ export function WeeklyPlanPage() {
         />
       )}
 
+      {/* 기수 회의록 (2026-08-18 리드 지시) — 회의 내용을 달력과 같은 화면에서 남긴다 */}
+      <MeetingNotes cohortKey={cohortKey} canEdit={canEdit} />
+
       {/* 종전 주차별 글 — 달력으로 옮긴 뒤에도 남겨 둔다 */}
       <LegacyWeeklyNotes cohortKey={cohortKey} plans={plans} canEdit={canEdit} />
 
@@ -569,6 +574,130 @@ export function WeeklyPlanPage() {
         수강생의 이름이나 개인적인 사정은 적지 않습니다 — 진행 계획만 남깁니다.
         파일 원본 보관은 2차(스토리지)에서 지원되고, 지금은 올린 파일에서 읽은 일정만 반영됩니다.
       </p>
+    </div>
+  );
+}
+
+/**
+ * 기수 회의록 (2026-08-18 리드 지시) — 인교섬 회의·사명자 회의 내용을 남기는 자리.
+ * 주간계획과 같은 권한이다: 해당 기수의 강사·전도사만 쓰고, 열람은 담당 범위 안에서 누구나.
+ * ⚠️ 기수 공유 기록이라 수강생 개인정보를 적지 않는다 — `scanPII`가 걸리면 저장을 막는다
+ * (상담 사례와 같은 강제. 안내만으로는 회의록처럼 긴 글에서 놓친다).
+ */
+function MeetingNotes({ cohortKey, canEdit }: { cohortKey: string; canEdit: boolean }) {
+  const session = useSession();
+  const { meetingNotes, addMeetingNote, deleteMeetingNote } = useStore();
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${`${n.getMonth() + 1}`.padStart(2, "0")}-${`${n.getDate()}`.padStart(2, "0")}`;
+  });
+  const [body, setBody] = useState("");
+
+  const notes = meetingNotes
+    .filter((n) => n.cohortKey === cohortKey)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const warnings = useMemo(() => scanPII(body), [body]);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (body.trim().length < 5 || warnings.length > 0) return;
+    addMeetingNote({
+      cohortKey,
+      date,
+      body: body.trim(),
+      createdBy: session.name,
+      createdByRole: session.roleCode,
+    });
+    setBody("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-zion-100 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
+          <NotebookPen size={15} className="text-zion-600" /> 기수 회의록
+          {notes.length > 0 && <span className="text-[12px] font-normal text-ink-soft">{notes.length}건</span>}
+        </div>
+        {canEdit && (
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          >
+            {open ? "취소" : "+ 회의록 남기기"}
+          </button>
+        )}
+      </div>
+
+      {open && canEdit && (
+        <form onSubmit={submit} className="mt-3 space-y-2 rounded-lg bg-zion-50 p-3">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
+              회의 날짜
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                aria-label="회의 날짜"
+                className="rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
+              />
+            </label>
+          </div>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            placeholder="예) 인교섬 회의 — 이번 주 보강 인원 배정, 다음 주 특강 준비 분담"
+            aria-label="회의 내용"
+            className="w-full resize-y rounded-lg border border-zion-200 bg-white px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+          />
+          {warnings.length > 0 && (
+            <p className="rounded-lg bg-gold-100/60 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-ink">
+              <strong className="font-bold">지워 주세요:</strong> {warnings.join(" · ")} — 회의록은
+              기수 공유 기록입니다.
+            </p>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={body.trim().length < 5 || warnings.length > 0}
+              className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+            >
+              저장
+            </button>
+          </div>
+        </form>
+      )}
+
+      {notes.length === 0 ? (
+        <p className="mt-3 text-[12px] text-ink-soft">
+          아직 회의록이 없습니다.{canEdit && " 「회의록 남기기」로 남깁니다."}
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {notes.map((n) => (
+            <li key={n.id} className="group rounded-lg border border-zion-100 p-3">
+              <div className="flex items-center gap-2 text-[11px] text-ink-soft">
+                <strong className="text-[12px] text-zion-800">{n.date}</strong>
+                <span>
+                  {n.createdBy} ({ROLE_LABELS[n.createdByRole]})
+                </span>
+                {canEdit && (
+                  <button
+                    onClick={() => deleteMeetingNote(n.id)}
+                    aria-label={`${n.date} 회의록 지우기`}
+                    className="ml-auto rounded p-1 text-ink-soft opacity-0 transition group-hover:opacity-100 hover:text-red-600"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+              <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{n.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -690,7 +819,14 @@ function DayPopover({
   onClose: () => void;
 }) {
   const session = useSession();
-  const { addPlanEntry, deletePlanEntry, togglePlanImportant, updatePlanEntry } = useStore();
+  const {
+    addPlanEntry,
+    deletePlanEntry,
+    togglePlanImportant,
+    updatePlanEntry,
+    personalEvents,
+    addPersonalEvent,
+  } = useStore();
   const [kind, setKind] = useState<PlanEntryKind>("progress");
   const [title, setTitle] = useState("");
   const [sessionNo, setSessionNo] = useState("");
@@ -812,6 +948,44 @@ function DayPopover({
                 <span className="shrink-0 text-[10px] text-ink-soft">
                   {e.updatedBy} ({ROLE_LABELS[e.updatedByRole]})
                 </span>
+                {/*
+                  내 일정에 담기 (2026-08-18 리드 승인 ③) — 기수 일정을 개인 일정으로 복사해
+                  캘린더 내보내기(하루 전 알림)까지 잇는다. 담는 것은 누구나(권한 무관).
+                  같은 날 같은 제목이 이미 있으면 담기지 않게 막는다 — 두 번 눌러 겹치는 것을 방지.
+                */}
+                <button
+                  onClick={() => {
+                    const title = `[기수] ${PLAN_ENTRY_LABELS[e.kind]} — ${e.title}`;
+                    const dup = personalEvents.some(
+                      (p) => p.userName === session.name && p.date === e.date && p.title === title,
+                    );
+                    if (!dup) addPersonalEvent({ userName: session.name, date: e.date, time: "", title });
+                  }}
+                  aria-label={`${e.title} 내 일정에 담기`}
+                  title={
+                    personalEvents.some(
+                      (p) =>
+                        p.userName === session.name &&
+                        p.date === e.date &&
+                        p.title === `[기수] ${PLAN_ENTRY_LABELS[e.kind]} — ${e.title}`,
+                    )
+                      ? "이미 내 일정에 있습니다"
+                      : "내 일정에 담기 — 마이페이지에서 캘린더로 내보낼 수 있습니다"
+                  }
+                  className={
+                    "shrink-0 rounded p-1 transition " +
+                    (personalEvents.some(
+                      (p) =>
+                        p.userName === session.name &&
+                        p.date === e.date &&
+                        p.title === `[기수] ${PLAN_ENTRY_LABELS[e.kind]} — ${e.title}`,
+                    )
+                      ? "text-zion-600"
+                      : "text-zion-300 hover:bg-zion-50 hover:text-zion-700")
+                  }
+                >
+                  <CalendarPlus size={13} />
+                </button>
                 {canEdit && (
                   <>
                     {/* 별을 켜면 달력 옆 「중요 일정」에 올라간다 */}
@@ -917,7 +1091,7 @@ function DayPopover({
             onChange={(e) => setTitle(e.target.value)}
             placeholder={
               kind === "counsel" || kind === "visit"
-                ? "예) 오전 상담 2건 / 오후 심방 — 이름은 적지 않습니다"
+                ? "예) 오전 상담 2건 / 오후 심방"
                 : "예) 비유한 짐승과 머리 / 목요일 저녁 보강 (3명)"
             }
             className="min-w-0 flex-1 basis-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"

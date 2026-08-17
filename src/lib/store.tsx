@@ -6,6 +6,8 @@ import type {
   BoardReply,
   ClassWeekdayPeriod,
   MaterialLikeKind,
+  PersonalMemo,
+  CohortMeetingNote,
   SiteVisit,
   SpecialSession,
   SpecialAttendance,
@@ -91,6 +93,9 @@ const SPECIAL_SESSION_KEY = "zion_ark_special_sessions";
 const SPECIAL_ATTENDANCE_KEY = "zion_ark_special_attendance";
 /** 사이트 방문 집계 (2026-08-15) — 계정·날짜 하나당 한 줄. 실연동 시 서버가 기록한다 */
 const SITE_VISIT_KEY = "zion_ark_site_visits";
+/** 개인 메모장 · 기수 회의록 (2026-08-18) — 실연동 시 D1 테이블로 교체 */
+const PERSONAL_MEMO_KEY = "zion_ark_personal_memos";
+const MEETING_NOTE_KEY = "zion_ark_meeting_notes";
 /** 방문 기록 보관 한도 — 열람 기록(ACTIVITY_LIMIT)과 같은 방식으로 건수로만 막는다 */
 const SITE_VISIT_LIMIT = 2000;
 
@@ -576,8 +581,25 @@ interface StoreValue {
   }) => void;
   /** 개인 주간 일정 — 마이페이지 스케줄러. 남이 보지 않는 개인 것이다 */
   personalEvents: PersonalEvent[];
-  addPersonalEvent: (input: { userName: string; date: string; time: string; title: string }) => void;
+  addPersonalEvent: (input: {
+    userName: string;
+    date: string;
+    time: string;
+    title: string;
+    repeat?: "weekly";
+  }) => void;
   deletePersonalEvent: (id: string) => void;
+  /** 개인 메모장 (2026-08-18) — 계정당 한 장, 본인만 본다 */
+  personalMemos: PersonalMemo[];
+  savePersonalMemo: (userName: string, text: string) => void;
+  /**
+   * 기수 회의록 (2026-08-18) — 주간계획과 같은 권한(해당 기수의 강사·전도사만 쓴다).
+   * 권한 대조는 화면이 먼저 한다.
+   */
+  meetingNotes: CohortMeetingNote[];
+  addMeetingNote: (input: Omit<CohortMeetingNote, "id" | "createdAt">) => void;
+  updateMeetingNote: (id: string, body: string) => void;
+  deleteMeetingNote: (id: string) => void;
   /**
    * 건의·의견 게시판 (2026-08-14 FB-09) — 저장만 한다. 비밀글 열람 판정은
    * `permissions.ts`의 `canReadSecretPost`가 하고, 실연동 시 서버가 응답에서 거른다.
@@ -835,6 +857,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadPlain<SpecialAttendance>(SPECIAL_ATTENDANCE_KEY),
   );
   const [siteVisits, setSiteVisits] = useState<SiteVisit[]>(() => loadPlain<SiteVisit>(SITE_VISIT_KEY));
+  const [personalMemos, setPersonalMemos] = useState<PersonalMemo[]>(() =>
+    loadPlain<PersonalMemo>(PERSONAL_MEMO_KEY),
+  );
+  const [meetingNotes, setMeetingNotes] = useState<CohortMeetingNote[]>(() =>
+    loadPlain<CohortMeetingNote>(MEETING_NOTE_KEY),
+  );
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
     localStorage.setItem(LIB_KEY, JSON.stringify(next));
@@ -1220,6 +1248,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addPersonalEvent: (input) => {
         persistPersonal([...personalEvents, { id: uid(), ...input, createdAt: nowIso() }]);
       },
+      personalMemos,
+      savePersonalMemo: (userName, text) => {
+        const next = [
+          ...personalMemos.filter((m) => m.userName !== userName),
+          { userName, text, updatedAt: nowIso() },
+        ];
+        localStorage.setItem(PERSONAL_MEMO_KEY, JSON.stringify(next));
+        setPersonalMemos(next);
+      },
+      meetingNotes,
+      addMeetingNote: (input) => {
+        const next = [{ id: uid(), ...input, createdAt: nowIso() }, ...meetingNotes];
+        localStorage.setItem(MEETING_NOTE_KEY, JSON.stringify(next));
+        setMeetingNotes(next);
+      },
+      updateMeetingNote: (id, body) => {
+        const next = meetingNotes.map((n) => (n.id === id ? { ...n, body } : n));
+        localStorage.setItem(MEETING_NOTE_KEY, JSON.stringify(next));
+        setMeetingNotes(next);
+      },
+      deleteMeetingNote: (id) => {
+        const next = meetingNotes.filter((n) => n.id !== id);
+        localStorage.setItem(MEETING_NOTE_KEY, JSON.stringify(next));
+        setMeetingNotes(next);
+      },
       deletePersonalEvent: (id) => {
         persistPersonal(personalEvents.filter((e) => e.id !== id));
       },
@@ -1580,6 +1633,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       specialSessions,
       specialAttendance,
       siteVisits,
+      personalMemos,
+      meetingNotes,
       persistPlanEntries,
       persistLessonResources,
       persistReactions,

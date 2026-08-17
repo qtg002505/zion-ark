@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "../components/TransitionLink";
-import { Clock, Palette, Star, Trash2, UserPlus, X } from "lucide-react";
+import { Clock, Palette, Star, StickyNote, Trash2, UserPlus, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel } from "../lib/permissions";
@@ -96,6 +96,9 @@ export function MyPage() {
         title={`${session.name} 님`}
         desc={`${ROLE_LABELS[session.roleCode]} · ${studentScopeLabel(session)} — 별표해 둔 자료와 최근에 연 화면입니다.`}
       />
+
+      {/* 개인 메모장 (2026-08-18 리드 지시) — 계정당 한 장, 본인만 본다 */}
+      <PersonalMemoPad />
 
       {/* 개인 스케줄러 — 담당 수강생 생일이 자동으로 뜬다 */}
       <WeekScheduler />
@@ -259,5 +262,42 @@ export function MyPage() {
         200건까지만 남습니다.
       </p>
     </div>
+  );
+}
+
+/**
+ * 개인 메모장 (2026-08-18 리드 지시) — 계정당 한 장, 본인만 본다.
+ * 적는 대로 자동 저장한다 — 저장 단추를 두면 안 누르고 떠나 잃는다.
+ * 내보내기가 없어 반출 경로도 없다(개인 일정과 달리 캘린더로 안 나간다).
+ */
+function PersonalMemoPad() {
+  const session = useSession();
+  const { personalMemos, savePersonalMemo } = useStore();
+  const saved = personalMemos.find((m) => m.userName === session.name);
+  const [text, setText] = useState(saved?.text ?? "");
+
+  return (
+    <Card className="mt-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
+          <StickyNote size={15} className="text-zion-600" /> 개인 메모장
+        </div>
+        <span className="text-[11px] text-ink-soft">
+          나만 봅니다 · 적는 대로 저장됩니다
+          {saved && ` · 마지막 저장 ${saved.updatedAt.slice(5, 16).replace("T", " ")}`}
+        </span>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          savePersonalMemo(session.name, e.target.value);
+        }}
+        rows={3}
+        placeholder="예) 다음 주 준비물, 확인할 일, 떠오른 생각"
+        aria-label="개인 메모"
+        className="w-full resize-y rounded-lg border border-zion-100 bg-zion-50/40 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+      />
+    </Card>
   );
 }

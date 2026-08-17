@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Cake, ChevronLeft, ChevronRight, Download, Plus, Trash2 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { isFieldStaff } from "../lib/permissions";
+import { cohortKeyOf, isFieldStaff } from "../lib/permissions";
+import { PLAN_ENTRY_LABELS } from "../lib/types";
 import { STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
 import { kstToday } from "../lib/daily";
@@ -39,7 +40,13 @@ function weekStart(d: Date): Date {
  */
 export function WeekScheduler() {
   const session = useSession();
-  const { personalEvents, addPersonalEvent, deletePersonalEvent } = useStore();
+  const { personalEvents, addPersonalEvent, deletePersonalEvent, planEntries } = useStore();
+  /**
+   * 기수 일정 겹쳐 보기 (2026-08-18 리드 승인 ①) — 기수 달력(`/plan`)의 항목을 **읽기 전용
+   * 배경**으로 깐다. 개인 약속을 수업·행사 사이에 끼워 넣을 때 두 화면을 오가지 않게 한다.
+   * 여기서는 보기만 한다 — 고치는 것은 기수 달력에서다.
+   */
+  const [showCohort, setShowCohort] = useState(true);
   /**
    * 주간/월간 보기 (2026-08-17 리드 지시 — 「월간 일정 관리도 자유롭게」).
    * 같은 일정 저장소를 두 눈금으로 보는 것뿐이다 — 월간에서 넣은 일정이 주간에도 그대로 있다.
@@ -77,6 +84,27 @@ export function WeekScheduler() {
   const leadBlanks = view === "month" ? base.getDay() : 0;
 
   const mine = personalEvents.filter((e) => e.userName === session.name);
+
+  /**
+   * 그 날에 있는 일정인가 — 한 번짜리는 날짜가 같을 때, **매주 반복**(2026-08-18 ④)은
+   * 시작일 이후 같은 요일마다다. 지우면 반복 전체가 지워진다(회차 단위 예외는 두지 않는다).
+   */
+  const occursOn = (e: (typeof mine)[number], key: string) => {
+    if (e.date === key) return true;
+    if (e.repeat !== "weekly" || e.date > key) return false;
+    return new Date(e.date + "T00:00:00").getDay() === new Date(key + "T00:00:00").getDay();
+  };
+  const eventsOn = (key: string) =>
+    mine.filter((e) => occursOn(e, key)).sort((a, b) => a.time.localeCompare(b.time));
+
+  /** 기수 달력 항목 — 겹쳐 보기용. 읽기 전용이라 이름만 필요하다 */
+  const cohortKey = cohortKeyOf(session);
+  const cohortOn = (key: string) =>
+    showCohort
+      ? planEntries
+          .filter((p) => p.cohortKey === cohortKey && p.date === key)
+          .sort((a, b) => a.kind.localeCompare(b.kind))
+      : [];
 
   /**
    * 담당 수강생 생일 — 담당 기수의 수강생만 본다(실무직만 담당 기수가 있다).
@@ -118,9 +146,12 @@ export function WeekScheduler() {
       "PRODID:-//ZION ARK//personal schedule//KO",
       "CALSCALE:GREGORIAN",
     ];
-    // 보이는 범위(주간 7일 / 월간 한 달)를 그대로 내보낸다
+    // 보이는 범위(주간 7일 / 월간 한 달)를 그대로 내보낸다. 반복 일정은 RRULE로 나간다
     const visibleSet = new Set(days.map(ymd));
-    for (const e of mine.filter((x) => visibleSet.has(x.date))) {
+    const lastDay = ymd(days[days.length - 1]);
+    for (const e of mine) {
+      const repeating = e.repeat === "weekly" && e.date <= lastDay;
+      if (!repeating && !visibleSet.has(e.date)) continue;
       const [y, m, d] = e.date.split("-").map(Number);
       const [hh, mm] = (e.time || "09:00").split(":").map(Number);
       const start = new Date(y, m - 1, d, hh || 9, mm || 0);
@@ -133,6 +164,10 @@ export function WeekScheduler() {
         `DTSTART:${fmt(start)}`,
         `DTEND:${fmt(end)}`,
         `SUMMARY:${e.title.replace(/[\r\n,;]/g, " ")}`,
+      );
+      // 캘린더 앱이 반복을 알아서 이어 간다 — 회차를 일일이 내보내지 않는다
+      if (repeating) lines.push("RRULE:FREQ=WEEKLY");
+      lines.push(
         // 하루 전 알림 — 이게 「미리 알려 주기」를 대신한다
         "BEGIN:VALARM",
         "TRIGGER:-P1D",
@@ -153,7 +188,7 @@ export function WeekScheduler() {
     URL.revokeObjectURL(url);
   }
 
-  const weekCount = mine.filter((e) => days.some((d) => ymd(d) === e.date)).length;
+  const weekCount = mine.filter((e) => days.some((d) => occursOn(e, ymd(d)))).length;
 
   return (
     <Card className="mt-4">
@@ -219,6 +254,19 @@ export function WeekScheduler() {
         >
           <Download size={13} /> 캘린더로 받기
         </button>
+        {/* 기수 일정 겹쳐 보기 (2026-08-18 ①) — 읽기 전용 배경. 고치는 것은 기수 달력에서다 */}
+        <button
+          onClick={() => setShowCohort((v) => !v)}
+          aria-pressed={showCohort}
+          className={
+            "rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition " +
+            (showCohort
+              ? "border-zion-500 bg-zion-50 text-zion-800"
+              : "border-zion-200 text-zion-600 hover:bg-zion-50")
+          }
+        >
+          기수 일정 {showCohort ? "겹침" : "숨김"}
+        </button>
       </div>
 
       {/*
@@ -241,9 +289,8 @@ export function WeekScheduler() {
             ))}
             {days.map((d) => {
               const key = ymd(d);
-              const list = mine
-                .filter((e) => e.date === key)
-                .sort((a, b) => a.time.localeCompare(b.time));
+              const list = eventsOn(key);
+              const cohortList = cohortOn(key);
               const cakes = birthdays.get(key) ?? [];
               const isToday = key === today;
               const dow = d.getDay();
@@ -271,11 +318,21 @@ export function WeekScheduler() {
                       {cakes.length > 1 && <span>+{cakes.length - 1}</span>}
                     </span>
                   )}
+                  {/* 기수 일정은 색을 갈라 읽기 전용임이 보이게 한다 */}
+                  {cohortList.slice(0, 1).map((p) => (
+                    <span
+                      key={p.id}
+                      className="mt-0.5 block truncate rounded bg-zion-100 px-1 text-[10px] leading-snug text-zion-700 max-sm:hidden"
+                    >
+                      {PLAN_ENTRY_LABELS[p.kind]} {p.title}
+                    </span>
+                  ))}
                   {list.slice(0, 2).map((e) => (
                     <span
                       key={e.id}
                       className="mt-0.5 block truncate rounded bg-zion-50 px-1 text-[10px] leading-snug text-ink max-sm:hidden"
                     >
+                      {e.repeat && "↻ "}
                       {e.title}
                     </span>
                   ))}
@@ -300,7 +357,8 @@ export function WeekScheduler() {
       <div className="grid grid-cols-7 gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
         {days.map((d, i) => {
           const key = ymd(d);
-          const list = mine.filter((e) => e.date === key).sort((a, b) => a.time.localeCompare(b.time));
+          const list = eventsOn(key);
+          const cohortList = cohortOn(key);
           const cakes = birthdays.get(key) ?? [];
           const isToday = key === today;
           return (
@@ -336,13 +394,32 @@ export function WeekScheduler() {
                 </div>
               ))}
 
+              {/* 기수 일정 — 읽기 전용 배경 (2026-08-18 ①). 고치는 것은 기수 달력에서 한다 */}
+              {cohortList.map((p) => (
+                <div
+                  key={p.id}
+                  className="mb-1 flex items-start gap-1 rounded bg-zion-100 px-1.5 py-1"
+                  title="기수 일정 — 기수 달력에서 고칩니다"
+                >
+                  <span className="shrink-0 text-[10px] font-bold text-zion-600">
+                    {PLAN_ENTRY_LABELS[p.kind]}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] leading-snug text-zion-800">
+                    {p.title}
+                  </span>
+                </div>
+              ))}
+
               <ul className="space-y-1">
                 {list.map((e) => (
                   <li key={e.id} className="group flex items-start gap-1 rounded bg-zion-50 px-1.5 py-1">
                     <span className="shrink-0 text-[10.5px] font-bold tabular-nums text-zion-700">
                       {e.time || "종일"}
                     </span>
-                    <span className="min-w-0 flex-1 text-[11.5px] leading-snug text-ink">{e.title}</span>
+                    <span className="min-w-0 flex-1 text-[11.5px] leading-snug text-ink">
+                      {e.repeat && <span title="매주 반복">↻ </span>}
+                      {e.title}
+                    </span>
                     <button
                       onClick={() => deletePersonalEvent(e.id)}
                       aria-label={`${e.title} 지우기`}
@@ -367,25 +444,27 @@ export function WeekScheduler() {
       )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-        <strong className="text-ink">나만 보는 일정</strong>입니다 — 기수 전체가 함께 쓰는 계획은{" "}
-        「기수 주간계획」에 적습니다. 담당 수강생 생일은 <strong className="text-ink">저절로</strong>{" "}
-        표시됩니다(태어난 해는 쓰지 않습니다).
-        <br />
-        일정에 <strong className="text-ink">수강생 이름이나 개인 사정은 적지 않습니다</strong> —
-        캘린더로 내보내면 기기 밖으로 나갑니다. 「캘린더로 받기」로 휴대전화 캘린더에 넣으면
-        하루 전 알림이 옵니다(생일은 내보내지 않습니다).
+        <strong className="text-ink">나만 보는 일정</strong>입니다. 옅은 남색 줄은 기수 달력의
+        일정이며 「월간·주간 계획」에서 고칩니다. 담당 수강생 생일은 저절로 표시됩니다.
+        「캘린더로 받기」로 휴대전화 캘린더에 넣으면 하루 전 알림이 옵니다(생일은 내보내지 않습니다).
       </p>
 
       {openDay && (
         <AddEventPopover
           date={openDay.date}
           anchor={openDay.anchor}
-          events={mine.filter((e) => e.date === openDay.date)}
+          events={eventsOn(openDay.date)}
           onMove={(d) => setOpenDay({ date: d, anchor: openDay.anchor })}
           onClose={() => setOpenDay(null)}
           onDelete={deletePersonalEvent}
-          onAdd={(time, title) => {
-            addPersonalEvent({ userName: session.name, date: openDay.date, time, title });
+          onAdd={(time, title, repeat) => {
+            addPersonalEvent({
+              userName: session.name,
+              date: openDay.date,
+              time,
+              title,
+              repeat: repeat ? "weekly" : undefined,
+            });
           }}
         />
       )}
@@ -408,14 +487,16 @@ function AddEventPopover({
 }: {
   date: string;
   anchor: HTMLElement;
-  events: { id: string; time: string; title: string }[];
+  events: { id: string; time: string; title: string; repeat?: "weekly" }[];
   onMove: (date: string) => void;
   onClose: () => void;
-  onAdd: (time: string, title: string) => void;
+  onAdd: (time: string, title: string, repeat: boolean) => void;
   onDelete: (id: string) => void;
 }) {
   const [time, setTime] = useState("09:00");
   const [title, setTitle] = useState("");
+  /** 매주 반복 (2026-08-18 ④) — 「매주 목요일 보강」을 매번 적지 않게 */
+  const [repeat, setRepeat] = useState(false);
   const titleRef = useRef<HTMLInputElement | null>(null);
 
   const d = new Date(date + "T00:00:00");
@@ -434,8 +515,9 @@ function AddEventPopover({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (title.trim().length < 1) return;
-    onAdd(time, title.trim());
+    onAdd(time, title.trim(), repeat);
     setTitle(""); // 연달아 적을 수 있게 팝오버는 열어 둔다
+    setRepeat(false);
     titleRef.current?.focus();
   }
 
@@ -472,7 +554,10 @@ function AddEventPopover({
                   <span className="shrink-0 text-[11px] font-bold tabular-nums text-zion-700">
                     {e.time || "종일"}
                   </span>
-                  <span className="min-w-0 flex-1 text-[12px] leading-snug text-ink">{e.title}</span>
+                  <span className="min-w-0 flex-1 text-[12px] leading-snug text-ink">
+                    {e.repeat && <span title="매주 반복">↻ </span>}
+                    {e.title}
+                  </span>
                   <button
                     onClick={() => onDelete(e.id)}
                     aria-label={`${e.title} 지우기`}
@@ -503,9 +588,15 @@ function AddEventPopover({
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] leading-tight text-ink-soft">
-              나만 보는 일정 — 수강생 이름은 적지 않습니다
-            </span>
+            <label className="flex items-center gap-1 text-[11px] text-ink">
+              <input
+                type="checkbox"
+                checked={repeat}
+                onChange={(e) => setRepeat(e.target.checked)}
+                className="accent-zion-700"
+              />
+              매주 반복
+            </label>
             <button
               type="submit"
               disabled={title.trim().length === 0}
