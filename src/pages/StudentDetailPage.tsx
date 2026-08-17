@@ -1140,7 +1140,8 @@ export function StudentDetailPage({
           </div>
 
           <div className="rounded-lg border border-zion-100 p-3">
-            <div className="mb-1.5 text-[12px] font-semibold text-zion-800">추천 액션</div>
+            {/* 「액션」 같은 외래어 명명 대신 우리말로 (2026-08-16 문구 점검) */}
+            <div className="mb-1.5 text-[12px] font-semibold text-zion-800">추천 활동</div>
             {/*
               2026-08-14 FB-08 — 추천이 글로 끝나지 않고 **맞는 보강 교안·교재로 바로 이어진다.**
               연결은 규칙 기반이고(`lib/suggestion-links.ts`) 존재하는 자료만 잇는다 —

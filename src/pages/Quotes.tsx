@@ -213,7 +213,7 @@ function QuotePicker() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="어떤 주제의 어록이 필요하신가요?"
+          placeholder="주제로 찾기 (예: 전도, 믿음, 감사)"
           aria-label="어록 주제 입력"
           className="flex-1 rounded-lg border border-zion-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
         />

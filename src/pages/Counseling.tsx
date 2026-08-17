@@ -135,7 +135,7 @@ export function Counseling() {
       <PageHeader
         crumb="상담 도우미"
         title="테마별 상담법"
-        desc="상황별로 어떻게 상담했는지 사명자끼리 모으는 자리입니다. 테마를 눌러 펼쳐 보세요."
+        desc="상황별 상담법을 사명자끼리 모읍니다. 테마를 누르면 펼쳐집니다."
       />
 
       <DisclaimerBanner />
@@ -354,7 +354,10 @@ function ThemeGlossary({ themeNo }: { themeNo: number }) {
             <dt className="text-[12px] font-semibold text-ink">{t.term}</dt>
             <dd className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">{t.definition}</dd>
             {t.note && (
-              <dd className="mt-1 text-[11px] leading-relaxed text-ink-soft">⚠️ {t.note}</dd>
+              /* 이모지 대신 글자 라벨 — 본문 속 ⚠️는 채팅 문서처럼 보인다 (2026-08-16 점검) */
+              <dd className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+                <span className="font-semibold text-gold-700">유의</span> {t.note}
+              </dd>
             )}
           </div>
         ))}
@@ -384,7 +387,11 @@ function TemperamentGuides() {
             </div>
           ))}
         </dl>
-        {g.note && <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">⚠️ {g.note}</p>}
+        {g.note && (
+          <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+            <span className="font-semibold text-gold-700">유의</span> {g.note}
+          </p>
+        )}
       </div>
     ),
   }));
@@ -399,7 +406,7 @@ function TemperamentGuides() {
       </div>
       <Accordion items={items} defaultOpenFirst={false} compact />
       <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-        ⚠️ 성향 분류는 <strong className="text-ink">사람을 판정하는 도구가 아닙니다.</strong> 대화를
+        성향 분류는 <strong className="text-ink">사람을 판정하는 도구가 아닙니다.</strong> 대화를
         여는 실마리로만 쓰고, 수강생을 유형으로 단정해 기록하지 않습니다. MBTI·기질·핵심감정·오행은
         일반 참고 지식 요약이며 내부 교육 원문이 오면 교체됩니다.
       </p>

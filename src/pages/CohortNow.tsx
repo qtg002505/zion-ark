@@ -78,8 +78,8 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
           <div className="min-w-0">
             <div className="text-[14px] font-bold text-zion-900">지금 우리 기수는?</div>
             <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
-              <strong>단계 기준표</strong>의 항목을 기수 단위로 뒤집어 봅니다 — 어느 항목이 잘 되고
-              어느 항목이 처지는지, 그리고 <strong>그 항목이 누구인지</strong>까지 이어집니다.
+              <strong>단계 기준표</strong> 항목별로 우리 기수의 강점·약점을 봅니다. 항목을 누르면{" "}
+              <strong>누가 잘 되고 누가 처지는지</strong>까지 보입니다.
               {goal && <> 이 단계의 목표는 「{goal}」입니다.</>}
             </p>
           </div>
@@ -168,12 +168,14 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
         </Card>
       )}
 
-      <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-        점수는 <strong>담당 강사·전도사가 수강생 상세에서 매긴 단계 항목 점수</strong>(0~5)입니다 —
-        이 화면은 그것을 항목별로 모아 평균만 냅니다. 사람의 신앙·인격을 판정하는 값이 아닙니다.
-        아직 아무도 안 매긴 항목은 <strong>약점이 아니라 「아직 안 봄」</strong>으로 둡니다.
-        {" "}지금 화면의 점수는 <strong>시범 값</strong>입니다 — 담당자가 실제로 매기면 그 값이 이깁니다.
-      </p>
+      <div className="mt-3 space-y-1 text-[11px] leading-relaxed text-ink-soft">
+        <p>
+          점수는 담당 강사·전도사가 수강생 상세에서 매긴 <strong>단계 항목 점수(0~5)의 평균</strong>
+          입니다. 사람의 신앙·인격을 판정하는 값이 아니며, 아무도 안 매긴 항목은 약점이 아니라
+          「아직 안 봄」으로 둡니다.
+        </p>
+        <p>지금 점수는 시범 값이며, 담당자가 실제로 매긴 점수가 우선합니다.</p>
+      </div>
 
       {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
     </div>

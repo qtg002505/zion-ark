@@ -631,11 +631,9 @@ function WeekdayPeriodsEditor({
           {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
 
           <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-            ⚠️ 요일을 바꾸면 <strong>총 수업 횟수와 회차·진도 매핑이 따라 움직입니다.</strong>{" "}
-            주차 번호와 주차 라벨은 그대로입니다 — 저장된 주차 기록이 끊어지지 않게 했습니다.
-            <br />
-            일요일은 <strong>그 주의 첫날</strong>로 셉니다 — 월요일 수업이 하루 앞당겨진 것이라
-            일·수·목 차례가 됩니다.
+            요일을 바꾸면 <strong>총 수업 횟수와 회차·진도 매핑이 함께 바뀝니다.</strong> 주차
+            번호·주차 라벨과 저장된 주차 기록은 그대로 유지됩니다. 일요일은 그 주의 첫날로 셉니다
+            (일·수·목 차례).
           </p>
 
           <div className="mt-2 flex justify-end gap-2">
@@ -649,7 +647,7 @@ function WeekdayPeriodsEditor({
               onClick={save}
               className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700"
             >
-              고침
+              저장
             </button>
           </div>
         </div>

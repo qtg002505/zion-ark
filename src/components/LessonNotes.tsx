@@ -70,12 +70,10 @@ export function LessonNotes({
       {notes.length === 0 ? (
         <div className="mt-3 rounded-lg border border-zion-100 bg-white px-3 py-5 text-center">
           <p className="text-[12px] leading-relaxed text-ink-soft">
-            아직 기록이 없습니다. 이 강을 마치고 한 줄 남겨 주시면 다음 강사에게 그대로 전해집니다.
+            아직 기록이 없습니다. 「기록 남기기」로 많이 나온 질문·주의할 점·잘 통한 방법을 남깁니다.
           </p>
           <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-            많이 나온 질문 · 주의할 점 · 잘 통한 방법 — 셋 중 하나만 적어도 충분합니다.
-            <br />
-            수강생의 이름이나 개인적인 사정은 적지 않습니다.
+            수강생의 이름이나 개인 사정은 적지 않습니다.
           </p>
         </div>
       ) : (

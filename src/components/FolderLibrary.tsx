@@ -425,7 +425,7 @@ export function FolderLibrary({
       {!selected && ratingFor && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-gold-500/50 bg-gold-100/50 px-3 py-2.5">
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
-            방금 보신 <strong className="font-semibold">{ratingFor.title}</strong> — 도움이 됐다면 별점을 남겨 주세요
+            방금 본 「<strong className="font-semibold">{ratingFor.title}</strong>」에 별점을 남길 수 있습니다
           </span>
           <StarPicker
             value={materialRatings.find((r) => r.materialId === ratingFor.id && r.userName === session.name)?.stars ?? 0}

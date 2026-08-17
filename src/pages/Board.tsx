@@ -88,7 +88,7 @@ export function Board() {
         <Card>
           {boardPosts.length === 0 ? (
             <p className="py-10 text-center text-[13px] leading-relaxed text-ink-soft">
-              아직 올라온 글이 없습니다. 첫 의견을 남겨 주세요 — 작은 불편도 좋습니다.
+              아직 올라온 글이 없습니다. 오른쪽 위 「글쓰기」로 남깁니다.
             </p>
           ) : (
             <div className="-mx-1 overflow-x-auto px-1">
@@ -215,7 +215,7 @@ function ReplyList({
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="답글을 적습니다 (총회 신학부장)"
+            placeholder="답글 입력 — 총회 신학부장만 답합니다"
             aria-label="답글 입력"
             className="min-w-0 flex-1 rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
           />

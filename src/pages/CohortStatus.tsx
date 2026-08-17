@@ -715,15 +715,14 @@ function AttendanceGrid({
           <p className="mt-0.5 text-[12px] text-ink-soft">
             {newestFirst ? (
               <>
-                <strong>최근 회차가 왼쪽</strong>입니다 — 주 안에서도 목·화·월 차례라 연속 결석이 한
-                덩어리로 보입니다. 맨 오른쪽이 1주차입니다.
+                <strong>최근 회차가 왼쪽</strong>, 1주차가 맨 오른쪽입니다.
               </>
             ) : (
               <>
-                <strong>1주차가 왼쪽</strong>입니다 — 개강부터 차례대로 봅니다.
+                <strong>1주차가 왼쪽</strong>, 개강부터 차례대로입니다.
               </>
             )}{" "}
-            출석한 분이 위, 결석한 분이 아래로 옵니다.
+            출석한 분부터 위에 옵니다.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -790,7 +789,8 @@ function AttendanceGrid({
                 : "border-zion-200 text-zion-700 hover:bg-zion-50")
             }
           >
-            {includeSpecial ? "특강 포함해서 셈" : "정규 수업만 셈"}
+            {/* 무엇의 범위인지 이름에 담는다 — 「셈」 같은 줄임말은 처음 보는 사람이 못 읽는다 */}
+            {includeSpecial ? "출석률: 특강 포함" : "출석률: 정규 수업만"}
           </button>
           {canEdit && (
             <button
@@ -1213,23 +1213,21 @@ function AttendanceGrid({
         </table>
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-        출결 원본은 읽기 전용 시트에서 동기화됩니다 — <strong>이 화면에서 출결 자체는 못 고칩니다.</strong>{" "}
-        결석(X)·보강 예정(▽) 칸을 누르면 <strong>보강을 언제 할지·마쳤는지와 메모</strong>를 남기고,
-        그 기록은 수강생 관리의 「보강 · 상담 메모」에도 함께 뜹니다. 「보강 포함」·「대면만」 비율은{" "}
-        <strong>최근 8주 기준</strong>입니다.
-        {" "}
-        <strong>특강은 출석률에 안 들어갑니다</strong> — 위 단추로 포함해서도 볼 수 있습니다.
-        특강 칸은 담당 강사·전도사가 눌러 표시를 돌립니다(사이트 기록입니다).
-        수업날에 특강식으로 진행한 것은 <strong>특강이 아니라 정규 회차 칸에</strong> 그대로 체크합니다.
+      {/* 안내는 세 갈래로 끊는다 — 한 문단에 이어 붙이면 아무도 끝까지 안 읽는다 */}
+      <div className="mt-3 space-y-1 text-[11px] leading-relaxed text-ink-soft">
+        <p>
+          출결 원본은 읽기 전용 시트에서 동기화되며 <strong>이 화면에서 고칠 수 없습니다.</strong>{" "}
+          결석(X)·보강 예정(▽) 칸을 누르면 보강 계획·완료와 메모를 남기고, 그 기록은 수강생 관리의
+          「보강 · 상담 메모」에도 함께 뜹니다.
+        </p>
+        <p>
+          「보강 포함」·「대면만」 비율은 <strong>최근 8주 기준</strong>입니다. 특강은 출석률에서
+          빠지며, 위 단추로 포함해 볼 수 있습니다. 수업날의 특강식 수업은 정규 회차 칸에 체크합니다.
+        </p>
         {axis === "lesson" && (
-          <>
-            {" "}
-            ⚠️ 목업 출결이 주 단위라 <strong>한 주의 회차들은 그 주의 표기를 따릅니다</strong> —
-            실연동 시 시트의 회차별 값이 그대로 들어옵니다. 회차·강 매핑은 시범 값입니다.
-          </>
+          <p>목업 출결이 주 단위라 한 주의 회차들은 같은 표기입니다. 회차·강 매핑은 시범 값입니다.</p>
         )}
-      </p>
+      </div>
 
       {makeupAt && (
         <MakeupModal

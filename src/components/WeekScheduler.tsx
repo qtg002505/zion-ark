@@ -250,9 +250,9 @@ export function WeekScheduler() {
         「기수 주간계획」에 적습니다. 담당 수강생 생일은 <strong className="text-ink">저절로</strong>{" "}
         표시됩니다(태어난 해는 쓰지 않습니다).
         <br />
-        ⚠️ 일정에 <strong className="text-ink">수강생 이름이나 개인 사정을 적지 마세요</strong> —
-        캘린더로 내보내면 기기 밖으로 나갑니다. 「캘린더로 받기」로 내려받아 휴대전화 캘린더에
-        넣으면 <strong className="text-ink">하루 전 알림</strong>이 옵니다(생일은 내보내지 않습니다).
+        일정에 <strong className="text-ink">수강생 이름이나 개인 사정은 적지 않습니다</strong> —
+        캘린더로 내보내면 기기 밖으로 나갑니다. 「캘린더로 받기」로 휴대전화 캘린더에 넣으면
+        하루 전 알림이 옵니다(생일은 내보내지 않습니다).
       </p>
 
       {openDay && (

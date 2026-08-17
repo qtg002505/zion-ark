@@ -243,8 +243,8 @@ export function Main() {
             <Search size={15} className="text-zion-600" /> 찾는 것이 있으면
           </div>
           <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
-            위쪽 검색창에 물어보세요. 교안 · 시리즈 · 어록 · 용어를 한 번에 훑고 출처를 함께
-            보여 줍니다. 갈래를 골라 걸러 볼 수도 있습니다.
+            위쪽 검색창에서 교안 · 시리즈 · 어록 · 용어를 한 번에 찾습니다. 결과에 출처가 함께
+            붙고, 갈래를 골라 거를 수 있습니다.
           </p>
         </Card>
       </div>

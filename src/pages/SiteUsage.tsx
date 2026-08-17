@@ -160,9 +160,8 @@ export function SiteUsage() {
             </ul>
           )}
           <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
-            ⚠️ <strong className="text-ink">지금 수치는 이 브라우저에 쌓인 것뿐입니다.</strong> 방문 기록이
-            브라우저에 남아 다른 기기·다른 분의 방문은 보이지 않습니다 — 백엔드가 붙으면 서버가
-            세션에서 기록해 전국 집계가 됩니다.
+            <strong className="text-ink">지금 수치는 이 브라우저에 쌓인 것뿐입니다.</strong> 다른
+            기기·다른 분의 방문은 보이지 않으며, 백엔드 연동 후 전국 집계로 바뀝니다.
           </p>
         </Card>
       </div>

@@ -256,7 +256,7 @@ export function Lessons() {
                 ))}
             {(course === "elementary" ? elList : highList).length === 0 && (
               <p className="px-3 py-4 text-center text-[12px] text-ink-soft">
-                찾는 강이 없습니다. 다른 낱말로 검색해 보세요.
+                일치하는 강이 없습니다. 다른 낱말로 검색해 주세요.
               </p>
             )}
           </nav>
