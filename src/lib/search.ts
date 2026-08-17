@@ -1,4 +1,5 @@
 import { elementaryLessons } from "../content/elementary-lessons";
+import { ELEMENTARY_COURSE_TITLES } from "../content/curriculum-titles";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { enneagramGuides } from "../content/enneagram-guides";
 import { SERIES } from "../content/series-content";
@@ -182,10 +183,15 @@ function buildStaticDocs(): Doc[] {
   }
 
   for (const lesson of elementaryLessons) {
+    /*
+      ⚠️ **강 번호를 표기에 넣지 않는다** (2026-08-15 리드 지시 — 학원법).
+      과수 제목은 정본 목록(`curriculum-titles.ts`)에서 가져오고, 목록에 없으면 원문 제목을 쓴다.
+    */
+    const courseTitle = ELEMENTARY_COURSE_TITLES[lesson.lessonNo - 1] ?? lesson.title;
     docs.push({
-      source: `초등 교안 ${lesson.lessonNo}강 — ${lesson.title}`,
+      source: `초등 교안 — ${courseTitle}`,
       sourceType: "교안",
-      title: `${lesson.lessonNo}강 — ${lesson.title}`,
+      title: courseTitle,
       href: "/lessons",
       body: lesson.sections.map((s) => s.label + " " + s.items.join(" ")).join(" "),
     });

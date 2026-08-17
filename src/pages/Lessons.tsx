@@ -4,7 +4,13 @@ import { Link } from "../components/TransitionLink";
 import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
-import { keywordOf, LEVEL_TONE, type LessonLevel } from "../content/curriculum-mock";
+import {
+  keywordOf,
+  revelationKeyword,
+  LEVEL_TONE,
+  type LessonLevel,
+} from "../content/curriculum-mock";
+import { ELEMENTARY_COURSE_TITLES, HIGH_COURSE_TITLES } from "../content/curriculum-titles";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
@@ -101,9 +107,9 @@ export function Lessons() {
         title="강의 교안"
         desc={
           course === "elementary"
-            ? "초등 23강 — 강 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
+            ? "초등 교안 — 과수 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
             : course === "high"
-              ? "고등 계시록 22장 — 강 1건당 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
+              ? "고등 교안 — 계시록 장별로 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
               : "중등 강의 교안 — 준비 중입니다. 원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다."
         }
       />
@@ -116,9 +122,13 @@ export function Lessons() {
           */}
           {(
             [
-              ["elementary", `초등 (${elementaryLessons.length}강)`, "초등"],
+              /*
+                ⚠️ 개수를 적지 않는다 — 정본 과수(초 25 · 고 23)와 지금 탑재된 교안 원문
+                (초 23)이 달라 숫자를 적으면 어긋난 값이 보인다. 단계 이름만 낸다.
+              */
+              ["elementary", "초등", "초등"],
               ["middle", "중등 (준비 중)", "중등"],
-              ["high", `고등 (${HIGH_LESSONS.length}강)`, "고등"],
+              ["high", "고등", "고등"],
             ] as [Course, string, LessonLevel][]
           ).map(([id, label, level]) => (
             <button
@@ -205,10 +215,16 @@ export function Lessons() {
                       「핵심단어로 표현」). 고등 목록이 계시록 장을 앞세우는 것과 같은 모양이다.
                       ⚠️ 원문 제목은 지우지 않는다 — 자른 표기와 원문을 함께 보인다(불변식 5)
                     */}
+                    {/*
+                      **정본 과수 목록**의 표기를 쓴다 (2026-08-15 리드 전달 — `curriculum-titles.ts`).
+                      목록에 없는 강(원문이 목록보다 많은 경우)은 원문에서 잘라 낸 표기로 물러난다.
+                      ⚠️ 원문 제목은 지우지 않고 아래에 함께 보인다(불변식 5).
+                    */}
                     <span className="block font-semibold">
-                      {l.lessonNo}강 — {keywordOf(l.title)}
+                      {/* ⚠️ 강 번호를 붙이지 않는다 — 연속 번호 표기를 뺐다(2026-08-15 리드 지시) */}
+                      {ELEMENTARY_COURSE_TITLES[l.lessonNo - 1] ?? keywordOf(l.title)}
                     </span>
-                    {keywordOf(l.title) !== l.title && (
+                    {(ELEMENTARY_COURSE_TITLES[l.lessonNo - 1] ?? keywordOf(l.title)) !== l.title && (
                       <span className="block truncate opacity-70">{l.title}</span>
                     )}
                   </button>
@@ -224,7 +240,17 @@ export function Lessons() {
                         : "text-ink hover:bg-zion-50")
                     }
                   >
-                    <span className="block font-semibold">{l.label}</span>
+                    {/*
+                      정본 표기를 쓴다 — 고등 원문 파일 23개와 정본 23과수가 **차례가 같아**
+                      번호로 짝지을 수 있다(계 1:1~8 · 계1:9~20 · 계2장 … 계22장).
+                      ⚠️ 정본에 없으면 원문 파일명을 변환해 쓴다 — 파일이 늘거나 줄어도 안 깨진다.
+                      이 방식이 파일명이 깨진 강(「계 1장 920절」)도 바른 표기로 덮어 준다.
+                    */}
+                    <span className="block font-semibold">
+                      {/* ⚠️ 걸러진 목록(`highList`)이 아니라 **전체 목록**의 차례로 짝짓는다 — 검색 중에도 안 어긋난다 */}
+                      {HIGH_COURSE_TITLES[HIGH_LESSONS.indexOf(l)]?.chapter ??
+                        revelationKeyword(l.label)}
+                    </span>
                     <span className="block truncate opacity-70">{l.title}</span>
                   </button>
                 ))}
@@ -240,10 +266,11 @@ export function Lessons() {
           <Card>
             {course === "elementary" ? (
               <>
-                <div className="text-[12px] font-semibold text-zion-700">{elCurrent.lessonNo}강</div>
-                {/* 핵심단어가 제목, 원문 제목은 그 아래 그대로 (2026-08-15 리드 지시) */}
+                {/* 단계만 적는다 — 강 번호는 넣지 않는다(2026-08-15) */}
+                <div className="text-[12px] font-semibold text-zion-700">초등</div>
+                {/* 정본 과수 제목이 큰 제목, 교안 원문 제목은 그 아래 그대로 (2026-08-15) */}
                 <h2 className="mt-0.5 text-[19px] font-bold text-zion-900">
-                  {keywordOf(elCurrent.title)}
+                  {ELEMENTARY_COURSE_TITLES[elCurrent.lessonNo - 1] ?? keywordOf(elCurrent.title)}
                 </h2>
                 <p className="mb-4 mt-0.5 text-[12px] text-ink-soft">{elCurrent.title}</p>
                 <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
@@ -251,7 +278,7 @@ export function Lessons() {
                 <LessonResources lessonKey={`elementary-${elCurrent.lessonNo}`} />
                 <LessonNotes
                   lessonKey={`elementary-${elCurrent.lessonNo}`}
-                  lessonLabel={`초등 ${elCurrent.lessonNo}강 — ${elCurrent.title}`}
+                  lessonLabel={`초등 — ${ELEMENTARY_COURSE_TITLES[elCurrent.lessonNo - 1] ?? elCurrent.title}`}
                 />
               </>
             ) : highCurrent ? (

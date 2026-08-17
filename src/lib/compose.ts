@@ -1,4 +1,5 @@
 import { elementaryLessons } from "../content/elementary-lessons";
+import { ELEMENTARY_COURSE_TITLES } from "../content/curriculum-titles";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { SERIES } from "../content/series-content";
 import { QUOTE_ITEMS } from "../content/quotes-data";
@@ -115,14 +116,16 @@ export function composeMaterials(
 
   // ── 교안: 강 전체가 아니라 항목 단위로 잡는다 (그 대목만 인용하기 위해) ──
   for (const lesson of elementaryLessons) {
+    // ⚠️ 강 번호는 표기에 넣지 않는다 (2026-08-15 리드 지시 — 학원법). 과수 제목이 정본이다
+    const courseTitle = ELEMENTARY_COURSE_TITLES[lesson.lessonNo - 1] ?? lesson.title;
     for (const sec of lesson.sections) {
       const body = sec.items.join("\n");
       const score = scoreOf(`${lesson.title} ${sec.label} ${body}`, keywords);
       if (score === 0) continue;
       hits.push({
         kind: "교안",
-        source: `초등 교안 ${lesson.lessonNo}강 「${lesson.title}」 — ${sec.label}`,
-        title: `${lesson.lessonNo}강 ${sec.label}`,
+        source: `초등 교안 「${courseTitle}」 — ${sec.label}`,
+        title: `${courseTitle} · ${sec.label}`,
         body: sec.items.map((i) => `· ${i}`).join("\n"),
         href: "/lessons",
         score,

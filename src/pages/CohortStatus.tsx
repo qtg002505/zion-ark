@@ -955,7 +955,8 @@ function AttendanceGrid({
                           <span
                             className={
                               "mt-0.5 block rounded px-0.5 text-[9.5px] font-bold " +
-                              LEVEL_TONE[c.sess.level]
+                              // 배정 전 회차는 색을 입히지 않는다 — 단계가 정해진 것이 아니다
+                              (c.sess.undecided ? "text-ink-soft" : LEVEL_TONE[c.sess.level])
                             }
                           >
                             {shortLessonLabel(c.sess)}
@@ -1471,7 +1472,8 @@ function MakeupModal({
               <h2 className="text-[16px] font-bold text-zion-900">{student.name} · 보강 기록</h2>
               <p className="mt-0.5 text-[12px] text-ink-soft">
                 {sess.weekNo}주차 {sess.weekdayLabel} {dateLabel} · {sess.sessionNo}회차 ·{" "}
-                {`${sess.level} ${sess.lessonNo}강 ${sess.lessonTitle}`.trim()}
+                {/* 강 번호 없이 단계 + 과수 제목만 (2026-08-15) */}
+                {`${sess.level} ${sess.lessonTitle}`.trim()}
               </p>
             </div>
             <button
@@ -2185,9 +2187,15 @@ function CohortCompare() {
             <strong className="text-[13px] text-zion-900">
               {at}회차 ·{" "}
               {/* 단계 색 (2026-08-15) — 어느 과정의 회차인지 색으로 먼저 읽힌다 */}
-              <span className={"rounded px-1.5 py-0.5 " + LEVEL_TONE[atLesson.level]}>
-                {atLesson.level} {atLesson.lessonNo}강{atLesson.keyword && ` ${atLesson.keyword}`}
-              </span>
+              {atLesson.undecided ? (
+                <span className="text-ink-soft">진도 미정 (기수 재량)</span>
+              ) : (
+                /* ⚠️ 강 번호는 넣지 않는다 — 연속 번호 표기를 뺐다(2026-08-15 리드 지시) */
+                <span className={"rounded px-1.5 py-0.5 " + LEVEL_TONE[atLesson.level]}>
+                  {atLesson.level}
+                  {atLesson.keyword && ` ${atLesson.keyword}`}
+                </span>
+              )}
             </strong>
             {/*
               원문 제목은 핵심단어 **뒤에 남는 부분만** 보인다 — 고등은 제목이

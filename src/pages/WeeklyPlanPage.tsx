@@ -430,7 +430,8 @@ export function WeeklyPlanPage() {
                         {/* 중요 표시는 색이 아니라 별로 — 칸이 작아 색만으로는 구별이 어렵다 */}
                         {e.important && <Star size={8} className="shrink-0 fill-current" />}
                         <span className="truncate">
-                          {e.session != null && `${e.session}강 `}
+                          {/* 입력칸이 「회차」를 받으므로 표기도 회차다 — 「N강」 연속 번호 표기는 뺐다(2026-08-15) */}
+                          {e.session != null && `${e.session}회차 `}
                           {e.title}
                         </span>
                       </div>
@@ -507,7 +508,8 @@ export function WeeklyPlanPage() {
                     >
                       {e.important && <Star size={8} className="shrink-0 fill-current" />}
                       <span className="min-w-0 flex-1 truncate">
-                        {e.session != null && `${e.session}강 `}
+                        {/* 입력칸이 「회차」를 받으므로 표기도 회차다 — 「N강」 연속 번호 표기는 뺐다(2026-08-15) */}
+                          {e.session != null && `${e.session}회차 `}
                         {e.title}
                       </span>
                     </div>
@@ -637,7 +639,7 @@ function ImportantList({
                       </span>
                     </div>
                     <div className="mt-0.5 text-[12px] leading-snug text-ink">
-                      {e.session != null && <strong className="mr-1 text-zion-800">{e.session}강</strong>}
+                      {e.session != null && <strong className="mr-1 text-zion-800">{e.session}회차</strong>}
                       {e.title}
                     </div>
                   </button>
@@ -793,7 +795,7 @@ function DayPopover({
                   {PLAN_ENTRY_LABELS[e.kind]}
                 </span>
                 <span className="min-w-0 flex-1 text-[13px] text-ink">
-                  {e.session != null && <strong className="mr-1 text-zion-800">{e.session}강</strong>}
+                  {e.session != null && <strong className="mr-1 text-zion-800">{e.session}회차</strong>}
                   {e.title}
                 </span>
                 {e.fromUpload && (

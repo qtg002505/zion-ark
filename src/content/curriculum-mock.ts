@@ -4,8 +4,11 @@ import {
   weekdaysOfWeek,
   type ClassWeekdayPeriodList,
 } from "../lib/cohort-calendar";
-import { elementaryLessons } from "./elementary-lessons";
-import { HIGH_LESSONS } from "./lessons-high";
+import {
+  ELEMENTARY_COURSE_TITLES,
+  HIGH_COURSE_TITLES,
+  MIDDLE_COURSE_TITLES,
+} from "./curriculum-titles";
 import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
 
 /**
@@ -66,6 +69,8 @@ export interface SessionInfo {
   lessonKeyword: string;
   /** 초·중·고 어느 단계의 강인지 — 회차가 105개라 단계를 함께 봐야 뜻이 선다 */
   level: LessonLevel;
+  /** 아직 진도가 배정되지 않은 회차 (기수 재량으로 채운다) */
+  undecided?: boolean;
 }
 
 export interface CurriculumStep {
@@ -74,14 +79,16 @@ export interface CurriculumStep {
   /** 원문 제목 — **그대로다**(불변식 5). 표기를 줄일 때도 이 값은 안 건드린다 */
   title: string;
   /**
-   * 화면 표기용 핵심단어 (2026-08-15 리드 지시 — 「핵심단어로 표현」).
-   * 초등·중등은 **비유 핵심단어**, 고등은 **계시록 장**이다.
-   *
-   * ⚠️ **원문을 고쳐 쓴 것이 아니라 원문에서 잘라 낸 것이다**(불변식 5의 「원문에서 뽑은 것」).
-   * 규칙은 `keywordOf` 한 곳에 있고 결정적이다 — 사람이 손으로 다시 적은 표가 아니라서
-   * 원문이 바뀌면 표기도 따라 바뀐다. 원문 제목은 상세·툴팁에서 그대로 볼 수 있다.
+   * 화면 표기용 핵심단어 — **정본 과수 목록의 표기**다 (2026-08-15 리드 전달).
+   * 초등·중등은 과수 제목 그대로, 고등은 장 표기(「계 1:1~8」)다.
    */
   keyword: string;
+  /**
+   * 아직 배정되지 않은 회차 (2026-08-15).
+   * 초등 과수를 나누거나 특강이 들어가는 자리인데 **무엇이 올지는 기수 재량**이라
+   * 지어내지 않는다. 화면은 이 칸을 「미정」으로 낸다.
+   */
+  undecided?: boolean;
 }
 
 /**
@@ -112,68 +119,75 @@ export function revelationKeyword(label: string): string {
 }
 
 /**
- * 중등 진도 핵심단어 (2026-08-15 리드 지시 — 「중등: 핵심 단어로 진도 표시」).
+ * 회차 차례표 — **정본 과수 목록**(`curriculum-titles.ts`)을 회차에 순서대로 편 것.
  *
- * ⚠️ **리드가 예시로 준 셋만 들어 있다.** 중등 원문(강 목록)을 아직 못 받아 나머지는 비어
- * 있고, 그 회차는 번호만 나온다. 지어내지 않는다(불변식 5·6).
- * ⚠️ **순서도 확인이 필요하다** — 「보혜사 · 언약 결과 · 주기도문」은 예시로 받은 것이지
- * 1·2·3강이라고 들은 것이 아니다. 목록이 오면 이 배열만 그대로 채우면 화면이 따라온다.
- */
-export const MIDDLE_LESSON_KEYWORDS: string[] = ["보혜사", "언약 결과", "주기도문"];
-
-/**
- * 회차 차례표 — **한 회차가 한 강이다** (2026-08-15 리드 확정).
+ * 2026-08-15에 리드가 초등 25 · 중등 25 · 고등 23 과수 목록을 전달했다. 종전에는 교안 원문
+ * 파일명·강 제목에서 뽑아 썼는데 표기가 제각각이었다 — 이제 **진도 표기는 그 목록 하나가 정본**이다.
  *
- * 종전에는 초등 23강을 105회차에 고르게 펴서 **한 강이 4~5회차에 걸쳐** 있었다.
- * 리드가 「12강을 한 주 내내 하는 게 아니라 하루가 한 강의」라고 짚어 1:1로 바꿨다.
- *
- * 105회를 초등 → 중등 → 고등 차례로 채운다. **중등 원문은 아직 없어** 제목 자리를
- * 「중등 N강」으로만 둔다 — 원문이 오면 여기 한 곳에서 이어 붙인다.
- * ⚠️ 실연동 시 이 배열이 통째로 커리큘럼 테이블로 갈린다(교체 경계).
+ * ⚠️ **회차와 강은 1:1이 아니다.** 리드가 함께 준 운영 규칙 때문이다:
+ * 초등은 한 과수를 나눠 진행할 수 있고(기수 재량), 중등은 목록 중 몇 개만 뽑아 하고,
+ * 특강이 중간에 끼어든다. 그래서 「N회차 = 무슨 강」은 **기수마다 다르다**.
+ * 여기 배열은 그것을 **순서대로 편 시범 값**이고, 남는 회차는 `undecided`로 비워 둔다 —
+ * 어느 과수를 나눌지·무엇을 뽑을지는 지어낼 수 없기 때문이다(불변식 6).
+ * ⚠️ 실연동 시 이 배열이 통째로 **기수별 진도 배정** 테이블로 갈린다(교체 경계).
  */
 export const CURRICULUM: CurriculumStep[] = (() => {
-  const out: CurriculumStep[] = elementaryLessons.map((l) => ({
-    level: "초등" as const,
-    lessonNo: l.lessonNo,
-    title: l.title,
-    keyword: keywordOf(l.title),
-  }));
-  /** 고등은 **계시록 장**이 핵심단어다 (2026-08-15 리드 지시) — 원문 파일명의 장 표기를 쓴다 */
-  const high: CurriculumStep[] = HIGH_LESSONS.map((l, i) => ({
-    level: "고등" as const,
-    lessonNo: i + 1,
-    title: `${l.label} ${l.title}`.trim(),
-    keyword: revelationKeyword(l.label),
-  }));
+  const out: CurriculumStep[] = [
+    ...ELEMENTARY_COURSE_TITLES.map((t, i) => ({
+      level: "초등" as const,
+      lessonNo: i + 1,
+      title: t,
+      keyword: t,
+    })),
+    ...MIDDLE_COURSE_TITLES.map((t, i) => ({
+      level: "중등" as const,
+      lessonNo: i + 1,
+      title: t,
+      keyword: t,
+    })),
+    ...HIGH_COURSE_TITLES.map((h, i) => ({
+      level: "고등" as const,
+      lessonNo: i + 1,
+      title: h.title,
+      // 좁은 칸에는 장 표기가 곧 핵심단어다 (「계 1:1~8」·「계2장」)
+      keyword: h.chapter,
+    })),
+  ];
   /*
-    남는 회차가 중등 몫이다 — 원문이 없어 **번호만** 매기고 제목은 빈 칸으로 둔다.
-    「중등 46강」 같은 문구를 제목 자리에 넣으면 「중등 46강 중등 46강」으로 겹쳐 나온다.
-    원문이 오면 여기서 제목만 채우면 화면은 그대로 따라온다.
+    남는 회차 — 초등 과수를 나누거나 특강이 들어가는 자리다. **무엇이 올지 정해져 있지 않다.**
+    화면은 이 칸을 「미정」으로 낸다. 마지막 강으로 붙잡아 두면 있지도 않은 진도가 뜬다.
   */
-  const midCount = Math.max(0, TOTAL_SESSIONS - out.length - high.length);
-  for (let i = 1; i <= midCount; i++) {
-    // 핵심단어는 받은 만큼만 채운다 — 없는 강은 번호까지만 나온다
-    const keyword = MIDDLE_LESSON_KEYWORDS[i - 1] ?? "";
-    out.push({ level: "중등", lessonNo: i, title: keyword, keyword });
+  while (out.length < TOTAL_SESSIONS) {
+    out.push({ level: "고등", lessonNo: 0, title: "", keyword: "", undecided: true });
   }
-  return [...out, ...high];
+  return out;
 })();
 
 /**
- * 회차 번호 → 진도(강). **한 회차가 한 강**이라 차례표에서 그대로 꺼낸다.
- * 차례표를 넘어가는 회차(일정이 늘어난 경우)는 마지막 강으로 붙잡아 둔다 — 화면이 빈칸이 되지 않게.
+ * 회차 번호 → 진도(강). 차례표에서 그대로 꺼낸다.
+ * 차례표를 넘어가는 회차는 **「미정」**으로 돌려준다 — 없는 진도를 지어내지 않는다.
  */
 export function lessonOfSession(sessionNo: number): CurriculumStep {
-  const idx = Math.min(CURRICULUM.length - 1, Math.max(0, sessionNo - 1));
-  return CURRICULUM[idx];
+  const idx = Math.max(0, sessionNo - 1);
+  return (
+    CURRICULUM[idx] ?? { level: "고등", lessonNo: 0, title: "", keyword: "", undecided: true }
+  );
 }
 
 /**
- * 좁은 칸용 — 「초12강」·「고3강」.
- * `CurriculumStep`과 `SessionInfo`가 함께 쓰므로 **필요한 두 필드만** 받는다.
+ * 좁은 칸용 단계 표기 — 「초」·「중」·「고」. 배정 전 회차는 **「미정」**이다.
+ *
+ * ⚠️ **강 번호를 붙이지 않는다** (2026-08-15 리드 지시 — 「학원법 위반에 걸리지 않도록
+ * 초등1 2 3 · 중등1 2 3 · 고등1 2 3 같은 **연속적인 형식의 구분은 제외**한다」).
+ * 종전에는 「초1강」·「중12강」처럼 단계+번호로 냈는데, 그 표기가 학년·학기 편성처럼 읽힌다.
+ * **번호(`lessonNo`)는 데이터로 남긴다** — 차례를 매기고 회차와 짝짓는 데 쓴다. 화면에만 안 낸다.
  */
-export function shortLessonLabel(step: { level: LessonLevel; lessonNo: number }): string {
-  return `${LEVEL_SHORT[step.level]}${step.lessonNo}강`;
+export function shortLessonLabel(step: {
+  level: LessonLevel;
+  lessonNo: number;
+  undecided?: boolean;
+}): string {
+  return step.undecided || step.lessonNo === 0 ? "미정" : LEVEL_SHORT[step.level];
 }
 
 /**
@@ -202,6 +216,7 @@ export function sessionsOfWeek(weekNo: number, periods?: ClassWeekdayPeriodList)
         lessonTitle: lesson.title,
         lessonKeyword: lesson.keyword,
         level: lesson.level,
+        undecided: lesson.undecided,
       };
     })
     .filter((s) => s.sessionNo <= TOTAL_SESSIONS);
@@ -214,15 +229,15 @@ export function sessionsThroughWeek(weekNo: number, periods?: ClassWeekdayPeriod
   return Math.min(TOTAL_SESSIONS, n);
 }
 
-/** 회차 라벨 — 「12회차 · 월 · 초등 3강 천국 비밀 비유」 형태(툴팁이라 **원문 제목**을 쓴다) */
+/**
+ * 회차 라벨 — 「12회차 · 월 · 초등 천국 비밀 비유」 형태 (툴팁).
+ * ⚠️ **강 번호를 넣지 않는다** — 「초등 3강」 같은 연속 번호 표기는 빼기로 했다(2026-08-15).
+ */
 export function sessionLabelOf(s: SessionInfo): string {
-  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.level} ${s.lessonNo}강 ${s.lessonTitle}`.trim();
+  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.level} ${s.lessonTitle}`.trim();
 }
 
-/**
- * 좁은 칸의 진도 표기 — 「초3강 천국 비밀」·「고5강 계 5장」 (2026-08-15 리드 지시).
- * 핵심단어가 없는 강(중등 — 원문 대기)은 번호까지만 나온다.
- */
+/** 좁은 칸의 진도 표기 — 「초 천국 비밀 비유」·「고 계5장」 (단계 한 글자 + 과수 제목) */
 export function sessionKeywordLabel(s: SessionInfo): string {
   return `${shortLessonLabel(s)}${s.lessonKeyword ? ` ${s.lessonKeyword}` : ""}`;
 }

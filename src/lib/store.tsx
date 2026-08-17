@@ -237,7 +237,8 @@ const SEED_NOTES: LessonNote[] = [
   {
     id: "seed-note-1",
     lessonKey: "elementary-1",
-    lessonLabel: "초등 1강 — 두 가지 신 (하나님과 사단)",
+    /* ⚠️ 강 번호 없는 표기 — 「초등 1강」 같은 연속 번호를 뺐다(2026-08-15 리드 지시) */
+    lessonLabel: "초등 — 두 가지 신",
     kind: "question",
     body: "영과 육을 나누는 대목에서 '그럼 지금 내 안에 어느 영이 있느냐'는 질문이 반복해서 나왔습니다. 교안의 유도형 질문을 먼저 던지고 시작하니 정리가 빨랐습니다.",
     createdBy: "콘텐츠팀",
@@ -248,7 +249,7 @@ const SEED_NOTES: LessonNote[] = [
   {
     id: "seed-note-2",
     lessonKey: "elementary-1",
-    lessonLabel: "초등 1강 — 두 가지 신 (하나님과 사단)",
+    lessonLabel: "초등 — 두 가지 신",
     kind: "caution",
     body: "교안 주의사항대로 목자·교회를 비판하는 인상을 주지 않도록 조심했습니다. 스스로 분별하도록 질문으로 돌리는 편이 반발이 적었습니다.",
     createdBy: "콘텐츠팀",
