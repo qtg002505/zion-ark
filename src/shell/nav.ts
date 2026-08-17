@@ -436,6 +436,78 @@ export function groupItems(group: NavGroup): NavItem[] {
 }
 
 /** 권한 필터 — 열람은 로그인 전체가 기본, restrictTo만 제한 */
+/**
+ * 경로 → 사람이 읽는 화면 이름 (2026-08-17 리드 지시 — 「최근 본 것」에 `/plan` 같은
+ * 코드 용어가 아니라 실제 카테고리 이름이 나오게).
+ *
+ * **메뉴 정의(NAV_GROUPS)에서 파생한다** — 화면 이름을 여기 다시 적으면 메뉴와 어긋난다
+ * (메인 카테고리 타일을 `visibleNavGroups`에서 파생하는 것과 같은 원칙이다).
+ * 이름은 「대주제 · 항목」 꼴이다 (예: 「기수 현황 · 비교」 · 「강의 도우미 · 흐름교육」).
+ *
+ * ⚠️ **저장 구조는 안 바꾼다.** 열람 기록에는 여전히 경로(식별자)만 저장하고, 이름은
+ * 그릴 때 이 표에서 다시 찾는다 — 마이페이지의 「이름은 그 시점 데이터에서 찾는다」 설계
+ * 그대로라 화면 이름이 바뀌면 지난 기록도 새 이름으로 보인다.
+ * ⚠️ 저장된 키는 URL 인코딩돼 있을 수 있어(`?folder=%EA%B5%90…`) 양쪽 다 디코드해 견준다.
+ */
+const PAGE_LABELS: Map<string, string> = (() => {
+  const map = new Map<string, string>();
+  const put = (to: string, label: string) => {
+    try {
+      map.set(decodeURIComponent(to), label);
+    } catch {
+      map.set(to, label);
+    }
+  };
+  for (const g of NAV_GROUPS) {
+    if (g.to) put(g.to, g.label);
+    for (const item of g.items ?? []) {
+      if (item.external) continue;
+      put(item.to, item.label === g.label ? g.label : `${g.label} · ${item.label}`);
+    }
+    for (const sub of g.subGroups ?? []) {
+      for (const item of sub.items) {
+        if (item.external) continue;
+        /*
+          「대주제 · 하위 묶음 · 항목」에서 **겹치는 이름은 한 번만** 적는다 —
+          「기수 현황 · 기수 현황 · 기수 요약」처럼 같은 말이 두 번 나오면 안 된다.
+        */
+        const parts: string[] = [g.label];
+        const overlaps = (a: string, b: string) => a.includes(b) || b.includes(a);
+        if (!overlaps(sub.label, g.label)) parts.push(sub.label);
+        if (!parts.some((p) => overlaps(p, item.label))) parts.push(item.label);
+        put(item.to, parts.join(" · "));
+      }
+    }
+  }
+  return map;
+})();
+
+/** 메뉴에 없는 경로의 이름 — 상세·검색처럼 딥링크로만 가는 화면들 */
+const PAGE_LABEL_FALLBACKS: [RegExp, string][] = [
+  [/^\/students\//, "수강생 관리 도우미 · 수강생 상세"],
+  [/^\/library\?q=/, "자료실 · 검색"],
+  [/^\/library\?open=/, "자료실 · 자료 상세"],
+  [/^\/teaching\?.*open=/, "강의 도우미 · 자료 상세"],
+  [/^\/series\//, "자료실 · 신천지도서"],
+];
+
+export function pageLabelOf(key: string): string | null {
+  let decoded = key;
+  try {
+    decoded = decodeURIComponent(key);
+  } catch {
+    /* 깨진 인코딩은 그대로 견준다 */
+  }
+  const exact = PAGE_LABELS.get(decoded);
+  if (exact) return exact;
+  for (const [re, label] of PAGE_LABEL_FALLBACKS) {
+    if (re.test(decoded)) return label;
+  }
+  // 물음표 뒤를 떼고 경로만으로 한 번 더 — 메뉴에 없는 쿼리 조합(옛 링크·필터)을 받는다
+  const pathOnly = decoded.split("?")[0];
+  return PAGE_LABELS.get(pathOnly) ?? null;
+}
+
 export function visibleNavGroups(session: Session): NavGroup[] {
   const allow = (i: { restrictTo?: RoleCode[] }) =>
     !i.restrictTo || i.restrictTo.includes(session.roleCode);

@@ -4,6 +4,7 @@ import { Clock, Palette, Star, Trash2, UserPlus, X } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel } from "../lib/permissions";
+import { pageLabelOf } from "../shell/nav";
 import { FAVORITE_LABELS, ROLE_LABELS, type FavoriteTarget } from "../lib/types";
 import { SERIES } from "../content/series-content";
 import { WeekScheduler } from "../components/WeekScheduler";
@@ -50,8 +51,9 @@ export function MyPage() {
       switch (type) {
         case "material": {
           const m = materials.find((x) => x.id === id);
+          /* 구획(?section=)은 2026-08-13에 폐지됐다 — 자료 상세를 바로 여는 딥링크로 간다 */
           return m
-            ? { label: m.title, to: `/library?section=${m.section ?? "instructor"}` }
+            ? { label: m.title, to: `/library?open=${m.id}` }
             : { label: "(지워졌거나 볼 수 없는 자료)", to: null };
         }
         case "tip": {
@@ -72,8 +74,17 @@ export function MyPage() {
         }
         case "lesson":
           return { label: id, to: "/lessons" };
-        default:
-          return { label: id, to: id.startsWith("/") ? id : null };
+        default: {
+          /*
+            화면 열람 기록 (2026-08-17 리드 지시) — `/plan` 같은 경로 대신 **메뉴에 적힌
+            화면 이름**(「기수 현황 · 월간·주간 계획」)을 보인다. 이름은 nav.ts의 메뉴
+            정의에서 파생하므로(`pageLabelOf`) 메뉴 이름이 바뀌면 지난 기록도 따라온다.
+          */
+          const label = pageLabelOf(id);
+          return label
+            ? { label, to: id.startsWith("/") ? id : null }
+            : { label: "(지금은 없는 화면)", to: null };
+        }
       }
     };
   }, [materials, counselingTips, counselCases]);
