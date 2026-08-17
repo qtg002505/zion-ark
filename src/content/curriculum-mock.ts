@@ -28,6 +28,26 @@ export type LessonLevel = "초등" | "중등" | "고등";
 /** 좁은 칸(격자 머리)에 쓰는 한 글자 표기 */
 export const LEVEL_SHORT: Record<LessonLevel, string> = { 초등: "초", 중등: "중", 고등: "고" };
 
+/**
+ * 단계 색 (2026-08-15 리드 지시 — 초등 하늘색 · 중등 주황색 · 고등 남색).
+ *
+ * ⚠️ **색값은 여기 없다.** `index.css`의 `@theme`에 토큰(`--color-level-*`)으로 있고
+ * 여기는 그 유틸리티 이름만 짝지어 둔다 — 화면에 색을 하드코딩하지 않는다는 규칙 그대로다.
+ * 뱃지는 「옅은 바탕 + 진한 글자」 한 벌이라 둘을 함께 적는다.
+ */
+export const LEVEL_TONE: Record<LessonLevel, string> = {
+  초등: "bg-level-el-soft text-level-el",
+  중등: "bg-level-mid-soft text-level-mid",
+  고등: "bg-level-high-soft text-level-high",
+};
+
+/** 색만 필요한 자리(글자·테두리)용 */
+export const LEVEL_TEXT: Record<LessonLevel, string> = {
+  초등: "text-level-el",
+  중등: "text-level-mid",
+  고등: "text-level-high",
+};
+
 export interface SessionInfo {
   /** 1부터 — 개강 후 N회차 */
   sessionNo: number;
@@ -81,6 +101,27 @@ export function keywordOf(title: string): string {
 }
 
 /**
+ * 고등 진도 표기 — **계시록 장별** (2026-08-15 리드 지시. 예: 「계 1:1~8」·「계 2장」).
+ * 원문 파일명의 「계 1장 1-8절」을 리드가 쓰는 표기로 **모양만** 바꾼다 — 내용은 그대로다.
+ * ⚠️ 절 번호가 붙어 버린 원문(「계 1장 920절」 — 파일명에서 하이픈이 빠진 것)은 손대지 않는다.
+ * 지어내면 9~20절인지 92~0절인지 알 수 없다. 원문 파일명이 고쳐지면 저절로 따라온다.
+ */
+export function revelationKeyword(label: string): string {
+  const m = label.match(/^계\s*(\d+)장\s*(\d+)\s*-\s*(\d+)절$/);
+  return m ? `계 ${m[1]}:${m[2]}~${m[3]}` : label.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * 중등 진도 핵심단어 (2026-08-15 리드 지시 — 「중등: 핵심 단어로 진도 표시」).
+ *
+ * ⚠️ **리드가 예시로 준 셋만 들어 있다.** 중등 원문(강 목록)을 아직 못 받아 나머지는 비어
+ * 있고, 그 회차는 번호만 나온다. 지어내지 않는다(불변식 5·6).
+ * ⚠️ **순서도 확인이 필요하다** — 「보혜사 · 언약 결과 · 주기도문」은 예시로 받은 것이지
+ * 1·2·3강이라고 들은 것이 아니다. 목록이 오면 이 배열만 그대로 채우면 화면이 따라온다.
+ */
+export const MIDDLE_LESSON_KEYWORDS: string[] = ["보혜사", "언약 결과", "주기도문"];
+
+/**
  * 회차 차례표 — **한 회차가 한 강이다** (2026-08-15 리드 확정).
  *
  * 종전에는 초등 23강을 105회차에 고르게 펴서 **한 강이 4~5회차에 걸쳐** 있었다.
@@ -102,7 +143,7 @@ export const CURRICULUM: CurriculumStep[] = (() => {
     level: "고등" as const,
     lessonNo: i + 1,
     title: `${l.label} ${l.title}`.trim(),
-    keyword: l.label,
+    keyword: revelationKeyword(l.label),
   }));
   /*
     남는 회차가 중등 몫이다 — 원문이 없어 **번호만** 매기고 제목은 빈 칸으로 둔다.
@@ -110,7 +151,11 @@ export const CURRICULUM: CurriculumStep[] = (() => {
     원문이 오면 여기서 제목만 채우면 화면은 그대로 따라온다.
   */
   const midCount = Math.max(0, TOTAL_SESSIONS - out.length - high.length);
-  for (let i = 1; i <= midCount; i++) out.push({ level: "중등", lessonNo: i, title: "", keyword: "" });
+  for (let i = 1; i <= midCount; i++) {
+    // 핵심단어는 받은 만큼만 채운다 — 없는 강은 번호까지만 나온다
+    const keyword = MIDDLE_LESSON_KEYWORDS[i - 1] ?? "";
+    out.push({ level: "중등", lessonNo: i, title: keyword, keyword });
+  }
   return [...out, ...high];
 })();
 

@@ -56,6 +56,23 @@
   --color-emerald-600: oklch(0.527 0.13 163.22);
   --color-amber-600: oklch(0.558 0.165 58.32);
 
+  /*
+   * 과정 단계 색 — **초등 하늘색 · 중등 주황색 · 고등 남색** (2026-08-15 리드 지시).
+   * 진도가 어느 단계의 강인지 한눈에 갈리게 하는 색이다.
+   *
+   * 짝을 이뤄 쓴다: `-soft`는 뱃지 **바탕**, 기본값은 그 위의 **글자**다.
+   * ⚠️ 글자 값은 옅은 바탕 위에서 AA(4.5)를 넘도록 잡았다 — 하늘색·주황색은 원래 밝아
+   *    같은 색을 글자로 쓰면 대비가 안 나온다. 바탕은 밝게, 글자는 어둡게 두 단계로 나눈 이유다.
+   * ⚠️ 고등(남색)은 주색(`zion`)과 비슷해 **일부러 조금 더 보라 쪽**으로 기울였다 —
+   *    같은 화면에서 버튼·머리글과 뒤섞이지 않게 하기 위해서다.
+   */
+  --color-level-el: oklch(0.45 0.11 232); /* 초등 — 하늘색 계열 글자 */
+  --color-level-el-soft: oklch(0.95 0.03 232); /* 초등 뱃지 바탕 */
+  --color-level-mid: oklch(0.49 0.13 55); /* 중등 — 주황 계열 글자 */
+  --color-level-mid-soft: oklch(0.955 0.035 60); /* 중등 뱃지 바탕 */
+  --color-level-high: oklch(0.38 0.13 285); /* 고등 — 남색 계열 글자 */
+  --color-level-high-soft: oklch(0.945 0.03 285); /* 고등 뱃지 바탕 */
+
   /* 바탕·본문 글자도 남색 쪽으로 아주 살짝 기울인다 — 주색과 겉돌지 않게 */
   --color-surface: oklch(0.98 0.004 258);
   --color-ink: oklch(0.25 0.02 260);
@@ -157,6 +174,17 @@
   --color-emerald-200: oklch(0.37 0.07 165);
   --color-emerald-600: oklch(0.79 0.14 165);
   --color-emerald-700: oklch(0.84 0.12 165);
+
+  /*
+   * 과정 단계 색 (2026-08-15) — 옅은 뱃지 바탕(`-soft`)은 어둡게, 글자는 밝게 뒤집는다.
+   * 상태색(red·emerald·amber)과 똑같은 취급이라 새로 생각할 것이 없다.
+   */
+  --color-level-el: oklch(0.82 0.11 232);
+  --color-level-el-soft: oklch(0.28 0.05 232);
+  --color-level-mid: oklch(0.83 0.12 60);
+  --color-level-mid-soft: oklch(0.29 0.05 55);
+  --color-level-high: oklch(0.81 0.1 285);
+  --color-level-high-soft: oklch(0.29 0.05 285);
 
   --color-amber-50: oklch(0.27 0.045 75);
   --color-amber-200: oklch(0.38 0.075 75);

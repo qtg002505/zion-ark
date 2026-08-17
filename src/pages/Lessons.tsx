@@ -4,7 +4,7 @@ import { Link } from "../components/TransitionLink";
 import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
 import { elementaryLessons } from "../content/elementary-lessons";
 import { HIGH_LESSONS } from "../content/lessons-high";
-import { keywordOf } from "../content/curriculum-mock";
+import { keywordOf, LEVEL_TONE, type LessonLevel } from "../content/curriculum-mock";
 import { MarkdownLite, splitSections } from "../lib/markdown";
 import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
@@ -110,13 +110,17 @@ export function Lessons() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="과정 선택">
+          {/*
+            고른 과정은 **그 단계 색**으로 칠한다 (2026-08-15 리드 지시 —
+            초등 하늘색 · 중등 주황색 · 고등 남색). 색값은 `index.css` 한 곳에 있다.
+          */}
           {(
             [
-              ["elementary", `초등 (${elementaryLessons.length}강)`],
-              ["middle", "중등 (준비 중)"],
-              ["high", `고등 (${HIGH_LESSONS.length}강)`],
-            ] as [Course, string][]
-          ).map(([id, label]) => (
+              ["elementary", `초등 (${elementaryLessons.length}강)`, "초등"],
+              ["middle", "중등 (준비 중)", "중등"],
+              ["high", `고등 (${HIGH_LESSONS.length}강)`, "고등"],
+            ] as [Course, string, LessonLevel][]
+          ).map(([id, label, level]) => (
             <button
               key={id}
               role="tab"
@@ -124,7 +128,7 @@ export function Lessons() {
               onClick={() => switchCourse(id)}
               className={
                 "rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
-                (course === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+                (course === id ? `${LEVEL_TONE[level]} shadow-sm` : "text-zion-600 hover:text-zion-800")
               }
             >
               {label}

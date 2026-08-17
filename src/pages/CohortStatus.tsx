@@ -45,6 +45,7 @@ import {
   sessionsOfWeek,
   sessionsThroughWeek,
   shortLessonLabel,
+  LEVEL_TONE,
   type SessionInfo,
 } from "../content/curriculum-mock";
 import {
@@ -342,7 +343,13 @@ export function CohortStatus() {
  * 실연동 시 시트의 회차별 값이 이 칸에 그대로 들어오고 구조는 안 바뀐다.
  * 회차↔진도 매핑은 `curriculum-mock.ts`(교체 경계) 한 곳이다.
  */
-type GridAxis = "lesson" | "week";
+/**
+ * 표시 축 셋 (2026-08-15 리드 지시로 「요일별」을 더했다).
+ * - `lesson` 진도별 — 회차를 주차 차례대로 늘어놓는다 (기본)
+ * - `weekday` **요일별** — 같은 요일끼리 묶는다. 「이 사람은 목요일마다 빠진다」가 한 줄로 보인다
+ * - `week` 주차별 — 한 주를 한 칸으로 줄인 치리자용 요약
+ */
+type GridAxis = "lesson" | "weekday" | "week";
 
 /**
  * 왼쪽 붙박이 칸의 가로 폭 — 23주(69칸)를 가로로 넘겨 보는 동안 번호·이름이 따라다녀야
@@ -464,12 +471,48 @@ function AttendanceGrid({
     */
     return newestFirst ? [...cols].reverse() : cols;
   };
-  /** 이 기수에서 쓰는 요일 전부 — 요일 고르기 단추를 여기서 만든다 */
+
+  /**
+   * 칸 묶음 — 축에 따라 **무엇으로 묶을지**만 갈린다 (2026-08-15 「요일별」 추가).
+   * - 진도별: 주차로 묶는다
+   * - 요일별: **같은 요일끼리** 묶는다. 특강은 요일이 제각각이라 맨 뒤에 한 묶음으로 모은다
+   * 주차별(`week`)은 칸 하나가 곧 한 주라 이 구조를 쓰지 않는다.
+   */
+  /** 이 기수에서 쓰는 요일 전부 — 요일 고르기 단추와 요일별 묶음이 함께 쓴다 */
   const usedWeekdays = useMemo(() => {
     const set = new Set<number>();
     for (const w of weekNos) for (const s of sessionsOfWeek(w, weekdayPeriods)) set.add(s.weekday);
     return [...set].sort((a, b) => a - b);
   }, [weekNos, weekdayPeriods]);
+
+  type ColGroup = { key: string; label: string; cols: GridCol[] };
+  const columnGroups: ColGroup[] = useMemo(() => {
+    if (axis === "lesson") {
+      return weekNos.map((w) => ({ key: `w${w}`, label: `${w}주차`, cols: colsOf(w) }));
+    }
+    if (axis === "weekday") {
+      const days = usedWeekdays.filter((d) => dayFilter.length === 0 || dayFilter.includes(d));
+      const groups: ColGroup[] = days.map((d) => ({
+        key: `d${d}`,
+        label: `${WEEKDAY_NAMES[d]}요일`,
+        cols: weekNos.flatMap((w) =>
+          sessionsOfWeek(w, weekdayPeriods)
+            .filter((s) => s.weekday === d)
+            .map((sess) => ({ kind: "regular" as const, key: `r${sess.sessionNo}`, sess })),
+        ),
+      }));
+      if (mySpecials.length > 0) {
+        // 특강은 요일이 제각각이라 요일 묶음에 넣으면 흐름이 끊긴다 — 따로 모은다
+        const specialCols: GridCol[] = [...mySpecials]
+          .sort((a, b) => (newestFirst ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)))
+          .map((sp) => ({ kind: "special" as const, key: `s${sp.id}`, sp }));
+        groups.push({ key: "special", label: "특강", cols: specialCols });
+      }
+      return groups.filter((g) => g.cols.length > 0);
+    }
+    return [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [axis, weekNos, dayFilter, usedWeekdays, weekdayPeriods, mySpecials, newestFirst]);
 
   /** 회차의 실제 날짜 — 「8/25」. 일요일은 그 주의 첫날이라 월요일 앞에 온다 */
   const dateOf = (sess: SessionInfo) => {
@@ -587,11 +630,11 @@ function AttendanceGrid({
             "상태",
             "보강 포함 %",
             "대면만 %",
-            ...weekNos.flatMap((w) =>
-              colsOf(w).map((c) =>
+            ...columnGroups.flatMap((g) =>
+              g.cols.map((c) =>
                 c.kind === "regular"
-                  ? `${w}주차 ${c.sess.weekdayLabel} ${dateOf(c.sess)}(${c.sess.sessionNo}회 ${shortLessonLabel(c.sess)})`
-                  : `${w}주차 특강 ${c.sp.date} ${c.sp.title}`,
+                  ? `${c.sess.weekNo}주차 ${c.sess.weekdayLabel} ${dateOf(c.sess)}(${c.sess.sessionNo}회 ${shortLessonLabel(c.sess)})`
+                  : `${c.sp.weekNo}주차 특강 ${c.sp.date} ${c.sp.title}`,
               ),
             ),
           ];
@@ -602,26 +645,28 @@ function AttendanceGrid({
       const cells =
         axis === "week"
           ? weekNos.map(glyph)
-          : weekNos.flatMap((w) =>
-              colsOf(w).map((c) =>
-                c.kind === "regular" ? glyph(w) : MARK_GLYPH[specialMarkOf(c.sp.id, st.key)],
+          : columnGroups.flatMap((g) =>
+              g.cols.map((c) =>
+                c.kind === "regular"
+                  ? glyph(c.sess.weekNo)
+                  : MARK_GLYPH[specialMarkOf(c.sp.id, st.key)],
               ),
             );
       return [i + 1, st.name, st.division, STATUS_LABELS[st.status], r.withMakeup, r.presentOnly, ...cells];
     });
     const avg: (string | number)[] = ["", "우리 기수 평균", "", "", "", ""];
-    for (const w of weekNos) {
-      const v = weekAvg(w);
-      const cell = v === null ? "-" : `${v}%`;
-      if (axis === "week") avg.push(cell);
-      else
-        colsOf(w).forEach((c) => {
-          if (c.kind === "regular") avg.push(cell);
-          else {
-            const sv = specialAvg(c.sp.id);
-            avg.push(sv === null ? "-" : `${sv}%`);
-          }
-        });
+    if (axis === "week") {
+      for (const w of weekNos) {
+        const v = weekAvg(w);
+        avg.push(v === null ? "-" : `${v}%`);
+      }
+    } else {
+      for (const g of columnGroups) {
+        for (const c of g.cols) {
+          const v = c.kind === "regular" ? weekAvg(c.sess.weekNo) : specialAvg(c.sp.id);
+          avg.push(v === null ? "-" : `${v}%`);
+        }
+      }
     }
     const csv = [head, ...lines, avg]
       .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
@@ -642,7 +687,7 @@ function AttendanceGrid({
   /** 출결 칸의 총 개수 — 분반 띠가 남은 칸을 한 번에 덮는 데 쓴다 */
   const gridCols = Math.max(
     1,
-    axis === "lesson" ? weekNos.reduce((n, w) => n + colsOf(w).length, 0) : weekNos.length,
+    axis === "week" ? weekNos.length : columnGroups.reduce((n, g) => n + g.cols.length, 0),
   );
 
   /**
@@ -659,7 +704,7 @@ function AttendanceGrid({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-[14px] font-bold text-zion-900">
-            {axis === "lesson" ? "진도별" : "주차별"} 출석 상세
+            {axis === "lesson" ? "진도별" : axis === "weekday" ? "요일별" : "주차별"} 출석 상세
           </div>
           <p className="mt-0.5 text-[12px] text-ink-soft">
             {newestFirst ? (
@@ -681,6 +726,8 @@ function AttendanceGrid({
             {(
               [
                 ["lesson", "진도별"],
+                /* 2026-08-15 리드 지시 — 같은 요일끼리 묶어 그 요일의 흐름을 본다 */
+                ["weekday", "요일별"],
                 ["week", "주차별"],
               ] as const
             ).map(([k, label]) => (
@@ -842,28 +889,27 @@ function AttendanceGrid({
                 style={{ left: STICKY_NO_W, minWidth: STICKY_NAME_W }}
               />
               <th colSpan={3} className="pb-1" />
-              {axis === "lesson" ? (
-                weekNos.map((w) =>
-                  colsOf(w).length === 0 ? null : (
-                    <th
-                      key={w}
-                      colSpan={colsOf(w).length}
-                      className={"whitespace-nowrap px-1 pb-1 font-semibold text-zion-700 " + weekEdge}
-                    >
-                      {w}주차
-                      {canEdit && (
-                        <button
-                          onClick={() => setSpecialFormWeek(w)}
-                          title={`${w}주차에 특강 추가`}
-                          aria-label={`${w}주차에 특강 추가`}
-                          className="ml-1 rounded px-1 text-[11px] font-bold text-zion-500 transition hover:bg-zion-100 hover:text-zion-800"
-                        >
-                          +
-                        </button>
-                      )}
-                    </th>
-                  ),
-                )
+              {axis !== "week" ? (
+                columnGroups.map((g) => (
+                  <th
+                    key={g.key}
+                    colSpan={g.cols.length}
+                    className={"whitespace-nowrap px-1 pb-1 font-semibold text-zion-700 " + weekEdge}
+                  >
+                    {g.label}
+                    {/* 주차 묶음에서만 「+ 특강」이 뜻을 갖는다 — 어느 주에 붙일지가 정해지므로 */}
+                    {canEdit && axis === "lesson" && (
+                      <button
+                        onClick={() => setSpecialFormWeek(Number(g.key.slice(1)))}
+                        title={`${g.label}에 특강 추가`}
+                        aria-label={`${g.label}에 특강 추가`}
+                        className="ml-1 rounded px-1 text-[11px] font-bold text-zion-500 transition hover:bg-zion-100 hover:text-zion-800"
+                      >
+                        +
+                      </button>
+                    )}
+                  </th>
+                ))
               ) : (
                 <th colSpan={weekNos.length} className={"pb-1 font-semibold text-zion-700 " + weekEdge}>
                   {newestFirst ? `${DONE_WEEKS}~1주차` : `1~${DONE_WEEKS}주차`}
@@ -887,21 +933,31 @@ function AttendanceGrid({
               <th className="whitespace-nowrap px-2 pb-2 font-medium">상태</th>
               <th className={infoTh}>보강 포함</th>
               <th className={infoTh}>대면만</th>
-              {axis === "lesson"
-                ? weekNos.flatMap((w) =>
-                    colsOf(w).map((c, i) =>
+              {axis !== "week"
+                ? columnGroups.flatMap((g) =>
+                    g.cols.map((c, i) =>
                       c.kind === "regular" ? (
                         <th
                           key={c.key}
                           className={`${colW} px-1 pb-2 text-center font-medium ` + (i === 0 ? weekEdge : "")}
                           title={sessionLabelOf(c.sess)}
                         >
-                          {c.sess.weekdayLabel}
+                          {/* 요일별 보기에서는 요일이 묶음 이름이라, 칸에는 주차를 적는다 */}
+                          {axis === "weekday" ? `${c.sess.weekNo}주` : c.sess.weekdayLabel}
                           {/* 주차 아래 날짜 (2026-08-15 리드 지시) */}
                           <span className="block text-[10px] font-normal text-ink-soft">
                             {dateOf(c.sess)}
                           </span>
-                          <span className="block text-[9.5px] font-normal text-zion-500">
+                          {/*
+                            단계 색 (2026-08-15 리드 지시 — 초등 하늘색 · 중등 주황색 · 고등 남색).
+                            색값은 `index.css`의 `@theme`에 있고 여기는 토큰 이름만 쓴다.
+                          */}
+                          <span
+                            className={
+                              "mt-0.5 block rounded px-0.5 text-[9.5px] font-bold " +
+                              LEVEL_TONE[c.sess.level]
+                            }
+                          >
                             {shortLessonLabel(c.sess)}
                           </span>
                           {/* 핵심단어 (2026-08-15 리드 지시) — 칸이 좁아 잘리고, 원문은 툴팁에 있다 */}
@@ -921,7 +977,9 @@ function AttendanceGrid({
                           }
                           title={`특강 · ${c.sp.date} · ${c.sp.title}`}
                         >
-                          {WEEKDAY_NAMES[new Date(c.sp.date).getDay()]}
+                          {axis === "weekday"
+                            ? `${c.sp.weekNo}주`
+                            : WEEKDAY_NAMES[new Date(c.sp.date).getDay()]}
                           <span className="block text-[10px] font-normal text-ink-soft">
                             {(() => {
                               const [, m, d] = c.sp.date.split("-").map(Number);
@@ -1052,11 +1110,17 @@ function AttendanceGrid({
                       <td className="px-2 py-2 text-right text-[12px] text-ink-soft">
                         {r.presentOnly}%
                       </td>
-                      {axis === "lesson"
-                        ? weekNos.flatMap((w) =>
-                            colsOf(w).map((c, i) =>
+                      {axis !== "week"
+                        ? columnGroups.flatMap((g) =>
+                            g.cols.map((c, i) =>
                               c.kind === "regular" ? (
-                                cell(w, c.key, `${w}주차 · ${sessionLabelOf(c.sess)}`, i === 0, c.sess)
+                                cell(
+                                  c.sess.weekNo,
+                                  c.key,
+                                  `${c.sess.weekNo}주차 · ${sessionLabelOf(c.sess)}`,
+                                  i === 0,
+                                  c.sess,
+                                )
                               ) : (
                                 /*
                                   특강 칸 — **사이트 기록**이라 담당자가 눌러서 표시를 돌린다
@@ -1101,51 +1165,42 @@ function AttendanceGrid({
                 우리 기수 평균
               </td>
               <td colSpan={3} className="py-2" />
-              {weekNos.map((w) => {
-                const v = weekAvg(w);
-                if (axis === "week") {
-                  return (
-                    <td
-                      key={w}
-                      className={"px-1 py-2 text-center font-semibold text-zion-700 " + weekEdge}
-                    >
-                      {v === null ? "—" : `${v}%`}
-                    </td>
-                  );
-                }
-                const cols = colsOf(w);
-                if (cols.length === 0) return null;
-                const regular = cols.filter((c) => c.kind === "regular").length;
-                return (
-                  <Fragment key={w}>
-                    {regular > 0 && (
+              {axis === "week"
+                ? weekNos.map((w) => {
+                    const v = weekAvg(w);
+                    return (
                       <td
-                        colSpan={regular}
+                        key={w}
                         className={"px-1 py-2 text-center font-semibold text-zion-700 " + weekEdge}
                       >
                         {v === null ? "—" : `${v}%`}
                       </td>
-                    )}
-                    {/* 특강은 칸마다 따로 센다 — 정규 평균에 섞이면 「메인만」 원칙이 깨진다 */}
-                    {cols
-                      .filter((c) => c.kind === "special")
-                      .map((c, i) => {
-                        const sv = c.kind === "special" ? specialAvg(c.sp.id) : null;
-                        return (
-                          <td
-                            key={c.key}
-                            className={
-                              "bg-gold-100/40 px-1 py-2 text-center font-semibold text-gold-700 " +
-                              (regular === 0 && i === 0 ? weekEdge : "")
-                            }
-                          >
-                            {sv === null ? "—" : `${sv}%`}
-                          </td>
-                        );
-                      })}
-                  </Fragment>
-                );
-              })}
+                    );
+                  })
+                : /*
+                    칸마다 그 회차의 기수 평균. 진도별에서는 한 주의 정규 칸들이 같은 값이라
+                    묶어 보였는데, **요일별에서는 칸마다 주차가 달라 묶을 수 없다** —
+                    두 축을 한 규칙으로 두려고 칸마다 적는 쪽으로 폈다.
+                  */
+                  columnGroups.flatMap((g) =>
+                    g.cols.map((c, i) => {
+                      const v = c.kind === "regular" ? weekAvg(c.sess.weekNo) : specialAvg(c.sp.id);
+                      return (
+                        <td
+                          key={c.key}
+                          className={
+                            "px-1 py-2 text-center font-semibold " +
+                            (c.kind === "special"
+                              ? "bg-gold-100/40 text-gold-700 "
+                              : "text-zion-700 ") +
+                            (i === 0 ? weekEdge : "")
+                          }
+                        >
+                          {v === null ? "—" : `${v}%`}
+                        </td>
+                      );
+                    }),
+                  )}
             </tr>
           </tbody>
         </table>
@@ -2128,12 +2183,24 @@ function CohortCompare() {
           <div className="text-[12px] text-ink-soft">
             견줄 자리{" "}
             <strong className="text-[13px] text-zion-900">
-              {at}회차 · {atLesson.level} {atLesson.lessonNo}강
-              {atLesson.keyword && ` ${atLesson.keyword}`}
+              {at}회차 ·{" "}
+              {/* 단계 색 (2026-08-15) — 어느 과정의 회차인지 색으로 먼저 읽힌다 */}
+              <span className={"rounded px-1.5 py-0.5 " + LEVEL_TONE[atLesson.level]}>
+                {atLesson.level} {atLesson.lessonNo}강{atLesson.keyword && ` ${atLesson.keyword}`}
+              </span>
             </strong>
-            {atLesson.title && atLesson.title !== atLesson.keyword && (
-              <span className="ml-1 text-ink-soft">{atLesson.title}</span>
-            )}
+            {/*
+              원문 제목은 핵심단어 **뒤에 남는 부분만** 보인다 — 고등은 제목이
+              「계 17장 마귀의 양식…」이라 그대로 두면 「계 17장」이 두 번 나온다.
+            */}
+            {(() => {
+              const tail = atLesson.title.startsWith(atLesson.keyword)
+                ? atLesson.title.slice(atLesson.keyword.length).trim()
+                : atLesson.title;
+              return tail && tail !== atLesson.keyword ? (
+                <span className="ml-1 text-ink-soft">{tail}</span>
+              ) : null;
+            })()}
           </div>
           <button
             onClick={() => setAt(myDone)}

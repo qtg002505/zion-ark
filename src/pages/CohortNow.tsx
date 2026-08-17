@@ -3,6 +3,7 @@ import { ChevronDown, TriangleAlert, Trophy } from "lucide-react";
 import { useStore } from "../lib/store";
 import { STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
+import { LEVEL_TONE } from "../content/curriculum-mock";
 import type { ChecklistProgress, CourseLevel } from "../content/student-profiles";
 import {
   STRONG_MIN,
@@ -82,6 +83,7 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
               {goal && <> 이 단계의 목표는 「{goal}」입니다.</>}
             </p>
           </div>
+          {/* 단계 토글 — 고른 단계는 그 단계 색으로 칠한다 (2026-08-15 리드 지시) */}
           <div className="flex shrink-0 rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="단계">
             {LEVELS.map((l) => (
               <button
@@ -94,7 +96,9 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
                 }}
                 className={
                   "rounded-md px-3 py-1 text-[12px] font-semibold transition " +
-                  (level === l ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
+                  (level === l
+                    ? `${LEVEL_TONE[l]} shadow-sm`
+                    : "text-zion-600 hover:text-zion-800")
                 }
               >
                 {l}
