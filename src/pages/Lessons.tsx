@@ -16,6 +16,7 @@ import { looseIncludes } from "../lib/text-match";
 import { Accordion, type AccordionItem } from "../components/Accordion";
 import { LessonNotes } from "../components/LessonNotes";
 import { LessonResources } from "../components/LessonResources";
+import { COURSE_LEVEL_TERMS, WORK_TERMS } from "../content/glossary";
 import { INSTRUCTOR_BATGARI_FOLDERS } from "../lib/types";
 import { PageHeader, Card } from "./common";
 
@@ -23,6 +24,86 @@ type Course = "elementary" | "middle" | "high";
 
 function toCourse(v: string | null): Course {
   return v === "high" || v === "middle" ? v : "elementary";
+}
+
+/**
+ * 과정 탭 ↔ 단계 이름. 용어집(`COURSE_LEVEL_TERMS`의 `term`)과 단계 색(`LEVEL_TONE`)이
+ * 같은 문자열을 쓰므로 표 하나로 둘 다 찾는다.
+ */
+const LEVEL_TERM: Record<Course, LessonLevel> = {
+  elementary: "초등",
+  middle: "중등",
+  high: "고등",
+};
+
+/**
+ * 「시기 따른 관리 방향」 — 강의 도우미 4항목 중 **첫 칸** (지시문 §2-2 · 2026-08-18 착수).
+ *
+ * ## 무엇을 보여 주나
+ *
+ * 이 단계에서 수강생이 **어디까지 이르러야 하는가**(단계 정의)와, 그 곁에서 **인교섬이 지는
+ * 몫**(인교섬 미션 정의)을 나란히 놓는다. 강사·전도사가 둘을 견주어 **인교섬에게 무엇을
+ * 부탁할지 판단**하는 자리다.
+ *
+ * ⚠️ **인교섬(인도자·교사·섬김이)에게는 계정이 없다** (2026-08-08 리드 확정).
+ * 이 화면은 인교섬이 들어와 보는 화면이 아니라 **강사·전도사가 보는 화면**이다 —
+ * 그래서 역할 코드를 늘리지 않았다.
+ *
+ * ⚠️ **정의는 원문 그대로 싣는다**(불변식 5). 사이트가 「이 단계에서는 이렇게 부탁하세요」
+ * 같은 문장을 지어내지 않는다 — 무엇을 부탁할지는 사람이 정한다. 원문은
+ * `src/content/glossary.ts` 한 곳이고, 여기서는 골라 보여 주기만 한다.
+ *
+ * ⚠️ 4항목의 나머지 셋(진도에 따른 질문 · 무신앙 예상 질문 · 신앙인 예상 질문)은
+ * **원문을 아직 받지 못했다.** 빈 칸을 만들어 두는 대신 자리를 두지 않았다 —
+ * 원문이 오면 이 파일에 같은 방식으로 더한다.
+ */
+function LevelGuidance({ course }: { course: Course }) {
+  const level = LEVEL_TERM[course];
+  const levelTerm = COURSE_LEVEL_TERMS.find((t) => t.term === level);
+  const mission = WORK_TERMS.find((t) => t.term === "인교섬 미션");
+  if (!levelTerm) return null;
+
+  const items: AccordionItem[] = [
+    {
+      id: "level-guidance",
+      title: `시기 따른 관리 방향 — ${levelTerm.term}`,
+      hint: "이 단계가 이르러야 할 곳과 인교섬이 지는 몫",
+      content: (
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className={"rounded px-1.5 py-0.5 text-[10.5px] font-bold " + LEVEL_TONE[level]}>
+                {levelTerm.term}
+              </span>
+              <span className="text-[12px] font-semibold text-ink">이 단계가 이르러야 할 곳</span>
+            </div>
+            <p className="text-[13px] leading-relaxed text-ink">{levelTerm.definition}</p>
+          </div>
+
+          {mission && (
+            <div>
+              <div className="mb-1 text-[12px] font-semibold text-ink">곁에서 인교섬이 지는 몫</div>
+              <p className="text-[13px] leading-relaxed text-ink">{mission.definition}</p>
+              {mission.note && <p className="mt-1 text-[12px] text-ink-soft">{mission.note}</p>}
+            </div>
+          )}
+
+          <p className="rounded-lg bg-zion-50 p-2.5 text-[12px] leading-relaxed text-ink-soft">
+            <span className="font-semibold text-zion-700">유의</span> 인교섬은 사이트 계정이 없습니다.
+            여기서 본 것을 강사·전도사가 직접 전합니다.
+            <br />
+            정의는 용어집 원문 그대로입니다 — 무엇을 부탁할지는 담당자가 정합니다.
+          </p>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="mb-4">
+      <Accordion items={items} defaultOpenFirst={false} compact />
+    </div>
+  );
 }
 
 /**
@@ -159,19 +240,26 @@ export function Lessons() {
         )}
       </div>
 
+      {/* 4항목 중 첫 칸 — 이 단계가 이르러야 할 곳과 인교섬이 지는 몫 (2026-08-18) */}
+      <LevelGuidance course={course} />
+
       {/*
         밭갈이는 교안과 별개 자료지만 개강 초반에는 같이 쓴다. 자료실까지 찾아가지 않아도
         어디 있는지 알도록 다리만 놓는다 — 폴더 이름은 types.ts 한 곳에서 읽는다.
+
+        ⚠️ **`/teaching`으로 보낸다** (2026-08-18에 고쳤다). 종전에는 `?section=instructor`로
+        갔는데 **구획은 2026-08-13에 폐지됐다** — 그 파라미터는 이제 아무 뜻이 없어
+        자료실 전체가 열렸다. 밭갈이는 강의 도우미 안에서 연다.
       */}
       <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
         개강 초반에는 <span className="font-semibold text-zion-700">밭갈이</span> 자료를 교안과 함께
         씁니다 ({INSTRUCTOR_BATGARI_FOLDERS.join(" · ")}) —{" "}
         <Link
           viewTransition
-          to="/library?section=instructor"
+          to="/teaching"
           className="font-semibold text-zion-700 underline-offset-2 hover:underline"
         >
-          밭갈이 자료실 열기
+          밭갈이 자료 열기
         </Link>
       </p>
 
