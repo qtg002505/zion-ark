@@ -92,8 +92,21 @@ PowerShell이 파싱을 깨뜨려 `pathspec … did not match` 오류가 난다.
    표는 표만 가로 스크롤(`min-w-[560px]`)
 
 **이미 만들어 둔 것을 먼저 찾는다** — 같은 것을 두 벌 만들면 한쪽만 고쳐지는 일이 반드시 생긴다:
-`Accordion` · `AnchoredPopover`(칸 옆에서 열리는 팝오버) · `StudentDetailModal` ·
-`MediaLinks`(PPT·영상) · `FavoriteButton` · `PromptBox` · `common.tsx`(PageHeader·Card·StatTile)
+`Accordion` · `AnchoredPopover`(칸 옆에서 열리는 팝오버) · `SegmentedTabs`(갈래 고르는 알약
+전환기) · `Portal`(띄우는 것 전부) · `TransitionLink`(화면 링크) · `StudentDetailModal` ·
+`MediaLinks`(PPT·영상) · `FavoriteButton` · `PromptBox` · `FolderLibrary`(자료 목록·상세·등록) ·
+`common.tsx`(PageHeader·Card·StatTile)
+
+⚠️ **`SegmentedTabs`는 2026-08-18에 열세 곳의 복제를 걷어내며 만든 것이다.** 알약 전환기를
+직접 만들지 않는다. 고른 항목은 **진한 남색 + 흰 글자**이고(종전 흰 알약은 흰 카드 안에서
+면 대비 1.1이었다), 색은 부품에서만 정한다 — 단계 색처럼 정말 달라야 하는 것만
+`activeClass`로 넘긴다. **폼 값 고르기에는 쓰지 않는다**(`role="tablist"`가 잘못된 시맨틱).
+
+⚠️ **셸(`src/shell/**`)에는 무거운 것을 붙이지 않는다** (2026-08-18). 셸에 매달린 것은
+**모든 화면이 함께 진다** — `search.ts`가 시리즈·어록·교안 원문을 정적으로 안고 있었고 그
+파일을 검색창이 불러, 라우트를 갈라도 첫 화면 번들이 줄지 않았다. 원문 자료를 봐야 하면
+`search.ts`·`DailyQuote`처럼 **쓸 때 `import()`로** 가져온다.
+새 화면은 `App.tsx`에 **`lazy`로** 더한다(로딩 자리는 `Layout`의 `Suspense`가 이미 지킨다).
 
 **화면을 페이지와 팝업 양쪽에서 써야 하면** 복제하지 말고 props로 가른다 —
 `StudentDetailPage`가 `studentKey`·`embedded`를 받는 방식이 본보기다.
@@ -118,10 +131,22 @@ npm.cmd run build:preview
 주소: `https://claude.ai/code/artifact/97c2d451-7903-4c8f-8ede-09b5d72c7d25`
 (`Artifact` 도구에 `url`로 이 주소를 넘긴다.)
 
-⚠️ "이 세션이 최신 버전을 못 봤다"며 거부되면 **`force: true`**를 쓴다 — 이 아티팩트는 손으로
-고치는 문서가 아니라 소스에서 나온 빌드 산출물이라 덮어써도 잃을 것이 없다.
+⚠️ "이 세션이 최신 버전을 못 봤다"며 거부되면 **`WebFetch`로 그 주소를 한 번 읽고** 다시
+발행한다 — 그러면 통과한다(2026-08-18에 이 길로 해결했다). `force: true`는 **다른 세션이
+올린 것을 버리는** 플래그이므로 최후수단으로 남긴다.
 ⚠️ **음원·대용량 자산은 이 단일 HTML에 안 들어간다.** 아티팩트에서 음악이 안 나오는 것은
 결함이 아니다 — **음악 확인은 GitHub Pages 링크에서** 한다고 함께 알린다.
+⚠️ **아티팩트 뷰어는 페이지가 주는 파일 내려받기를 막는다** (2026-08-18에 알았다).
+캘린더 내보내기(`.ics`)·엑셀 양식 내려받기가 프리뷰에서 **아무 일도 일어나지 않는다** —
+결함이 아니라 뷰어 정책이다. 그 기능을 봐야 하면 Pages 링크로 안내한다.
+
+⚠️⚠️ **코드 분할과 단일 HTML은 상충한다** (2026-08-18). `scripts/build-preview.mjs`는
+`dist/index.html`이 가리키는 **js 하나·css 하나만** 인라인한다. 화면을 라우트별로 갈라 둔 채
+묶으면 나머지 조각을 받아 올 곳이 없어 **첫 화면 말고는 아무것도 안 뜬다.**
+그래서 `vite.config.ts`가 **`--mode preview`에서만** 조각을 도로 합친다
+(`build.rollupOptions.output.inlineDynamicImports`). **새로 코드 분할을 건드리면 프리뷰
+빌드를 반드시 함께 확인한다** — 빌드는 성공하고 화면만 비는, 알아채기 어려운 실패다.
+확인법: `npm.cmd run build:preview` 출력의 `(index-….js)` 파일명이 **하나**여야 한다.
 
 두 가지가 이미 해결돼 있으니 건드리지 않는다:
 - 정적 호스팅에는 서버 라우팅이 없다 → `.env.preview`의 `VITE_ROUTER=hash`
@@ -161,6 +186,11 @@ const px = c => { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1,1); ctx.fillStyle =
 나오면 전환 중이라는 신호다. 재기 전에 한 줄 깔아 둔다:
 `*,*::before,*::after{transition:none !important;animation:none !important}`
 
+⚠️ **기다리는 것으로는 안 풀린다.** 2026-08-18에 이 함정을 다시 밟았는데, **1.5초를 기다려도**
+같은 옛 값이 나왔다 — 그래서 "코드가 반영이 안 됐나" 하고 HMR·새로고침을 의심하며 왕복을
+세 번 낭비했다. **테마를 바꿨는데 색이 안 바뀌면 코드를 의심하기 전에 전환부터 끈다.**
+(그때 트랙 배경은 바뀌고 글자 색만 안 바뀌어 더 헷갈렸다 — 속성마다 전환 상태가 다르다.)
+
 ⚠️ **`innerWidth`가 0이면 레이아웃이 뭉개진 상태다.** 패널이 안 떠 있으면 그렇게 된다 —
 `resize_window`로 폭을 정해 주면 정상 레이아웃으로 잰다. 이걸 모르고 재면 화면에 안 뜬
 요소가 통째로 빠져 "미달 0"으로 보인다.
@@ -181,6 +211,20 @@ const px = c => { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1,1); ctx.fillStyle =
 새 화면을 만들었으면 **어두운 화면에서 밝게 뜨는 면이 없는지 훑는다.** 전 라우트를 돌며
 배경 휘도가 0.45를 넘는 요소를 모으면 몇 초 만에 잡힌다 (`bg-gold-500`은 의도한 것이라 뺀다).
 
+**글자 토큰을 고를 때 — 옅은 면 위의 보조 글자는 `text-ink-soft`다** (2026-08-18에 실측으로
+배웠다). `text-zion-600`을 옅은 면(`bg-zion-100`) 위에 쓰면 밝은 화면에서는 멀쩡하지만
+**어두운 화면에서 면과 글자가 함께 어두워져 1.96**이 된다. 본문 보조색은 밝기가 양쪽에서
+뒤집히도록 잡혀 있어 어느 화면에서도 읽힌다(같은 자리에서 5.51).
+
+⚠️ **반투명 흰 면(`bg-white/70` 등)을 hover 배경으로 쓰지 않는다.** 「진한 면 되돌리기」
+목록은 불투명 `.bg-white`와 `.bg-white/95`만 덮으므로 **다른 투명도는 다크에서 흰 띠로 뜬다.**
+옅은 면 hover에는 `hover:bg-zion-200`을 쓴다.
+
+⚠️ **면끼리의 대비도 함께 본다 — 글자만 보면 놓친다.** 고른 항목과 트랙이 밝은 화면에서
+8.3인데 어두운 화면에서는 **1.72**까지 떨어졌다(트랙도 진한 면이 되기 때문이다).
+글자 밝기로 갈리긴 하지만 곁눈에 안 잡혀, `index.css`가 `[data-segmented-on]`을 잡아
+안쪽 테두리 한 줄을 얹는 것으로 풀었다 — **화면 파일에 `dark:`를 뿌리지 않는 원칙은 그대로다.**
+
 ### 5. 파일·자산 다루기 (음원·문서)
 
 - 원본은 폴더에 두고 **Node 스크립트로 `public/` 아래에 복사**한다 (`scripts/copy-music.mjs`가 본보기)
@@ -195,8 +239,22 @@ const px = c => { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1,1); ctx.fillStyle =
 
 ```
 npx.cmd tsc -b --noEmit
+npm.cmd test
 npm.cmd run build
 ```
+
+**`npm.cmd test`는 2026-08-18부터 있다** (vitest · 63건 · `src/lib/*.test.ts`).
+덮는 것은 **순수 로직 넷**이다 — 기수 일정 산수(`cohort-calendar`) · 권한 판정
+(`permissions`) · 개인정보 거르기(`privacy`) · 띄어쓰기 무시 매칭(`text-match`).
+**이 넷을 고쳤으면 테스트도 함께 고친다.** 화면 렌더 테스트는 아직 없어 나머지는 손으로 본다.
+
+⚠️ 설정은 `vitest.config.ts`에 **따로** 있다 — `vite.config.ts`에 얹으면 운영 빌드 경로가
+테스트 도구에 매인다. 테스트 파일은 번들에 안 들어간다(빌드 크기로 확인했다).
+
+⚠️ **문서에 적힌 검산을 테스트로 옮길 때 「문서가 맞다」고 전제하지 않는다.** 2026-08-18에
+셋을 옮겼는데 전부 **함수가 옳고 사람의 기대가 틀린** 것이었다: 27주차 라벨은 「9월 1주」다
+(월요일이 8/31이라 「8월 5주」로 읽기 쉽지만 라벨은 그 주 **목요일** 기준) · 개강 당일
+진행률은 반올림하면 **0%** · `looseIndexOf`는 빈 낱말에 **0**을 준다(`looseIncludes`는 false).
 
 화면을 건드렸으면 미리보기에서 직접 열어 보고:
 - **콘솔 오류 0 — 반드시 새 탭에서 확인한다.** ⚠️ 파일을 크게 고치거나 지우면 개발 서버가
@@ -350,10 +408,12 @@ JSON.stringify({
 
 ## 마무리 — 매번 이 순서로 끝낸다
 
-1. `npx.cmd tsc -b --noEmit` → `npm.cmd run build`
+1. `npx.cmd tsc -b --noEmit` → `npm.cmd test` → `npm.cmd run build`
 2. **새 탭**에서 콘솔 0 · 375px 넘침 0
-3. 커밋 → push (커밋 메시지에 **큰따옴표 금지**)
-4. `npm.cmd run build:preview` → 아티팩트 **같은 주소로** 재발행 (`force: true`)
+3. 커밋 → push (커밋 메시지에 **큰따옴표 금지**.
+   한글 메시지는 파일로 써서 `git commit -F <파일>`이 가장 안전하다 — PowerShell 인용을 아예 안 거친다)
+4. `npm.cmd run build:preview` → 아티팩트 **같은 주소로** 재발행
+   (거부되면 `WebFetch`로 한 번 읽고 다시. `force`는 최후수단)
 5. 문서 갱신 — **`docs/HANDOFF.md`는 "지금 상태"만 고친다.**
    지난 작업 기록은 `docs/HISTORY.md`에 덧붙이고, **새로 밟은 함정은 이 스킬에 적는다.**
    ⚠️ HANDOFF에 세션 기록을 쌓지 않는다 — 그래서 78KB까지 자랐다(2026-08-11에 갈랐다)

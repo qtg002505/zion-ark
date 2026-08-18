@@ -48,14 +48,21 @@ git switch -c part-(a~e)/(요약)
 
 ```
 npm.cmd run typecheck
+npm.cmd test
 npm.cmd run build
 ```
 
+`npm.cmd test`는 순수 로직 63건이다(기수 일정 산수 · 권한 판정 · 개인정보 거르기 ·
+띄어쓰기 무시 매칭). **그 넷을 고쳤으면 테스트도 함께 고친다.**
+
 화면을 건드렸으면 미리보기(`.claude/launch.json`의 `zion-ark-dev`)에서 직접 열어 본다.
 
-- 콘솔 오류 0
+- 콘솔 오류 0 — **새 탭에서 본다.** 고치는 도중에 난 HMR 오류가 콘솔에 남아 있어
+  새로고침만으로는 계속 보인다(결함이 아니라 잔재다)
 - 375px 폭에서 가로 넘침 0 —
-  `document.body.scrollWidth === document.documentElement.clientWidth`
+  `document.body.scrollWidth - document.documentElement.clientWidth > 0` 이면 넘친 것이다.
+  ⚠️ **`===`로 견주지 않는다** — `scrollbar-gutter: stable`이 스크롤바 자리를 늘 비워 둬서
+  내용이 짧은 화면은 본문이 뷰포트보다 좁다. 그걸 넘침으로 잡으면 멀쩡한 화면이 걸린다
 
 **통과했다고 말만 하지 말고 실제로 돌린다.** 실패하면 고치고 다시 돌린다.
 
