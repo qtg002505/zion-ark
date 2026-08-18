@@ -153,6 +153,14 @@ export const EVANGELIST_MAKEUP_FOLDERS = [
 export const EVANGELIST_CONTENT_FOLDERS = ["영인지", "성경기초상식", "하나님에 대한 필요성"];
 
 /**
+ * 분반 · 보강 도우미가 품는 폴더 전부 (2026-08-18) — 보강 자료 7 + 보강 콘텐츠 3.
+ *
+ * 화면(`/makeup`)이 이 목록으로 **자기 폴더인지** 가른다. 강의 도우미의
+ * `INSTRUCTOR_EARLY_FOLDERS`와 같은 자리다 — 목록에 없는 이름이 오면 전체로 되돌린다.
+ */
+export const EVANGELIST_ALL_FOLDERS = [...EVANGELIST_MAKEUP_FOLDERS, ...EVANGELIST_CONTENT_FOLDERS];
+
+/**
  * 자료실 아카이브 폴더 (2026-08-10 리드 지시 · **2026-08-13 두 개로 줄임**) —
  * 자료실은 **대용량 장기 보관 아카이브** 위주다. 실무 교육 자료는 강의·분반보강 도우미가
  * 가져갔고, 「지파별 취합 도서」는 리드 지시로 뺐다.
@@ -173,8 +181,7 @@ export const ARCHIVE_FOLDERS = ["실상 뮤지컬 영상", "계시록 삽화"];
  */
 export const LIBRARY_FOLDERS: string[] = [
   ...INSTRUCTOR_EARLY_FOLDERS,
-  ...EVANGELIST_MAKEUP_FOLDERS,
-  ...EVANGELIST_CONTENT_FOLDERS,
+  ...EVANGELIST_ALL_FOLDERS,
   ...ARCHIVE_FOLDERS,
 ];
 

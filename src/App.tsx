@@ -39,6 +39,7 @@ const Library = lazy(() => import("./pages/Library").then((m) => ({ default: m.L
 const TeachingLibrary = lazy(() =>
   import("./pages/TeachingLibrary").then((m) => ({ default: m.TeachingLibrary })),
 );
+const MakeupLibrary = lazy(() => import("./pages/MakeupLibrary").then((m) => ({ default: m.MakeupLibrary })));
 const TendencyAnalysis = lazy(() =>
   import("./pages/TendencyAnalysis").then((m) => ({ default: m.TendencyAnalysis })),
 );
@@ -117,6 +118,8 @@ function Routed() {
         <Route path="/library" element={<Library />} />
         {/* 강의 도우미 안의 자료실 — 밭갈이 각 파트·예배설교 (2026-08-13) */}
         <Route path="/teaching" element={<TeachingLibrary />} />
+        {/* 분반·보강 도우미 안의 자료실 — 보강 자료·보강 콘텐츠 (2026-08-18, `/teaching`과 같은 짜임) */}
+        <Route path="/makeup" element={<MakeupLibrary />} />
         <Route path="/tendency" element={<TendencyAnalysis />} />
         <Route path="/series/:seriesId" element={<SeriesReader />} />
         <Route path="/notices" element={<Notices />} />

@@ -246,23 +246,28 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "분반 · 보강 도우미",
     icon: Sprout,
+    /*
+      ⚠️ **자료를 `/makeup`에서 연다** (2026-08-18 — 종전에는 `/library`로 나갔다).
+      강의 도우미가 2026-08-13에 안에서 열게 된 것과 같은 이유다: 같은 성격의 자료인데
+      한쪽만 자료실로 나가면 동선이 어긋난다. 자료실에도 그대로 남아 있다(전체 보기 겸용).
+    */
     subGroups: [
       {
         label: "분반 자료",
         icon: ClipboardList,
-        items: [{ to: "/library?tab=class_material", label: "분반·보강 자료", icon: BookOpen }],
+        items: [{ to: "/makeup?tab=class_material", label: "분반·보강 자료", icon: BookOpen }],
       },
       {
         label: "보강 자료",
         icon: RefreshCw,
-        items: folderItems("/library", EVANGELIST_MAKEUP_FOLDERS),
+        items: folderItems("/makeup", EVANGELIST_MAKEUP_FOLDERS),
       },
       {
         // 2026-08-08 자료실에서 이관 — 실제 열람 동선을 보강 쪽으로 모은다.
         // 2026-08-10 자료실이 아카이브 위주로 축소되면서 이관 3종만 여기 남는다
         label: "보강 콘텐츠",
         icon: BookOpenText,
-        items: folderItems("/library", EVANGELIST_CONTENT_FOLDERS),
+        items: folderItems("/makeup", EVANGELIST_CONTENT_FOLDERS),
       },
     ],
   },
@@ -488,6 +493,7 @@ const PAGE_LABEL_FALLBACKS: [RegExp, string][] = [
   [/^\/library\?q=/, "자료실 · 검색"],
   [/^\/library\?open=/, "자료실 · 자료 상세"],
   [/^\/teaching\?.*open=/, "강의 도우미 · 자료 상세"],
+  [/^\/makeup\?.*open=/, "분반 · 보강 도우미 · 자료 상세"],
   [/^\/series\//, "자료실 · 신천지도서"],
 ];
 
