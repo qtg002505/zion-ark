@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "../components/TransitionLink";
 import { ChevronDown, ChevronUp, Quote } from "lucide-react";
-import { QUOTE_ITEMS } from "../content/quotes-data";
+import type { QuoteItem } from "../content/quotes-data";
 import { kstToday, pickOfDay } from "../lib/daily";
 
 const COLLAPSED_KEY = "zion_ark_daily_quote_collapsed";
@@ -29,8 +29,25 @@ export function DailyQuote() {
   });
   const [full, setFull] = useState(false);
 
-  const quote = useMemo(() => pickOfDay(QUOTE_ITEMS), []);
-  if (!quote) return null;
+  /*
+    어록 원문은 **띠를 그릴 때 받아 온다** (2026-08-18 번들 가르기).
+    한 줄 보여 주자고 어록 전체(원문 468KB)를 첫 화면이 지고 뜨던 자리였다.
+    셸에 붙어 있어 어느 화면을 열든 따라왔다.
+
+    ⚠️ **받아 오는 사이에도 띠 자리를 비워 두지 않는다** — 나중에 불쑥 나타나면 본문이
+    아래로 밀려 화면이 한 번 출렁인다. 글자만 비고 높이는 그대로다.
+    (본문은 `line-clamp-2`라 어록이 길든 짧든 두 줄을 넘지 않아 자리가 어긋나지 않는다.)
+  */
+  const [quote, setQuote] = useState<QuoteItem | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void import("../content/quotes-data").then((m) => {
+      if (alive) setQuote(pickOfDay(m.QUOTE_ITEMS));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   function setCollapsedState(next: boolean) {
     try {
@@ -54,7 +71,7 @@ export function DailyQuote() {
           <span className="flex h-4 shrink-0 items-center gap-1 rounded bg-gold-500 px-1.5 text-[9.5px] font-black text-zion-950">
             <Quote size={9} /> 오늘의 어록
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11.5px] text-white/60">{quote.text}</span>
+          <span className="min-w-0 flex-1 truncate text-[11.5px] text-white/60">{quote?.text ?? ""}</span>
           <span className="flex shrink-0 items-center gap-0.5 text-[10.5px] font-semibold text-gold-300">
             펼치기 <ChevronDown size={11} />
           </span>
@@ -63,7 +80,7 @@ export function DailyQuote() {
     );
   }
 
-  const long = quote.text.length > 90;
+  const long = (quote?.text.length ?? 0) > 90;
 
   return (
     <div className="border-b border-zion-800 bg-zion-900 text-white">
@@ -79,11 +96,11 @@ export function DailyQuote() {
               "text-[12.5px] leading-relaxed text-white/95 " + (!full && long ? "line-clamp-2" : "")
             }
           >
-            {quote.text}
+            {quote?.text ?? ""}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="text-[10.5px] text-white/60">
-              총회장님 어록 · {quote.category} {quote.no}번
+              {quote ? `총회장님 어록 · ${quote.category} ${quote.no}번` : "총회장님 어록"}
             </span>
             {long && (
               <button

@@ -34,8 +34,12 @@ export function AskAiBar() {
   const [picked, setPicked] = useState<Set<Kind>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
   const [open, setOpen] = useState(false);
+  /** 자료 뭉치를 처음 받아 오는 동안 켜진다 (2026-08-18 번들 가르기) */
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  /** 몇 번째 질문인지 — 늦게 온 옛 답을 버리는 데 쓴다 */
+  const reqRef = useRef(0);
 
   // 드롭다운 밖을 누르거나 Esc를 누르면 닫는다
   useEffect(() => {
@@ -54,16 +58,32 @@ export function AskAiBar() {
     };
   }, [filterOpen]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    // 전체를 받아 둔다 — 갈래별 건수와 필터가 여기서 나온다 (로컬 자료라 부담 없음)
-    setAllHits(searchSite(query, materials, entries, Number.POSITIVE_INFINITY));
+    /*
+      2026-08-18부터 `searchSite`는 비동기다 — 교안·어록·시리즈 원문을 **첫 질문 때**
+      받아 오기 때문이다(번들 가르기). 그 뒤로는 만들어 둔 것을 다시 써 곧바로 답한다.
+
+      ⚠️ **늦게 온 옛 답이 새 답을 덮지 않게** 요청 번호를 매긴다. 첫 질문은 자료를
+      내려받느라 늦고 둘째 질문은 곧바로 끝나므로, 막지 않으면 화면에 첫 질문의 결과가
+      뒤늦게 얹힌다.
+    */
+    const req = ++reqRef.current;
     setOpen(true);
+    setLoading(true);
+    // 전체를 받아 둔다 — 갈래별 건수와 필터가 여기서 나온다 (로컬 자료라 부담 없음)
+    const found = await searchSite(query, materials, entries, Number.POSITIVE_INFINITY);
+    if (req !== reqRef.current) return;
+    setAllHits(found);
+    setLoading(false);
   }
 
   function close() {
     setOpen(false);
     setAllHits(null);
+    setLoading(false);
+    // 아직 오지 않은 답을 버린다 — 닫은 뒤에 결과가 도착해 다시 열리지 않게 한다
+    reqRef.current++;
   }
 
   function toggleKind(k: Kind) {
@@ -223,10 +243,24 @@ export function AskAiBar() {
 
       {/* aria-live 상시 렌더 */}
       <div aria-live="polite" className="sr-only">
-        {filtered !== null ? `검색 결과 ${filtered.length}건${picked.size > 0 ? ` — ${pickedLabel}만 보는 중` : ""}` : ""}
+        {loading
+          ? "자료를 찾는 중입니다"
+          : filtered !== null
+            ? `검색 결과 ${filtered.length}건${picked.size > 0 ? ` — ${pickedLabel}만 보는 중` : ""}`
+            : ""}
       </div>
 
-      {open && filtered !== null && hits !== null && (
+      {/*
+        첫 질문에만 잠깐 보인다 — 자료 뭉치를 그때 받아 오기 때문이다.
+        빈 자리를 두면 「눌렀는데 아무 일도 안 일어났다」로 읽히므로 무엇을 하는 중인지 적는다.
+      */}
+      {open && loading && (
+        <div className="absolute left-0 right-0 top-full z-40 mt-2 rounded-xl border border-zion-200 bg-white p-4 shadow-lg">
+          <p className="text-center text-[13px] text-ink-soft">자료를 찾는 중입니다</p>
+        </div>
+      )}
+
+      {open && !loading && filtered !== null && hits !== null && (
         <div className="absolute left-0 right-0 top-full z-40 mt-2 rounded-xl border border-zion-200 bg-white p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[12px] font-semibold text-zion-800">

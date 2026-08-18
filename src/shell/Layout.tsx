@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Link } from "../components/TransitionLink";
 import { Menu, UserRound } from "lucide-react";
@@ -165,7 +165,14 @@ export function Layout() {
         </header>
 
         <main className="mx-auto max-w-[var(--content-w,72rem)] px-4 py-4 sm:px-6">
-          <Outlet />
+          {/*
+            화면 코드는 라우트마다 따로 받아 온다 (2026-08-18 번들 가르기 — `App.tsx`의 `lazy`).
+            받아 오는 사이 **셸(머리·사이드바)은 그대로 두고 본문 자리만** 채운다.
+            셸까지 함께 사라지면 화면이 통째로 깜빡여 이동이 실패한 것처럼 보인다.
+          */}
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
 
         <footer className="mx-auto max-w-[var(--content-w,72rem)] px-4 pb-8 pt-4 text-[11px] text-ink-soft sm:px-6">
@@ -174,6 +181,21 @@ export function Layout() {
       </div>
 
       <ScrollToTop />
+    </div>
+  );
+}
+
+/**
+ * 화면 코드를 받아 오는 동안 본문 자리를 지킨다.
+ *
+ * 뼈대(스켈레톤)를 그리지 않는 것은 의도한 선택이다 — 화면마다 생김새가 달라
+ * 흉내 낸 뼈대가 실제와 어긋나면 오히려 잘못 그려진 것처럼 보인다.
+ * 무엇을 하는 중인지 한 줄로 적고, 낭독기에도 같은 말이 가게 `role="status"`를 준다.
+ */
+function RouteFallback() {
+  return (
+    <div role="status" aria-live="polite" className="py-20 text-center text-[13px] text-ink-soft">
+      화면을 불러오는 중입니다
     </div>
   );
 }

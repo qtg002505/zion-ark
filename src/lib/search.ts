@@ -1,10 +1,3 @@
-import { elementaryLessons } from "../content/elementary-lessons";
-import { ELEMENTARY_COURSE_TITLES } from "../content/curriculum-titles";
-import { HIGH_LESSONS } from "../content/lessons-high";
-import { enneagramGuides } from "../content/enneagram-guides";
-import { SERIES } from "../content/series-content";
-import { QUOTE_ITEMS } from "../content/quotes-data";
-import { ALL_TERMS } from "../content/glossary";
 import { looseIndexOf, normalizeForSearch } from "./text-match";
 import type { LibraryMaterial, WorkspaceEntry } from "./types";
 
@@ -150,7 +143,7 @@ function snippetOf(text: string, term: string, len = 90): string {
 }
 
 /** 검색 한 건의 재료 — 어디서 왔든 여기까지 오면 같은 방식으로 점수를 매긴다 */
-interface Doc {
+export interface SearchDoc {
   source: string;
   sourceType: SearchHit["sourceType"];
   title: string;
@@ -162,84 +155,25 @@ interface Doc {
  * 빌드에 박힌 자료는 바뀌지 않는다 — 질의마다 문자열을 다시 잇지 않고 한 번만 만든다.
  * (스토어에서 오는 자료실·공지·어록은 바뀌므로 매번 만든다.)
  */
-let staticDocs: Doc[] | null = null;
+let staticDocs: SearchDoc[] | null = null;
+/** 받아 오는 중에 또 물어도 **한 번만** 내려받게 붙잡아 두는 자리 */
+let corpusLoading: Promise<SearchDoc[]> | null = null;
 
-function buildStaticDocs(): Doc[] {
-  const docs: Doc[] = [];
-
-  /**
-   * 용어집 — 뜻을 묻는 질문이 가장 많이 들어오는 자리다.
-   * 정의 원문을 그대로 실어 **결과 줄에서 바로 읽히게** 한다.
-   * 전용 화면이 아직 없어 상담 도우미(테마별 용어 설명)로 보낸다.
-   */
-  for (const t of ALL_TERMS) {
-    docs.push({
-      source: `용어 — ${t.term}`,
-      sourceType: "용어",
-      title: t.term,
-      href: "/counseling",
-      body: [t.definition, t.note, ...(t.aliases ?? [])].filter(Boolean).join(" "),
-    });
-  }
-
-  for (const lesson of elementaryLessons) {
-    /*
-      ⚠️ **강 번호를 표기에 넣지 않는다** (2026-08-15 리드 지시 — 학원법).
-      과수 제목은 정본 목록(`curriculum-titles.ts`)에서 가져오고, 목록에 없으면 원문 제목을 쓴다.
-    */
-    const courseTitle = ELEMENTARY_COURSE_TITLES[lesson.lessonNo - 1] ?? lesson.title;
-    docs.push({
-      source: `초등 교안 — ${courseTitle}`,
-      sourceType: "교안",
-      title: courseTitle,
-      href: "/lessons",
-      body: lesson.sections.map((s) => s.label + " " + s.items.join(" ")).join(" "),
-    });
-  }
-
-  for (const l of HIGH_LESSONS) {
-    docs.push({
-      source: `고등 교안 ${l.label}`,
-      sourceType: "교안",
-      title: `${l.label} — ${l.title}`,
-      href: "/lessons?course=high",
-      body: l.body,
-    });
-  }
-
-  for (const g of enneagramGuides) {
-    docs.push({
-      source: `에니어그램 ${g.typeNo}번 유형 — ${g.title}`,
-      sourceType: "에니어그램",
-      title: `${g.typeNo}번 유형 — ${g.title}`,
-      href: "/enneagram",
-      body: g.sections.map((s) => s.label + " " + s.items.join(" ")).join(" "),
-    });
-  }
-
-  for (const s of SERIES) {
-    for (const ch of s.chapters) {
-      docs.push({
-        source: `${s.name} ${ch.label}`,
-        sourceType: "시리즈",
-        title: `${ch.label} ${ch.title}`,
-        href: `/series/${s.id}?ch=${ch.id}`,
-        body: ch.body,
-      });
-    }
-  }
-
-  for (const it of QUOTE_ITEMS) {
-    docs.push({
-      source: `총회장님 어록 — ${it.category} ${it.no}번`,
-      sourceType: "어록",
-      title: it.text.length > 60 ? it.text.slice(0, 60) + "…" : it.text,
-      href: "/quotes",
-      body: `${it.category} ${it.text}`,
-    });
-  }
-
-  return docs;
+/**
+ * 자료 뭉치를 **처음 검색할 때** 가져온다 (2026-08-18 — 번들 가르기).
+ *
+ * 원문(시리즈·어록·교안)이 2MB가 넘는데 종전에는 이 파일이 그것을 정적으로 안고 있었고,
+ * 셸의 검색창이 이 파일을 부르니 **화면마다 전 자료를 지고 떴다.**
+ * 지금은 `search-corpus`를 따로 두고 여기서 동적으로 부른다 — 검색을 쓰지 않는 사람은
+ * 끝까지 받지 않고, 한 번 받은 뒤에는 종전처럼 만들어 둔 것을 다시 쓴다.
+ */
+async function loadStaticDocs(): Promise<SearchDoc[]> {
+  if (staticDocs) return staticDocs;
+  corpusLoading ??= import("./search-corpus").then((m) => {
+    staticDocs = m.buildStaticDocs();
+    return staticDocs;
+  });
+  return corpusLoading;
 }
 
 /** 결과 수 — 점수순으로 정렬한 뒤 자르므로 종전(8건, 순서 없음)보다 손해가 없다 */
@@ -249,18 +183,21 @@ const LIMIT = 10;
  * `limit` 인자 (2026-08-13 카테고리 필터) — 호출 쪽이 전체 결과를 받아 **거른 뒤에**
  * 자를 수 있게 한다. 여기서 10건으로 잘라 버리면 「교안만 보기」가 0건이 되는 함정이
  * 생긴다(상위 10건이 전부 다른 갈래일 때). 기본값은 종전과 같아 하위 호환이다.
+ *
+ * ⚠️ **2026-08-18부터 비동기다.** 자료 뭉치를 첫 검색 때 받아 오기 때문이다(위 `loadStaticDocs`).
+ * 부르는 쪽은 결과를 기다려야 하고, 기다리는 사이 또 물을 수 있으므로 **늦게 온 옛 답이
+ * 새 답을 덮지 않게** 막아야 한다 (`AskAiBar`가 요청 번호로 거른다).
  */
-export function searchSite(
+export async function searchSite(
   rawQuery: string,
   materials: LibraryMaterial[],
   entries: WorkspaceEntry[],
   limit: number = LIMIT,
-): SearchHit[] {
+): Promise<SearchHit[]> {
   const tokens = tokenize(rawQuery);
   if (tokens.length === 0) return [];
 
-  staticDocs ??= buildStaticDocs();
-  const docs: Doc[] = [...staticDocs];
+  const docs: SearchDoc[] = [...(await loadStaticDocs())];
 
   for (const m of materials) {
     docs.push({ source: "자료실", sourceType: "자료실", title: m.title, href: "/library", body: m.body });

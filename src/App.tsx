@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { canViewMissionCenters, canViewSiteUsage } from "./lib/permissions";
@@ -5,27 +6,54 @@ import { StoreProvider } from "./lib/store";
 import { PlayerProvider } from "./shell/player";
 import { Layout } from "./shell/Layout";
 import { Login } from "./pages/Login";
-import { Overview } from "./pages/Overview";
-import { CohortStatus } from "./pages/CohortStatus";
-import { StudentsDashboard } from "./pages/StudentsDashboard";
-import { StudentDetailPage } from "./pages/StudentDetailPage";
 import { Main } from "./pages/Main";
-import { Compose } from "./pages/Compose";
-import { Library } from "./pages/Library";
-import { TeachingLibrary } from "./pages/TeachingLibrary";
-import { TendencyAnalysis } from "./pages/TendencyAnalysis";
-import { SeriesReader } from "./pages/SeriesReader";
-import { Notices } from "./pages/Notices";
-import { Board } from "./pages/Board";
-import { Quotes } from "./pages/Quotes";
-import { Lessons } from "./pages/Lessons";
-import { Enneagram } from "./pages/Enneagram";
-import { WeeklyPlanPage } from "./pages/WeeklyPlanPage";
-import { CounselCases } from "./pages/CounselCases";
-import { Counseling } from "./pages/Counseling";
-import { Centers } from "./pages/Centers";
-import { SiteUsage } from "./pages/SiteUsage";
-import { MyPage } from "./pages/MyPage";
+
+/**
+ * 화면 코드는 **라우트마다 따로 받아 온다** (2026-08-18 — 첫 화면 번들 줄이기).
+ *
+ * 현장에서 휴대전화로 여는 사이트인데 번들이 gzip 1MB를 넘겼다. 한 사람이 한 번에 보는 것은
+ * 화면 하나뿐이므로 **들어가는 화면만 받고 나머지는 누를 때** 받는다. 받아 오는 사이 셸(머리·
+ * 사이드바)은 그대로 있고 본문 자리만 채워진다 — `Layout`의 `Suspense`가 그 자리를 지킨다.
+ *
+ * ⚠️ **`Login`과 `Main`은 가르지 않는다.** 로그인 화면은 세션이 없으면 곧바로 필요하고,
+ * 메인은 로고를 누르면 오는 착지 화면이다. 이 둘까지 미루면 첫 화면이 한 박자 늦게 뜬다.
+ *
+ * ⚠️ 화면들이 `export function 이름`이라 기본 내보내기가 없다 — `lazy`에 그대로 못 넘기고
+ * `.then`으로 `default`에 실어 준다. **화면 이름을 바꾸면 여기도 함께 고쳐야 한다**
+ * (타입이 잡아 주므로 조용히 깨지지는 않는다).
+ *
+ * ⚠️ **팀 공유 프리뷰(단일 HTML)는 이 가르기를 되돌려 빌드한다** — `vite.config.ts`의
+ * `preview` 모드가 청크를 도로 하나로 합친다. 단일 HTML은 외부 파일을 받아 올 수 없어
+ * 갈라 둔 채로 묶으면 **화면이 아예 안 뜬다**.
+ */
+const Overview = lazy(() => import("./pages/Overview").then((m) => ({ default: m.Overview })));
+const CohortStatus = lazy(() => import("./pages/CohortStatus").then((m) => ({ default: m.CohortStatus })));
+const StudentsDashboard = lazy(() =>
+  import("./pages/StudentsDashboard").then((m) => ({ default: m.StudentsDashboard })),
+);
+const StudentDetailPage = lazy(() =>
+  import("./pages/StudentDetailPage").then((m) => ({ default: m.StudentDetailPage })),
+);
+const Compose = lazy(() => import("./pages/Compose").then((m) => ({ default: m.Compose })));
+const Library = lazy(() => import("./pages/Library").then((m) => ({ default: m.Library })));
+const TeachingLibrary = lazy(() =>
+  import("./pages/TeachingLibrary").then((m) => ({ default: m.TeachingLibrary })),
+);
+const TendencyAnalysis = lazy(() =>
+  import("./pages/TendencyAnalysis").then((m) => ({ default: m.TendencyAnalysis })),
+);
+const SeriesReader = lazy(() => import("./pages/SeriesReader").then((m) => ({ default: m.SeriesReader })));
+const Notices = lazy(() => import("./pages/Notices").then((m) => ({ default: m.Notices })));
+const Board = lazy(() => import("./pages/Board").then((m) => ({ default: m.Board })));
+const Quotes = lazy(() => import("./pages/Quotes").then((m) => ({ default: m.Quotes })));
+const Lessons = lazy(() => import("./pages/Lessons").then((m) => ({ default: m.Lessons })));
+const Enneagram = lazy(() => import("./pages/Enneagram").then((m) => ({ default: m.Enneagram })));
+const WeeklyPlanPage = lazy(() => import("./pages/WeeklyPlanPage").then((m) => ({ default: m.WeeklyPlanPage })));
+const CounselCases = lazy(() => import("./pages/CounselCases").then((m) => ({ default: m.CounselCases })));
+const Counseling = lazy(() => import("./pages/Counseling").then((m) => ({ default: m.Counseling })));
+const Centers = lazy(() => import("./pages/Centers").then((m) => ({ default: m.Centers })));
+const SiteUsage = lazy(() => import("./pages/SiteUsage").then((m) => ({ default: m.SiteUsage })));
+const MyPage = lazy(() => import("./pages/MyPage").then((m) => ({ default: m.MyPage })));
 
 function Routed() {
   const { session } = useAuth();
