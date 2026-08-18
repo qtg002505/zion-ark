@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Portal } from "../components/Portal";
 import {
   CheckCircle2,
@@ -144,43 +145,24 @@ export function CounselCases() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="사례 구분">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              role="tab"
-              aria-selected={filter === f.key}
-              onClick={() => setFilter(f.key)}
-              className={
-                "shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
-                (filter === f.key ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="정렬">
-          {(
-            [
-              ["popular", "인기순"],
-              ["recent", "최신순"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              role="tab"
-              aria-selected={sort === key}
-              onClick={() => setSort(key)}
-              className={
-                "rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
-                (sort === key ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          label="사례 구분"
+          size="sm"
+          scroll
+          value={filter}
+          onChange={setFilter}
+          items={FILTERS.map((f) => ({ id: f.key, label: f.label }))}
+        />
+        <SegmentedTabs
+          label="정렬"
+          size="sm"
+          value={sort}
+          onChange={setSort}
+          items={[
+            { id: "popular", label: "인기순" },
+            { id: "recent", label: "최신순" },
+          ]}
+        />
         <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-1.5">
           <Search size={13} className="shrink-0 text-ink-soft" />
           <input

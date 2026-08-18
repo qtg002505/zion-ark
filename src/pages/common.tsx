@@ -30,8 +30,14 @@ export function PageHeader({
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
+      /*
+        테두리를 `zion-100` → `zion-200`으로 한 단계 올렸다 (2026-08-18).
+        바탕(surface)과 카드(흰색)의 대비가 **1.08**이라 면끼리는 사실상 구분되지 않는다 —
+        경계를 만드는 것은 테두리 하나뿐인데 그마저 옅어 카드가 배경에 묻혀 있었다.
+        한 단계만 올린다: 더 진하게 하면 카드가 많은 화면에서 격자무늬처럼 답답해진다.
+      */
       className={
-        "rounded-card border border-zion-100 bg-white p-5 shadow-sm transition-shadow duration-300 hover:shadow-md " +
+        "rounded-card border border-zion-200 bg-white p-5 shadow-sm transition-shadow duration-300 hover:shadow-md " +
         className
       }
     >

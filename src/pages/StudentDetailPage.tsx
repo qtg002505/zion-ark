@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { useParams } from "react-router-dom";
 // 화면 전환 효과가 조용히 빠지지 않게 여기서 가져온다 (CLAUDE.md 화면 규칙)
 import { Link } from "../components/TransitionLink";
@@ -1885,23 +1886,15 @@ function LevelChecklistCard({
         </span>
       </div>
 
-      <div className="mb-3 flex gap-1 rounded-lg bg-zion-100 p-1" role="tablist" aria-label="단계">
-        {COURSE_LEVELS.map((l) => (
-          <button
-            key={l}
-            type="button"
-            role="tab"
-            aria-selected={level === l}
-            onClick={() => selectLevel(l)}
-            className={
-              "flex-1 rounded-md px-3 py-1.5 text-[12px] font-semibold transition " +
-              (level === l ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-            }
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        label="단계"
+        size="sm"
+        grow
+        className="mb-3"
+        value={level}
+        onChange={selectLevel}
+        items={COURSE_LEVELS.map((l) => ({ id: l, label: l }))}
+      />
 
       {standard.goal && (
         <div className="mb-3 rounded-lg bg-zion-50 px-3 py-2 text-[12px] text-zion-800">

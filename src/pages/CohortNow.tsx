@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { ChevronDown, TriangleAlert, Trophy } from "lucide-react";
 import { useStore } from "../lib/store";
 import { STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
@@ -84,27 +85,17 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
             </p>
           </div>
           {/* 단계 토글 — 고른 단계는 그 단계 색으로 칠한다 (2026-08-15 리드 지시) */}
-          <div className="flex shrink-0 rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="단계">
-            {LEVELS.map((l) => (
-              <button
-                key={l}
-                role="tab"
-                aria-selected={level === l}
-                onClick={() => {
-                  setLevel(l);
-                  setOpenGroup(null);
-                }}
-                className={
-                  "rounded-md px-3 py-1 text-[12px] font-semibold transition " +
-                  (level === l
-                    ? `${LEVEL_TONE[l]} shadow-sm`
-                    : "text-zion-600 hover:text-zion-800")
-                }
-              >
-                {l}
-              </button>
-            ))}
-          </div>
+          {/* 고른 단계는 **그 단계 색**으로 칠한다 (초등 하늘 · 중등 주황 · 고등 남색) */}
+          <SegmentedTabs
+            label="단계"
+            size="sm"
+            value={level}
+            onChange={(l) => {
+              setLevel(l);
+              setOpenGroup(null);
+            }}
+            items={LEVELS.map((l) => ({ id: l, label: l, activeClass: `${LEVEL_TONE[l]} shadow-sm` }))}
+          />
         </div>
 
         {/* 한눈 요약 — 숫자 셋이면 상태가 읽힌다 */}

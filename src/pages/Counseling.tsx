@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Portal } from "../components/Portal";
 import { Link } from "../components/TransitionLink";
 import {
@@ -259,27 +260,16 @@ function TipSection({ theme }: { theme: Theme }) {
       <ThemeGlossary themeNo={theme.no} />
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="정렬">
-          {(
-            [
-              ["popular", "인기순"],
-              ["recent", "최신순"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              role="tab"
-              aria-selected={sort === key}
-              onClick={() => setSort(key)}
-              className={
-                "rounded-lg px-3 py-1 text-[12px] font-semibold transition " +
-                (sort === key ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          label="정렬"
+          size="sm"
+          value={sort}
+          onChange={setSort}
+          items={[
+            { id: "popular", label: "인기순" },
+            { id: "recent", label: "최신순" },
+          ]}
+        />
         {writable && (
           <button
             onClick={() => setFormOpen(true)}

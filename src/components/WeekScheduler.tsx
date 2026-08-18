@@ -8,6 +8,7 @@ import { STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
 import { kstToday } from "../lib/daily";
 import { AnchoredPopover } from "./AnchoredPopover";
+import { SegmentedTabs } from "./SegmentedTabs";
 import { Card } from "../pages/common";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -50,8 +51,12 @@ export function WeekScheduler() {
   /**
    * 주간/월간 보기 (2026-08-17 리드 지시 — 「월간 일정 관리도 자유롭게」).
    * 같은 일정 저장소를 두 눈금으로 보는 것뿐이다 — 월간에서 넣은 일정이 주간에도 그대로 있다.
+   *
+   * **기본은 월간이다** (2026-08-18 리드 지시). 일정을 「이번 주에 뭐 있지」보다
+   * 「이번 달에 뭐 있지」로 먼저 보기 때문이다 — 한 달을 펼쳐 놓고 빈 날을 찾는 쪽이
+   * 개인 일정을 잡는 실제 순서에 맞는다. 주간은 그 달 안에서 좁혀 보는 눈금이 됐다.
    */
-  const [view, setView] = useState<"week" | "month">("week");
+  const [view, setView] = useState<"week" | "month">("month");
   const [offset, setOffset] = useState(0); // 0 = 이번 주 / 이번 달 (보기 단위를 따른다)
   /** 고른 날짜 + 누른 칸 — 팝오버가 그 자리에서 열리게 (2026-08-10 리드 지시) */
   const [openDay, setOpenDay] = useState<{ date: string; anchor: HTMLElement } | null>(null);
@@ -197,30 +202,19 @@ export function WeekScheduler() {
           <CalendarDays size={15} className="text-zion-600" /> 내 일정
         </div>
         {/* 주간 ↔ 월간 (2026-08-17 리드 지시) — 기수 달력의 월간/주간 토글과 같은 모양 */}
-        <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="일정 보기">
-          {(
-            [
-              ["week", "주간"],
-              ["month", "월간"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              role="tab"
-              aria-selected={view === v}
-              onClick={() => {
-                setView(v);
-                setOffset(0); // 보기 단위가 다르므로 자리를 처음으로 되돌린다
-              }}
-              className={
-                "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
-                (view === v ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          label="일정 보기"
+          size="sm"
+          value={view}
+          onChange={(v) => {
+            setView(v);
+            setOffset(0); // 보기 단위가 다르므로 자리를 처음으로 되돌린다
+          }}
+          items={[
+            { id: "month", label: "월간" },
+            { id: "week", label: "주간" },
+          ]}
+        />
         <div className="flex items-center gap-1">
           <button
             onClick={() => setOffset((v) => v - 1)}

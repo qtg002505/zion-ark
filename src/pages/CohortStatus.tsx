@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Portal } from "../components/Portal";
 import { useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight, PencilLine, Users, X } from "lucide-react";
@@ -148,22 +149,14 @@ export function CohortStatus() {
         「왼쪽 대카테고리에서 펼치고, 우측 큰 창은 지난번처럼 가로 열」이 리드의 뜻이다.
         누르면 주소(`?tab=`)가 바뀌므로 **사이드바 항목과 이 탭이 늘 같은 곳을 가리킨다.**
       */}
-      <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="기수 현황 탭">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={
-              "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition sm:px-4 " +
-              (tab === t.id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        label="기수 현황 탭"
+        className="mb-5"
+        scroll
+        value={tab}
+        onChange={setTab}
+        items={TABS.map((t) => ({ id: t.id, label: t.label }))}
+      />
 
       {tab === "summary" && (
         <>
@@ -727,58 +720,35 @@ function AttendanceGrid({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* 보기 전환 — 진도별이 먼저이고 기본이다 (2026-08-14 리드 지시) */}
-          <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="출결 표시 축">
-            {(
-              [
-                ["lesson", "진도별"],
-                /* 2026-08-15 리드 지시 — 같은 요일끼리 묶어 그 요일의 흐름을 본다 */
-                ["weekday", "요일별"],
-                ["week", "주차별"],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                role="tab"
-                aria-selected={axis === k}
-                onClick={() => setAxis(k)}
-                className={
-                  "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
-                  (axis === k ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            label="출결 표시 축"
+            size="sm"
+            value={axis}
+            onChange={setAxis}
+            items={[
+              { id: "lesson", label: "진도별" },
+              /* 2026-08-15 리드 지시 — 같은 요일끼리 묶어 그 요일의 흐름을 본다 */
+              { id: "weekday", label: "요일별" },
+              { id: "week", label: "주차별" },
+            ]}
+          />
           {/*
             출석률에 특강을 넣을지 (2026-08-15 리드 지시). **기본은 정규만**이다 —
             리드가 「특강은 포함되지 않고 메인강의만 포함되도록」이라고 못박았고,
             「특강을 포함해서도 볼 수 있는 필터」를 함께 요청했다.
           */}
           {/* 차례 뒤집기 (2026-08-15 리드 지시) — 주차와 요일이 함께 뒤집힌다 */}
-          <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="회차 차례">
-            {(
-              [
-                [true, "최신순"],
-                [false, "오래된순"],
-              ] as const
-            ).map(([v, label]) => (
-              <button
-                key={label}
-                role="tab"
-                aria-selected={newestFirst === v}
-                onClick={() => setNewestFirst(v)}
-                className={
-                  "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
-                  (newestFirst === v
-                    ? "bg-white text-zion-900 shadow-sm"
-                    : "text-zion-600 hover:text-zion-800")
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            label="회차 차례"
+            size="sm"
+            /* 차례는 참·거짓 한 쌍이라 탭 id로 옮겨 담는다 (부품은 문자열 id를 받는다) */
+            value={newestFirst ? "newest" : "oldest"}
+            onChange={(v) => setNewestFirst(v === "newest")}
+            items={[
+              { id: "newest", label: "최신순" },
+              { id: "oldest", label: "오래된순" },
+            ]}
+          />
           <button
             onClick={() => setIncludeSpecial((v) => !v)}
             aria-pressed={includeSpecial}
@@ -1549,11 +1519,15 @@ function MakeupModal({
                       type="button"
                       onClick={() => setState(k)}
                       aria-pressed={state === k}
+                      /*
+                        `SegmentedTabs`를 쓰지 않는다 — 여기는 화면 전환이 아니라 **폼 값 고르기**라
+                        `role="tablist"`가 잘못된 시맨틱이 된다. 색만 세그먼트 탭과 맞춘다.
+                      */
                       className={
                         "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
                         (state === k
-                          ? "bg-white text-zion-900 shadow-sm"
-                          : "text-zion-600 hover:text-zion-800")
+                          ? "bg-zion-700 text-white shadow-sm"
+                          : "text-zion-600 hover:bg-white/70 hover:text-zion-900")
                       }
                     >
                       {label}
@@ -1727,28 +1701,17 @@ function EightMonthTrend() {
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <div className="text-[14px] font-bold text-zion-900">8개월 출석 흐름</div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg bg-zion-100 p-0.5" role="tablist" aria-label="흐름 그래프 X축">
-            {(
-              [
-                ["month", "월별"],
-                ["session", "회차별"],
-                ["lesson", "진도별"],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                role="tab"
-                aria-selected={xAxis === k}
-                onClick={() => setXAxis(k)}
-                className={
-                  "rounded-md px-2.5 py-1 text-[12px] font-semibold transition " +
-                  (xAxis === k ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            label="흐름 그래프 X축"
+            size="sm"
+            value={xAxis}
+            onChange={setXAxis}
+            items={[
+              { id: "month", label: "월별" },
+              { id: "session", label: "회차별" },
+              { id: "lesson", label: "진도별" },
+            ]}
+          />
           <button
             onClick={copyChart}
             className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
@@ -2162,25 +2125,16 @@ function CohortCompare() {
             출석률이 나옵니다. <strong>기수마다 과정 개월수가 다르므로</strong> 이름 옆에 함께 적습니다.
           </p>
         </div>
-        <div className="flex shrink-0 gap-1 rounded-lg bg-zion-100 p-1">
-          {(
-            [
-              ["tribe", `${COHORT.tribe} 지파 내`],
-              ["all", "12지파 전체"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setScope(id)}
-              className={
-                "rounded-md px-3 py-1.5 text-[12px] font-semibold transition " +
-                (scope === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          label="비교 범위"
+          size="sm"
+          value={scope}
+          onChange={setScope}
+          items={[
+            { id: "tribe", label: `${COHORT.tribe} 지파 내` },
+            { id: "all", label: "12지파 전체" },
+          ]}
+        />
       </div>
 
       {/* 견줄 회차 고르기 — 기본은 우리 기수가 지금 하고 있는 진도다 */}

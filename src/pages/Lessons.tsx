@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "../components/TransitionLink";
 import { ChevronLeft, ChevronRight, Hourglass, Search } from "lucide-react";
@@ -196,36 +197,29 @@ export function Lessons() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="과정 선택">
-          {/*
-            고른 과정은 **그 단계 색**으로 칠한다 (2026-08-15 리드 지시 —
-            초등 하늘색 · 중등 주황색 · 고등 남색). 색값은 `index.css` 한 곳에 있다.
-          */}
-          {(
+        {/*
+          고른 과정은 **그 단계 색**으로 칠한다 (2026-08-15 리드 지시 —
+          초등 하늘색 · 중등 주황색 · 고등 남색). 색값은 `index.css` 한 곳에 있다.
+          ⚠️ 개수를 적지 않는다 — 정본 과수(초 25 · 고 23)와 지금 탑재된 교안 원문
+          (초 23)이 달라 숫자를 적으면 어긋난 값이 보인다. 단계 이름만 낸다.
+        */}
+        <SegmentedTabs
+          label="과정 선택"
+          scroll
+          value={course}
+          onChange={switchCourse}
+          items={(
             [
-              /*
-                ⚠️ 개수를 적지 않는다 — 정본 과수(초 25 · 고 23)와 지금 탑재된 교안 원문
-                (초 23)이 달라 숫자를 적으면 어긋난 값이 보인다. 단계 이름만 낸다.
-              */
               ["elementary", "초등", "초등"],
               ["middle", "중등 (준비 중)", "중등"],
               ["high", "고등", "고등"],
             ] as [Course, string, LessonLevel][]
-          ).map(([id, label, level]) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={course === id}
-              onClick={() => switchCourse(id)}
-              className={
-                "rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
-                (course === id ? `${LEVEL_TONE[level]} shadow-sm` : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          ).map(([id, label, level]) => ({
+            id,
+            label,
+            activeClass: `${LEVEL_TONE[level]} shadow-sm`,
+          }))}
+        />
         {course !== "middle" && (
           <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-100 bg-white px-3 py-2">
             <Search size={13} className="text-ink-soft" />

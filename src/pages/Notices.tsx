@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Portal } from "../components/Portal";
 import { Pin, Plus, X } from "lucide-react";
 import { useSession } from "../lib/auth";
@@ -54,27 +55,18 @@ export function Notices() {
         }
       />
 
-      <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-zion-100 p-1" role="tablist" aria-label="공지 구분">
-        {(
-          [
-            ["notice_hq", "총회 공지"],
-            ["notice_tribe", `지파 공지 (${session.tribe})`],
-          ] as [Tab, string][]
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={
-              "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap shrink-0 transition sm:px-4 " +
-              (tab === id ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        label="공지 구분"
+        className="mb-4"
+        grow
+        scroll
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: "notice_hq" as Tab, label: "총회 공지" },
+          { id: "notice_tribe" as Tab, label: `지파 공지 (${session.tribe})` },
+        ]}
+      />
 
       <div className="space-y-3">
         {list.length === 0 && (

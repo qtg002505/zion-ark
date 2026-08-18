@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Portal } from "../components/Portal";
 import {
   Cake,
@@ -238,30 +239,18 @@ export function WeeklyPlanPage() {
       {/* 보기 전환 + 이동 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {/* 월간/주간 전환 (2026-08-13 리드 지시) */}
-        <div className="flex gap-1 rounded-xl bg-zion-100 p-1" role="tablist" aria-label="달력 보기">
-          {(
-            [
-              ["month", "월간"],
-              ["week", "주간"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              role="tab"
-              aria-selected={view === v}
-              onClick={() => {
-                setView(v);
-                setPicked(null);
-              }}
-              className={
-                "rounded-lg px-3 py-1.5 text-[12px] font-semibold transition " +
-                (view === v ? "bg-white text-zion-900 shadow-sm" : "text-zion-600 hover:text-zion-800")
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          label="달력 보기"
+          value={view}
+          onChange={(v) => {
+            setView(v);
+            setPicked(null);
+          }}
+          items={[
+            { id: "month", label: "월간" },
+            { id: "week", label: "주간" },
+          ]}
+        />
 
         <div className="flex items-center gap-1">
           <button
