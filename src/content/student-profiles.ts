@@ -105,6 +105,28 @@ export interface NoteRevision {
 }
 
 /**
+ * 특이사항 한 건 (2026-08-18 리드 지시).
+ *
+ * 종전에는 특이사항이 **한 줄짜리 텍스트**여서 새로 적으려면 **기존 내용을 지워야 했다**
+ * (지운 값은 `noteHistory`에 쌓여 「지난 자료」로만 볼 수 있었다). 리드 지적대로
+ * 이제 **여러 건을 쌓고 각각 고치거나 지운다.**
+ *
+ * ⚠️ **종전 `note`(한 줄)와 `noteHistory`는 그대로 둔다**(불변식 10) — 이미 저장된 값이
+ * 있고, 수강생 현황 **표는 여전히 `note` 한 줄을 읽는다.** 그래서 항목을 더하거나 고칠 때
+ * **가장 최근 항목을 `note`에도 함께 써 넣어** 표와 상세가 어긋나지 않게 한다.
+ */
+export interface StudentNoteItem {
+  id: string;
+  text: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+  /** 고친 적이 있으면 마지막으로 고친 때 — 없으면 처음 그대로다 */
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+/**
  * 상단 상태 표시줄(소속·상태·유월·신앙 상태) 수동 변경 기록.
  *
  * 기본값은 기본정보로 자동 지정된다 — 소속은 나이·성별로(`fellowshipOf`), 등급은 출결
@@ -148,6 +170,12 @@ export interface StudentStatusOverride {
   note?: string;
   /** note를 덮어쓸 때마다 직전 값을 여기 쌓는다(최근 20건, 최신이 앞) — 최초값(씨앗)은 안 들어간다 */
   noteHistory?: NoteRevision[];
+  /**
+   * 특이사항 여러 건 (2026-08-18 리드 지시) — **`note` 한 줄을 대신한다.**
+   * 전방 추가라 옵션이고, 값이 없는 수강생은 종전대로 `note` 한 줄만 있다.
+   * ⚠️ 최신 항목은 `note`에도 함께 써 넣는다 — 수강생 현황 표가 그 값을 읽기 때문이다.
+   */
+  noteItems?: StudentNoteItem[];
   /** 연락 가능 시간대 — 있으면 씨앗 값(`StudentProfile.availableTime`) 대신 쓴다 */
   availableTime?: string;
   /** 관심사 — 있으면 씨앗 값(`StudentProfile.interests`) 대신 쓴다 */

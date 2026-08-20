@@ -715,6 +715,8 @@ interface StoreValue {
         | "religion"
         | "faithYears"
         | "note"
+        /* 특이사항 여러 건 (2026-08-18) — `note`는 표가 읽는 최신 한 줄로 함께 갱신한다 */
+        | "noteItems"
         | "availableTime"
         | "interests"
         | "guideMemo"

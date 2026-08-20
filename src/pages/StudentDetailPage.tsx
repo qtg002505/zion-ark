@@ -4,7 +4,20 @@ import { useParams } from "react-router-dom";
 // 화면 전환 효과가 조용히 빠지지 않게 여기서 가져온다 (CLAUDE.md 화면 규칙)
 import { Link } from "../components/TransitionLink";
 import { Portal } from "../components/Portal";
-import { ArrowLeft, BookOpen, Sparkles, StickyNote, PencilLine, Check, X, Search, Camera } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Sparkles,
+  StickyNote,
+  PencilLine,
+  Pencil,
+  Plus,
+  Trash2,
+  Check,
+  X,
+  Search,
+  Camera,
+} from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, canEditCohortRecord } from "../lib/permissions";
@@ -36,6 +49,7 @@ import {
   type EnrollmentStatus,
   type RegistrationType,
   type ShapeType,
+  type StudentNoteItem,
 } from "../content/student-profiles";
 import { attendanceStreak, readSignals } from "../lib/attendance-signals";
 import { gradeOf, GRADE_LABELS, SUGGESTIONS, growthScore, type Grade } from "../lib/student-grade";
@@ -254,6 +268,8 @@ export function StudentDetailPage({
   const note = override?.note ?? p.note;
   // 이력 목록 — 지금 값은 안 넣는다(위에 이미 보이므로). "최초"(씨앗 값)를 맨 끝에 덧붙인다:
   // override가 처음 생길 때는 store가 씨앗을 몰라 이력에 못 넣으므로 여기서 항상 붙여 준다
+  /** 특이사항 여러 건 (2026-08-18) — 없으면 빈 목록이고, 화면이 종전 `note` 한 줄을 대신 보인다 */
+  const noteItems = override?.noteItems ?? [];
   const noteHistory: { text: string; label: string }[] = [
     ...(override?.noteHistory ?? []).map((h) => ({ text: h.text, label: `${h.editedBy} · ${h.editedAt.slice(0, 10)}` })),
     { text: p.note, label: "최초" },
@@ -890,11 +906,23 @@ export function StudentDetailPage({
             카드(그런 체인이 없는 일반 블록)에 그대로 쓰면 박스가 카드 전체 높이만큼 늘어나
             아래 「현재 상황」 카드와 겹친다 — `!h-auto`로 되돌린다.
           */}
-          <NoteInfoBox
-            note={note}
-            noteHistory={noteHistory}
+          {/*
+            2026-08-18 리드 지시로 **여러 건을 쌓는 목록**이 됐다 — 종전에는 새로 적으려면
+            기존 내용을 지워야 했다. 최신 항목은 `note`에도 함께 써 넣는다(표가 그 값을 읽는다).
+          */}
+          <NoteListBox
+            items={noteItems}
+            legacyNote={note}
+            legacyHistory={noteHistory}
             canEdit={canEdit}
-            onSave={(v) => setStudentStatus(student.key, { note: v }, session.name, session.roleCode)}
+            onChange={(next) =>
+              setStudentStatus(
+                student.key,
+                { noteItems: next, note: next[0]?.text ?? "" },
+                session.name,
+                session.roleCode,
+              )
+            }
             className="mt-2.5 !h-auto"
           />
         </Card>
@@ -1444,6 +1472,268 @@ function RecordsModal({
         </div>
       </div>
     </Portal>
+  );
+}
+
+/**
+ * 특이사항 목록 — **여러 건을 쌓고 각각 고치거나 지운다** (2026-08-18 리드 지시).
+ *
+ * 종전에는 한 줄짜리라 새로 적으려면 **기존 내용을 지워야 했다.** 지운 값이 「지난 자료」로
+ * 남긴 해도, 담당자가 원한 것은 **여러 건을 나란히 두고 보는 것**이었다.
+ *
+ * ⚠️ 표(수강생 현황)는 여전히 `note` 한 줄을 읽으므로, 더하거나 고칠 때마다
+ * **가장 최근 항목을 `note`에도 함께 써 넣는다** — 부르는 쪽(`onChange`)이 그 일을 한다.
+ * ⚠️ 지우기는 **되돌릴 수 없다.** 한 번 더 묻고 지운다 — 기록이라 실수로 사라지면 복구할
+ * 자리가 없다(「지난 자료」는 종전 덮어쓰기 이력이라 여기 항목과 다른 축이다).
+ */
+function NoteListBox({
+  items,
+  legacyNote,
+  legacyHistory,
+  canEdit,
+  onChange,
+  className,
+}: {
+  items: StudentNoteItem[];
+  /** 종전 한 줄 값 — 목록이 비어 있을 때만 쓴다(첫 추가에서 목록으로 흡수된다) */
+  legacyNote: string;
+  legacyHistory: { text: string; label: string }[];
+  canEdit: boolean;
+  onChange: (next: StudentNoteItem[]) => void;
+  className?: string;
+}) {
+  const session = useSession();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  /*
+    보이는 목록 — 저장된 항목이 없고 종전 한 줄만 있으면 그것을 **읽기 전용 항목처럼** 보인다.
+    실제 흡수는 첫 추가·수정 때 일어난다(그전에는 저장값을 건드리지 않는다).
+  */
+  const shown: StudentNoteItem[] =
+    items.length > 0
+      ? items
+      : legacyNote.trim()
+        ? [
+            {
+              id: "legacy",
+              text: legacyNote,
+              createdBy: "",
+              createdByRole: session.roleCode,
+              createdAt: "",
+            },
+          ]
+        : [];
+
+  /** 종전 한 줄을 목록으로 옮긴 기준선 — 새 항목은 이 앞에 붙는다 */
+  const base = (): StudentNoteItem[] => (items.length > 0 ? items : shown.filter((s) => s.id === "legacy"));
+
+  function add() {
+    const text = draft.trim();
+    if (!text) return;
+    const item: StudentNoteItem = {
+      id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      text,
+      createdBy: session.name,
+      createdByRole: session.roleCode,
+      createdAt: new Date().toISOString(),
+    };
+    onChange([item, ...base()]);
+    setDraft("");
+    setAdding(false);
+  }
+
+  function saveEdit(id: string) {
+    const text = editDraft.trim();
+    if (!text) return;
+    onChange(
+      base().map((it) =>
+        it.id === id
+          ? { ...it, text, updatedAt: new Date().toISOString(), updatedBy: session.name }
+          : it,
+      ),
+    );
+    setEditingId(null);
+  }
+
+  return (
+    <InfoBox
+      label="특이사항"
+      className={className}
+      action={
+        legacyHistory.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="shrink-0 text-[11px] font-semibold text-ink-soft hover:underline"
+          >
+            지난 자료 보기 ({legacyHistory.length}건)
+          </button>
+        )
+      }
+    >
+      {shown.length === 0 && !adding && (
+        <p className="text-[12px] text-ink-soft">적힌 특이사항이 없습니다. 아래에서 추가합니다.</p>
+      )}
+
+      <ul className="space-y-2">
+        {shown.map((it) => (
+          <li key={it.id} className="rounded-lg border border-zion-100 bg-zion-50/40 p-2.5">
+            {editingId === it.id ? (
+              <div>
+                <textarea
+                  value={editDraft}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                  rows={3}
+                  aria-label="특이사항 고치기"
+                  className="w-full resize-y rounded-lg border border-zion-200 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-zion-500"
+                />
+                <div className="mt-1.5 flex justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg px-2.5 py-1 text-[11px] text-ink-soft hover:bg-zion-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => saveEdit(it.id)}
+                    className="rounded-lg bg-zion-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-zion-700"
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="whitespace-pre-line text-[12px] leading-relaxed text-ink">{it.text}</p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-ink-soft">
+                    {it.createdBy
+                      ? `${it.createdBy} · ${(it.updatedAt ?? it.createdAt).slice(0, 10)}${it.updatedAt ? " (고침)" : ""}`
+                      : "이전에 적힌 내용"}
+                  </span>
+                  {canEdit && (
+                    <span className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(it.id);
+                          setEditDraft(it.text);
+                        }}
+                        aria-label="이 특이사항 고치기"
+                        className="rounded p-1 text-ink-soft transition hover:bg-zion-100 hover:text-zion-700"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(it.id)}
+                        aria-label="이 특이사항 지우기"
+                        className="rounded p-1 text-ink-soft transition hover:bg-zion-100 hover:text-red-600"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {canEdit &&
+        (adding ? (
+          <div className="mt-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="새 특이사항"
+              aria-label="새 특이사항"
+              className="w-full resize-y rounded-lg border border-zion-200 bg-white px-2 py-1.5 text-[12px] outline-none focus:border-zion-500"
+            />
+            <div className="mt-1.5 flex justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdding(false);
+                  setDraft("");
+                }}
+                className="rounded-lg px-2.5 py-1 text-[11px] text-ink-soft hover:bg-zion-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={add}
+                className="rounded-lg bg-zion-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-zion-700"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mt-2 flex items-center gap-1 rounded-lg border border-zion-200 px-2.5 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          >
+            <Plus size={12} /> 특이사항 추가
+          </button>
+        ))}
+
+      {/* 지우기는 되돌릴 수 없어 한 번 더 묻는다 */}
+      {confirmId && (
+        <RecordsModal title="특이사항 지우기" onClose={() => setConfirmId(null)}>
+          <p className="text-[13px] leading-relaxed text-ink">
+            이 특이사항을 지웁니다. 되돌릴 수 없습니다.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmId(null)}
+              className="rounded-lg px-3 py-1.5 text-[12px] text-ink-soft hover:bg-zion-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(base().filter((it) => it.id !== confirmId));
+                setConfirmId(null);
+              }}
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90"
+            >
+              지웁니다
+            </button>
+          </div>
+        </RecordsModal>
+      )}
+
+      {historyOpen && (
+        <RecordsModal title="특이사항 — 지난 자료" onClose={() => setHistoryOpen(false)}>
+          <p className="mb-2 text-[11px] text-ink-soft">
+            종전에 한 줄로 적고 덮어썼던 기록입니다. 위 목록과는 다른 축입니다.
+          </p>
+          <ul className="space-y-2">
+            {legacyHistory.map((h, i) => (
+              <li key={i} className="rounded-lg border border-zion-100 p-2.5 text-[12px] leading-relaxed">
+                <div className="mb-1 text-[11px] text-ink-soft">{h.label}</div>
+                <p className="whitespace-pre-line text-ink">{h.text}</p>
+              </li>
+            ))}
+          </ul>
+        </RecordsModal>
+      )}
+    </InfoBox>
   );
 }
 
