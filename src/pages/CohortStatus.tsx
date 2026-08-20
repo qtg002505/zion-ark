@@ -1224,24 +1224,25 @@ function AttendanceGrid({
         <div className="flex flex-wrap items-center gap-2">
           {/*
             분반(전도사) 고르기 (2026-08-18 리드 지시) — 반별로 따로 본다.
-            분반 이름이 곧 담당 전도사 자리라 탭에 이름을 함께 적는다.
+            ⚠️ **펼쳐서 고른다**(같은 날 리드 지시 — 「눌러서 볼 수 있도록」).
+            탭으로 늘어놓으니 이름이 붙은 항목 다섯이 한 줄을 다 먹고 옆 컨트롤이 잘렸다.
+            분반 이름이 곧 담당 전도사 자리라 항목에 이름을 함께 적는다.
           */}
-          <SegmentedTabs
-            label="분반 고르기"
-            size="sm"
-            scroll
+          <select
             value={divisionTab}
-            onChange={setDivisionTab}
-            items={[
-              { id: "all", label: "전체 분반" },
-              ...[...new Set(students.map((s) => s.division))]
-                .sort((a, b) => a.localeCompare(b, "ko"))
-                .map((d) => ({
-                  id: d,
-                  label: DIVISION_EVANGELISTS[d] ? `${d} · ${DIVISION_EVANGELISTS[d]}` : d,
-                })),
-            ]}
-          />
+            onChange={(e) => setDivisionTab(e.target.value)}
+            aria-label="분반 고르기"
+            className="rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zion-800 outline-none focus:border-zion-500"
+          >
+            <option value="all">전체 분반</option>
+            {[...new Set(students.map((s) => s.division))]
+              .sort((a, b) => a.localeCompare(b, "ko"))
+              .map((d) => (
+                <option key={d} value={d}>
+                  {DIVISION_EVANGELISTS[d] ? `${d} · ${DIVISION_EVANGELISTS[d]}` : d}
+                </option>
+              ))}
+          </select>
           {/* 보기 전환 — 진도별이 먼저이고 기본이다 (2026-08-14 리드 지시) */}
           <SegmentedTabs
             label="출결 표시 축"

@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { SegmentedTabs } from "../components/SegmentedTabs";
 import { ChevronDown, TriangleAlert, Trophy } from "lucide-react";
 import { useStore } from "../lib/store";
-import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
 import { LEVEL_TONE } from "../content/curriculum-mock";
@@ -119,11 +118,9 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
       </Card>
 
       {/*
-        수강생 × 항목 격자 (2026-08-18 리드 지시 — 「한 명씩 보기 전에 엑셀처럼 한눈에」).
-        강점·약점 목록보다 **먼저** 온다: 전체 판을 본 뒤 항목을 파고드는 순서다.
+        「수강생 × 항목 한눈에」 격자는 2026-08-18에 만들었다가 **같은 날 리드 지시로 뺐다.**
+        되살릴 때는 git 이력에서 `ScoreGrid`를 꺼낸다 (커밋 445bd1b).
       */}
-      <ScoreGrid stats={stats} onPickStudent={setModalKey} />
-
       <div className="mt-4 grid grid-cols-2 gap-4 max-lg:grid-cols-1">
         <GroupList
           title="강점"
@@ -181,123 +178,6 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
 }
 
 /** 강점·약점 묶음 하나 */
-/**
- * 수강생 × 항목 격자 — **엑셀처럼 한 판에 본다** (2026-08-18 리드 지시).
- *
- * 아래 강점·약점 목록은 「항목」이 주인공이라, 한 사람이 어디서 막혔는지는 항목을 하나씩
- * 펼쳐야 보였다. 여기서는 **행이 사람, 열이 항목**이라 가로로 훑으면 한 사람의 전부가,
- * 세로로 훑으면 한 항목의 전부가 보인다.
- *
- * ⚠️ **색만으로 뜻을 전하지 않는다** — 칸마다 숫자를 함께 적고, 아직 안 본 칸은 「·」다.
- * ⚠️ 새 판정을 만들지 않는다 — 점수·경계는 강점·약점 목록과 **같은 값**을 쓴다.
- */
-function ScoreGrid({
-  stats,
-  onPickStudent,
-}: {
-  stats: GroupStat[];
-  onPickStudent: (key: string) => void;
-}) {
-  const drag = useDragScroll<HTMLDivElement>();
-
-  /** 행(사람)으로 뒤집는다 — 첫 항목의 명단이 곧 전체 명단이다 */
-  const rows = useMemo(() => {
-    const first = stats[0]?.students ?? [];
-    return first
-      .map((s) => {
-        const cells = stats.map((g) => g.students.find((x) => x.studentKey === s.studentKey));
-        const rated = cells.filter((c) => c && c.scored > 0) as { pct: number }[];
-        const avg = rated.length === 0 ? null : Math.round(rated.reduce((a, c) => a + c.pct, 0) / rated.length);
-        return { key: s.studentKey, name: s.name, division: s.division, cells, avg };
-      })
-      /* 낮은 사람이 위 — 손이 필요한 순서다(출석 격자와 같은 방향) */
-      .sort((a, b) => (a.avg ?? 999) - (b.avg ?? 999) || a.name.localeCompare(b.name, "ko"));
-  }, [stats]);
-
-  if (stats.length === 0 || rows.length === 0) return null;
-
-  const toneOfPct = (pct: number | undefined, scored: number | undefined) => {
-    if (!scored) return "bg-white text-ink-soft";
-    if ((pct ?? 0) >= STRONG_MIN) return "bg-emerald-50 text-emerald-700";
-    if ((pct ?? 0) < WEAK_MAX) return "bg-red-50 text-red-600";
-    return "bg-zion-50 text-zion-800";
-  };
-
-  return (
-    <Card className="mt-4">
-      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <div className="text-[14px] font-bold text-zion-900">수강생 × 항목 한눈에</div>
-        <span className="text-[11px] text-ink-soft">낮은 분이 위 · 붙잡아 끌면 넘어갑니다</span>
-      </div>
-      <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
-        가로로 보면 한 사람이 어디서 막혔는지, 세로로 보면 한 항목이 기수 전체에서 어떤지 보입니다.
-        아직 점수를 안 매긴 칸은 · 입니다.
-      </p>
-
-      <div
-        ref={drag.ref}
-        onPointerDown={drag.onPointerDown}
-        className={"-mx-1 max-h-[70vh] overflow-auto px-1 " + DRAG_SCROLL_CLASS}
-      >
-        <table className="w-max min-w-full text-[12px] [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:bg-white">
-          <thead>
-            <tr className="border-b-2 border-zion-200 text-ink-soft">
-              <th className="sticky left-0 z-20 bg-white px-2 pb-2 text-left font-medium">이름</th>
-              <th className="px-2 pb-2 text-right font-medium">평균</th>
-              {stats.map((g) => (
-                <th
-                  key={g.groupNo}
-                  className="w-[74px] px-1 pb-2 text-center font-medium"
-                  title={`${g.groupNo}. ${g.label}`}
-                >
-                  <span className="block truncate">{g.groupNo}. {g.label}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-b border-zion-100">
-                <td className="sticky left-0 z-10 bg-white px-2 py-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onPickStudent(r.key)}
-                    className="font-semibold text-ink hover:underline"
-                  >
-                    {r.name}
-                  </button>
-                  <span className="ml-1 text-[10.5px] text-ink-soft">{r.division}</span>
-                </td>
-                <td className="px-2 py-1.5 text-right font-bold text-zion-800">
-                  {r.avg === null ? "·" : `${r.avg}%`}
-                </td>
-                {r.cells.map((c, i) => (
-                  <td key={i} className="px-1 py-1.5 text-center">
-                    <span
-                      className={
-                        "inline-block w-full rounded px-1 py-0.5 text-[11px] font-semibold " +
-                        toneOfPct(c?.pct, c?.scored)
-                      }
-                      title={c?.scored ? `${c.pct}% · ${c.scored}문항 매김` : "아직 안 봄"}
-                    >
-                      {c?.scored ? `${c.pct}` : "·"}
-                    </span>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
-        숫자는 그 항목의 백분율입니다. {STRONG_MIN}% 이상은 초록, {WEAK_MAX}% 미만은 붉은 칸입니다 —
-        화면 표시용 경계이지 기준표의 등급이 아닙니다. 이름을 누르면 그 수강생 상세가 열립니다.
-      </p>
-    </Card>
-  );
-}
-
 function GroupList({
   title,
   icon,
