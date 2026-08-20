@@ -346,6 +346,9 @@ export function CohortStatus() {
                 </div>
               ))}
             </div>
+
+            {/* 전도사별 수강생 상태 (2026-08-18 리드 지시) — 누르면 그 반 명단이 펼쳐진다 */}
+            <StaffByDivision students={students} />
           </Card>
         </>
       )}
@@ -462,6 +465,106 @@ const STICKY_NAME_W = 74;
  * 고치는 창이 아니라 **그 옆에 붙는 보강 기록**이다 — 원본 mark는 그대로 있고, 기록은
  * `studentFeedback`(kind `makeup`)으로 남아 수강생 상세의 「보강·상담 메모」에도 그대로 뜬다.
  */
+/**
+ * 전도사별 수강생 상태 (2026-08-18 리드 지시 — 「전도사별 수강생 대략의 상태」).
+ *
+ * 분반이 곧 담당 전도사 자리라 분반으로 묶는다. 줄을 누르면 그 반 **명단**이 펼쳐진다.
+ *
+ * ⚠️ **새 판정을 만들지 않는다** — 출석률은 다른 화면과 같은 `rateOf`를 쓰고,
+ * 「손이 필요한 분」은 보강 포함 출석률이 70% 미만인 사람을 센 것일 뿐이다.
+ * 그 경계는 화면 표시용이지 등급(A~E)이 아니다.
+ */
+function StaffByDivision({ students }: { students: Student[] }) {
+  const NEEDS_HELP_MAX = 70;
+  const [open, setOpen] = useState<string | null>(null);
+
+  const rows = useMemo(() => {
+    const byDivision = new Map<string, Student[]>();
+    for (const s of students) byDivision.set(s.division, [...(byDivision.get(s.division) ?? []), s]);
+    return [...byDivision.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], "ko"))
+      .map(([division, list]) => {
+        const rates = list.map((s) => rateOf(s).withMakeup);
+        const avg = rates.length === 0 ? 0 : Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
+        return {
+          division,
+          list: [...list].sort((a, b) => rateOf(a).withMakeup - rateOf(b).withMakeup),
+          avg,
+          needsHelp: rates.filter((r) => r < NEEDS_HELP_MAX).length,
+        };
+      });
+  }, [students]);
+
+  return (
+    <div className="mt-4 border-t border-zion-100 pt-3">
+      <div className="mb-2 text-[12px] font-semibold text-ink">전도사별 수강생</div>
+      <ul className="space-y-1.5">
+        {rows.map((r) => {
+          const isOpen = open === r.division;
+          return (
+            <li key={r.division} className="rounded-lg border border-zion-200">
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : r.division)}
+                aria-expanded={isOpen}
+                className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-left transition hover:bg-zion-50"
+              >
+                <ChevronDown
+                  size={14}
+                  className={"shrink-0 text-zion-600 transition-transform " + (isOpen ? "" : "-rotate-90")}
+                />
+                <span className="text-[13px] font-semibold text-ink">
+                  {DIVISION_EVANGELISTS[r.division] ?? r.division}
+                </span>
+                <span className="text-[11px] text-ink-soft">{r.division} · {r.list.length}명</span>
+                <span className="ml-auto flex items-center gap-3">
+                  <span className="text-[12px] text-ink-soft">
+                    평균 <strong className="font-bold text-zion-800">{r.avg}%</strong>
+                  </span>
+                  {r.needsHelp > 0 && (
+                    <span className="rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-700">
+                      손이 필요한 분 {r.needsHelp}명
+                    </span>
+                  )}
+                </span>
+              </button>
+
+              {isOpen && (
+                <ul className="divide-y divide-zion-100 border-t border-zion-100">
+                  {r.list.map((s) => {
+                    const rt = rateOf(s);
+                    return (
+                      <li key={s.key} className="flex items-center gap-3 px-3 py-2 text-[12px]">
+                        <span className="w-16 shrink-0 truncate font-medium text-ink">{s.name}</span>
+                        <span className="w-12 shrink-0 text-right font-semibold text-zion-800">
+                          {rt.withMakeup}%
+                        </span>
+                        <span className="w-14 shrink-0 text-[11px] text-ink-soft">
+                          {rt.presentCount + rt.makeupDoneCount}/{rt.counted}회
+                        </span>
+                        <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-zion-100">
+                          <span
+                            className="block h-full rounded-full bg-zion-700"
+                            style={{ width: `${rt.withMakeup}%` }}
+                          />
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+        「손이 필요한 분」은 보강 포함 출석률 {NEEDS_HELP_MAX}% 미만입니다 — 화면 표시용 경계이지
+        등급이 아닙니다.
+      </p>
+    </div>
+  );
+}
+
 /**
  * 수강생 구성 — **신앙 여부 · 등록 구분 · 유월** (2026-08-18 리드 지시).
  *
