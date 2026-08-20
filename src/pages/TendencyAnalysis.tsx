@@ -30,7 +30,17 @@ export function TendencyAnalysis() {
 
   const students = useMemo(() => STUDENTS.filter((s) => divisions.includes(s.division)), [divisions]);
 
+  /**
+   * 분반을 먼저 고르고 그 안에서 수강생을 고른다 (2026-08-18 리드 지시).
+   * 종전에는 스무 명이 한 목록에 이어 붙어 「김하늘 · 1분반」처럼 분반을 글로 읽어야 했다 —
+   * 담당자는 분반으로 사람을 떠올리므로 그 순서대로 좁혀 들어가는 편이 맞는다.
+   */
+  const [division, setDivision] = useState<string>("");
   const [studentKey, setStudentKey] = useState<string>("");
+  const inDivision = useMemo(
+    () => (division ? students.filter((s) => s.division === division) : []),
+    [students, division],
+  );
   const profile = studentKey ? STUDENT_PROFILES[studentKey] : undefined;
   const enneagram = profile ? enneagramGuides.find((g) => g.typeNo === profile.enneagramType) : undefined;
 
@@ -65,22 +75,49 @@ export function TendencyAnalysis() {
       </p>
 
       <Card className="mb-4">
-        <label htmlFor="tendency-student" className="mb-1 block text-[12px] font-semibold text-ink">
-          수강생 (담당 범위)
-        </label>
-        <select
-          id="tendency-student"
-          value={studentKey}
-          onChange={(e) => setStudentKey(e.target.value)}
-          className="w-full max-w-md rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
-        >
-          <option value="">수강생을 고르세요</option>
-          {students.map((s) => (
-            <option key={s.key} value={s.key}>
-              {s.name} · {s.division}
-            </option>
-          ))}
-        </select>
+        <div className="grid gap-3 sm:grid-cols-2 sm:max-w-2xl">
+          <div>
+            <label htmlFor="tendency-division" className="mb-1 block text-[12px] font-semibold text-ink">
+              분반
+            </label>
+            <select
+              id="tendency-division"
+              value={division}
+              onChange={(e) => {
+                setDivision(e.target.value);
+                setStudentKey(""); // 분반을 바꾸면 고른 사람은 그 분반 밖이 된다
+              }}
+              className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+            >
+              <option value="">분반을 고르세요</option>
+              {divisions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="tendency-student" className="mb-1 block text-[12px] font-semibold text-ink">
+              수강생
+            </label>
+            <select
+              id="tendency-student"
+              value={studentKey}
+              disabled={!division}
+              onChange={(e) => setStudentKey(e.target.value)}
+              className="w-full rounded-lg border border-zion-100 bg-white px-3 py-2 text-[13px] outline-none focus:border-zion-500 disabled:cursor-not-allowed disabled:bg-zion-50 disabled:text-ink-soft"
+            >
+              <option value="">{division ? "수강생을 고르세요" : "분반을 먼저 고릅니다"}</option>
+              {inDivision.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </Card>
 
       {!profile ? (
