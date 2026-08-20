@@ -103,11 +103,36 @@ export const BOARD_WRITING_FOLDERS = ["우수 판서 초등", "우수 판서 중
  * **강의 도우미가 품는 폴더 전부** — 밭갈이 네 파트 + 예배설교 + 흐름교육 셋 + 우수 판서 셋.
  * `/teaching` 화면이 이 목록 안의 폴더만 연다 (그 밖의 폴더 이름이 오면 첫 폴더로 되돌린다).
  */
+/**
+ * 강의 도우미에 더한 자료 묶음 (2026-08-18 리드 지시).
+ *
+ * ⚠️ **넷 다 원문이 아직 없다.** 폴더 자리만 만들어 두고 자료가 오면 그대로 올린다 —
+ * 보강 자료 일곱 폴더가 비어 있는 것과 같은 상태다. 리드가 함께 적어 준 조건:
+ *  - **반증자료** — 섭외부와 연계해 확보·정리한다
+ *  - **교리비교 영상** — 기존 자료를 최신 버전으로 갈아 끼운다
+ *  - **신천지 오픈** — 강의안 · 오픈 자료 · 상담 가이드 셋으로 나눠 받는다
+ *  - **우수 강의자 영상** — 잘 가르친 강의를 모은다
+ */
+export const TEACHING_EVIDENCE_FOLDERS = ["반증자료", "교리비교 영상"];
+
+/** 신천지 오픈 — 리드가 셋으로 나눠 준 그대로 폴더를 만든다 */
+export const SCJ_OPEN_FOLDERS = [
+  "신천지 오픈 강의안",
+  "신천지 오픈 자료",
+  "신천지 오픈 상담 가이드",
+];
+
+/** 우수 강의자 영상 — 우수 판서(판서 사진)와 다른 축이라 폴더를 따로 둔다 */
+export const TEACHING_SHOWCASE_FOLDERS = ["우수 강의자 영상"];
+
 export const INSTRUCTOR_EARLY_FOLDERS = [
   ...INSTRUCTOR_BATGARI_FOLDERS,
   ...INSTRUCTOR_OTHER_FOLDERS,
   ...GYOBUNGI_FOLDERS,
   ...BOARD_WRITING_FOLDERS,
+  ...TEACHING_EVIDENCE_FOLDERS,
+  ...SCJ_OPEN_FOLDERS,
+  ...TEACHING_SHOWCASE_FOLDERS,
 ];
 
 /**

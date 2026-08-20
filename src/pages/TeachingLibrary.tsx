@@ -6,6 +6,9 @@ import {
   INSTRUCTOR_EARLY_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
   MATERIAL_LEVELS,
+  SCJ_OPEN_FOLDERS,
+  TEACHING_EVIDENCE_FOLDERS,
+  TEACHING_SHOWCASE_FOLDERS,
   folderLabel,
   type MaterialLevel,
 } from "../lib/types";
@@ -44,11 +47,23 @@ export function TeachingLibrary() {
   const inGyobungi = folder !== null && GYOBUNGI_FOLDERS.includes(folder);
   /** 우수 판서 (2026-08-15 신설) */
   const inBoardWriting = folder !== null && BOARD_WRITING_FOLDERS.includes(folder);
+  /** 2026-08-18에 더한 넷 — 넷 다 원문 대기라 안내 문구가 그것을 말한다 */
+  const inEvidence = folder !== null && TEACHING_EVIDENCE_FOLDERS.includes(folder);
+  const inScjOpen = folder !== null && SCJ_OPEN_FOLDERS.includes(folder);
+  const inShowcase = folder !== null && TEACHING_SHOWCASE_FOLDERS.includes(folder);
 
   return (
     <FolderLibrary
       /* ⚠️ 폴더 이름은 저장값 그대로 쓰고, **화면에는 `folderLabel`을 거쳐** 낸다 (2026-08-15) */
-      crumb={inBatgari ? "강의 도우미 · 밭갈이" : inGyobungi ? "강의 도우미 · 흐름교육" : "강의 도우미"}
+      crumb={
+        inBatgari
+          ? "강의 도우미 · 밭갈이"
+          : inGyobungi
+            ? "강의 도우미 · 흐름교육"
+            : inScjOpen
+              ? "강의 도우미 · 신천지 오픈"
+              : "강의 도우미"
+      }
       title={
         featuredOnly
           ? `우수 교안 · 특강${level ? ` (${level})` : ""}`
@@ -63,11 +78,19 @@ export function TeachingLibrary() {
             ? "총회 표준본이 위에 고정되고, 그 아래 우리 지파의 보충 자료가 이어집니다. 다른 지파의 보충 자료는 보이지 않습니다."
             : inBoardWriting
               ? "잘 쓴 판서를 모아 두는 자리입니다. 사진·PPT·영상 링크를 자료 하나에 함께 답니다."
-              : inBatgari
-                ? "이 파트에서 쓰는 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
-                : folder === INSTRUCTOR_OTHER_FOLDERS[0]
-                  ? "예배설교 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
-                  : "밭갈이 네 파트와 예배설교 · 흐름교육 · 우수 판서 자료입니다. 파트는 왼쪽 메뉴에서 고릅니다."
+              : inEvidence
+                ? folder === "반증자료"
+                  ? "섭외부와 함께 확보·정리하는 자료입니다. 원본을 받으면 여기에 올립니다."
+                  : "교리를 견주어 보는 영상입니다. 기존 자료를 최신 버전으로 갈아 끼웁니다."
+                : inScjOpen
+                  ? "신천지 오픈에 쓰는 자료입니다. 강의안 · 오픈 자료 · 상담 가이드로 나뉩니다."
+                  : inShowcase
+                    ? "잘 가르친 강의를 모아 두는 자리입니다. 영상 링크를 자료에 함께 답니다."
+                    : inBatgari
+                      ? "이 파트에서 쓰는 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
+                      : folder === INSTRUCTOR_OTHER_FOLDERS[0]
+                        ? "예배설교 자료입니다. 교안 · PPT · 영상이 자료 하나 안에서 함께 열립니다."
+                        : "밭갈이 · 예배설교 · 흐름교육 · 우수 판서와 반증자료 · 교리비교 영상 · 신천지 오픈 · 우수 강의자 영상입니다. 파트는 왼쪽 메뉴에서 고릅니다."
       }
       folders={INSTRUCTOR_EARLY_FOLDERS}
       folder={folder}

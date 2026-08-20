@@ -5,6 +5,7 @@ import {
   EVANGELIST_MAKEUP_FOLDERS,
   INSTRUCTOR_BATGARI_FOLDERS,
   INSTRUCTOR_OTHER_FOLDERS,
+  SCJ_OPEN_FOLDERS,
   folderLabel,
 } from "../lib/types";
 import { MISSION_CENTER_VIEW_ROLES, SITE_USAGE_VIEW_ROLES } from "../lib/permissions";
@@ -43,6 +44,10 @@ import {
   MessageSquarePlus,
   Activity,
   PenLine,
+  Scale,
+  Clapperboard,
+  DoorOpen,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -229,13 +234,38 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Church,
         items: folderItems("/teaching", INSTRUCTOR_OTHER_FOLDERS),
       },
+      {
+        /**
+         * 신천지 오픈 (2026-08-18 리드 지시) — 강의안 · 오픈 자료 · 상담 가이드 셋.
+         * ⚠️ 세 폴더 모두 **원문 대기**다. 자리만 있고 아직 비어 있다.
+         */
+        label: "신천지 오픈",
+        icon: DoorOpen,
+        items: folderItems("/teaching", SCJ_OPEN_FOLDERS).map((it) => ({
+          ...it,
+          // 사이드바에서는 「신천지 오픈」 묶음 안이라 접두어를 떼고 낸다
+          label: it.label.replace(/^신천지 오픈\s*/, ""),
+        })),
+      },
     ],
     /*
       직속 항목은 보조 도구라 하위 묶음 뒤에 놓인다.
       ⚠️ **「강의 녹취 정리」(`/digest`)는 2026-08-15 리드 지시로 없앴다.** 경로는 리다이렉트로
       남긴다(북마크가 죽지 않게) — 되살릴 때는 git 이력에서 `pages/LectureDigest.tsx`를 꺼낸다.
+
+      반증자료 · 교리비교 영상 · 우수 강의자 영상은 2026-08-18에 더했다 —
+      단계(초·중·고)에 매이지 않고 강의 전반에 걸쳐 쓰는 자료라 직속에 둔다. **원문 대기**다.
     */
-    items: [{ to: "/compose", label: "강의 자료 모으기", icon: Layers }],
+    items: [
+      { to: `/teaching?folder=${encodeURIComponent("반증자료")}`, label: "반증자료", icon: Scale },
+      { to: `/teaching?folder=${encodeURIComponent("교리비교 영상")}`, label: "교리비교 영상", icon: Video },
+      {
+        to: `/teaching?folder=${encodeURIComponent("우수 강의자 영상")}`,
+        label: "우수 강의자 영상",
+        icon: Clapperboard,
+      },
+      { to: "/compose", label: "강의 자료 모으기", icon: Layers },
+    ],
   },
 
   /**
