@@ -18,6 +18,11 @@ import {
   ENROLLMENT_STATUS_DEFAULT,
   fellowshipOf,
   demoGuidePhone,
+  demoBloodType,
+  demoReligion,
+  demoFaithYears,
+  BLOOD_TYPES,
+  RELIGION_OPTIONS,
   iljuOf,
   ohaengOf,
   birthCalendarOf,
@@ -287,6 +292,14 @@ export function StudentDetailPage({
   const birthDate = override?.birthDate ?? p.birthDate;
   const phone = override?.phone ?? p.phone;
   const address = override?.address ?? p.address;
+  /**
+   * 혈액형 · 종교 · 신앙년수 (2026-08-18 리드 지시).
+   * 셋 다 값이 없으면 **시범 값**이 자리를 채운다 — 일주·인교섬 번호와 같은 짜임이다(불변식 6).
+   * ⚠️ 종교·신앙년수의 시범 값은 **신앙 여부에서 파생**하므로, 담당자가 신앙을 바꾸면 따라온다.
+   */
+  const bloodType = override?.bloodType ?? p.bloodType ?? demoBloodType(birthDate);
+  const religion = override?.religion ?? p.religion ?? demoReligion(faithStatus);
+  const faithYears = override?.faithYears ?? p.faithYears ?? demoFaithYears(faithStatus, birthDate);
   // 프로필 사진 — 씨앗 값이 없다. 없으면 이니셜 원으로 대신 보여준다(2026-08-13 추가)
   const photoUrl = override?.photoUrl;
   // 사주 — 명리학 참고(2026-08-13). 일주는 육십갑자 중에서, 오행분포는 다섯 원소 개수를 각각 고른다.
@@ -479,7 +492,8 @@ export function StudentDetailPage({
             )}
             {mode === "view" ? (
               <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
-                <SummaryRow label="이름" value={`${student.name} ${p.gender}(${age}세)`} />
+                {/* 혈액형은 나이 옆이다 (2026-08-18 리드 지시 — 교적부 작성에 쓴다) */}
+                <SummaryRow label="이름" value={`${student.name} ${p.gender}(${age}세 · ${bloodType}형)`} />
                 <SummaryRow label="생년월일" value={`${birthDate} (${birthCalendarOf(birthDate)})`} />
                 {/*
                   전화·주소는 기본 마스킹 (2026-08-14 FB-07-B①) — 한 번 누르면 전체가 보이고
@@ -558,6 +572,18 @@ export function StudentDetailPage({
                     className="w-full rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
                   />
                 </div>
+                {/* 혈액형 — 보기 상태에서는 나이 옆에 붙는다 (2026-08-18 리드 지시) */}
+                <div className="col-span-2">
+                  <PillGroup
+                    label="혈액형"
+                    value={bloodType}
+                    options={BLOOD_TYPES}
+                    editable={canEdit}
+                    onSelect={(v) =>
+                      setStudentStatus(student.key, { bloodType: v }, session.name, session.roleCode)
+                    }
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -573,7 +599,18 @@ export function StudentDetailPage({
               <dl className="ml-[68px] grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px] sm:grid-cols-3">
                 <SummaryRow label="소속" value={FELLOWSHIP_LABELS[fellowship]} />
                 <SummaryRow label="등록" value={registrationType} />
-                <SummaryRow label="신앙" value={FAITH_STATUS_LABELS[faithStatus]} />
+                {/*
+                  신앙 여부만으로는 「어떤 종교를 얼마나」가 안 보인다 (2026-08-18 리드 지시).
+                  한 칸에 이어 적는다 — 「신앙인 · 기독교 12년」. 값이 없으면 그 부분만 빠진다.
+                */}
+                <SummaryRow
+                  label="신앙"
+                  value={
+                    FAITH_STATUS_LABELS[faithStatus] +
+                    (religion ? ` · ${religion}` : "") +
+                    (faithYears !== undefined ? ` ${faithYears}년` : "")
+                  }
+                />
                 <SummaryRow label="유월" value={yuwol} />
                 <SummaryRow label="상태" value={enrollmentStatus} />
                 <SummaryRow label="등급" value={enrollmentStatus === "유급" ? "고르지 않음" : GRADE_LABELS[grade]} />
@@ -619,6 +656,55 @@ export function StudentDetailPage({
                   editable={canEdit}
                   onSelect={(v) => setStudentStatus(student.key, { faithType: v }, session.name, session.roleCode)}
                 />
+              </div>
+
+              {/*
+                종교 · 신앙년수 (2026-08-18 리드 지시) — 신앙 여부 바로 아래 줄이다.
+                「신앙인/무신앙인」만으로는 **어떤 종교를 얼마나** 했는지가 안 보인다는 지적으로
+                더했다. 신앙적인 부분을 면밀히 보려면 그 둘이 함께 있어야 한다는 뜻이다.
+
+                ⚠️ **종교는 민감정보다** — 담당 범위 안에서만 보고 집계 밖으로 내보내지 않는다
+                (불변식 2). 이 값으로 등급·추천을 계산하는 자리도 만들지 않는다(불변식 4).
+              */}
+              <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-zion-100 pt-2.5">
+                <PillGroup
+                  label="종교"
+                  value={religion ?? ""}
+                  options={RELIGION_OPTIONS}
+                  editable={canEdit}
+                  onSelect={(v) => setStudentStatus(student.key, { religion: v }, session.name, session.roleCode)}
+                />
+                <div>
+                  <div className="mb-1.5 text-[11px] font-semibold text-ink-soft">신앙년수</div>
+                  {canEdit ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={faithYears ?? ""}
+                        placeholder="모름"
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setStudentStatus(
+                            student.key,
+                            /* 빈칸은 「모름」이다 — 0년(올해 시작)과 구분한다 */
+                            { faithYears: raw === "" ? undefined : Math.max(0, Number(raw) || 0) },
+                            session.name,
+                            session.roleCode,
+                          );
+                        }}
+                        aria-label="신앙년수"
+                        className="w-20 rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
+                      />
+                      <span className="text-[11px] text-ink-soft">년</span>
+                    </div>
+                  ) : (
+                    <div className="text-[12px] font-medium text-ink">
+                      {faithYears === undefined ? "모름" : `${faithYears}년`}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/*

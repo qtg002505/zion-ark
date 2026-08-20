@@ -710,6 +710,10 @@ interface StoreValue {
         | "registrationType"
         | "faithType"
         | "faithStatus"
+        /* 혈액형 · 종교 · 신앙년수 (2026-08-18 리드 지시) */
+        | "bloodType"
+        | "religion"
+        | "faithYears"
         | "note"
         | "availableTime"
         | "interests"

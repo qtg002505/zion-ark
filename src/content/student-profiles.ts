@@ -44,6 +44,28 @@ export const FELLOWSHIP_LABELS: Record<Fellowship, string> = {
   부녀회: "부녀",
   자문회: "자문",
 };
+/**
+ * 혈액형 (2026-08-18 리드 지시) — **교적부 작성에 필요하고**, 담당자가 MBTI·도형과 함께
+ * 성향을 볼 때 참고한다. 나이 옆에 붙는다.
+ *
+ * ⚠️ **사이트가 혈액형으로 성향을 판정하지 않는다**(불변식 4). 값을 보여 줄 뿐이고,
+ * 이 값으로 등급·추천을 계산하는 자리를 만들지 않는다 — 판단은 사람이 한다.
+ */
+export type BloodType = "A" | "B" | "O" | "AB";
+export const BLOOD_TYPES: BloodType[] = ["A", "B", "O", "AB"];
+
+/**
+ * 종교 — 고르기 편하라고 둔 **보기 목록**이다 (2026-08-18 리드 지시).
+ *
+ * ⚠️ **저장값은 문자열이고 이 목록으로 굳히지 않는다.** 상담 테마를 번호로, 자료실 폴더를
+ * 문자열로 둔 것과 같은 이유다(CLAUDE.md) — 목록이 다듬어질 때마다 저장된 값이 깨지면
+ * 후방 마이그레이션이 된다(불변식 10). 목록에 없는 종교는 담당자가 직접 적을 수 있다.
+ *
+ * ⚠️ **종교는 민감정보다.** 담당 범위 안에서만 보고, **집계·통계 밖으로 내보내지 않는다**
+ * (불변식 2). 외부 AI 입력에도 넣지 않는다 — 프로필 필드는 애초에 AI로 나가는 경로가 없다.
+ */
+export const RELIGION_OPTIONS: string[] = ["무교", "기독교", "천주교", "불교", "기타"];
+
 export type ShapeType = "동그라미" | "세모" | "네모" | "에스";
 export type SajuElement = "목" | "화" | "토" | "금" | "수";
 export type FeedbackKind = "attendance" | "makeup" | "counsel" | "note" | "memo";
@@ -112,6 +134,16 @@ export interface StudentStatusOverride {
   /** 유월 — 이 축은 오픈/비오픈 둘뿐이다. 신앙전환은 유월 기준으로는 이미 "오픈"이다 */
   faithType?: "오픈" | "비오픈";
   faithStatus?: FaithStatus;
+  /**
+   * 혈액형 · 종교 · 신앙년수 (2026-08-18 리드 지시).
+   *
+   * 신앙 여부(`faithStatus`)만으로는 「어떤 종교를 얼마나」가 안 보인다는 지적으로 더했다 —
+   * 신앙적인 부분을 면밀히 보려면 그 둘이 함께 있어야 한다는 것이 리드의 뜻이다.
+   * ⚠️ **종교는 민감정보다** — 담당 범위 안에서만 보고 집계 밖으로 내보내지 않는다(불변식 2).
+   */
+  bloodType?: BloodType;
+  religion?: string;
+  faithYears?: number;
   /** 특이사항 — 표·상세 카드에 짧게 뜨는 한 줄. 있으면 씨앗 값(`StudentProfile.note`) 대신 쓴다 */
   note?: string;
   /** note를 덮어쓸 때마다 직전 값을 여기 쌓는다(최근 20건, 최신이 앞) — 최초값(씨앗)은 안 들어간다 */
@@ -265,6 +297,16 @@ export interface StudentProfile {
   registrationType: RegistrationType;
   faithStatus: FaithStatus;
   /**
+   * 혈액형 · 종교 · 신앙년수 (2026-08-18 리드 지시) — **전방 추가라 옵션이다.**
+   * 이미 저장된 프로필에는 값이 없고, 없으면 화면이 시범 값으로 채운다(`demoBloodType` 등).
+   * 담당자가 고치면 `StudentStatusOverride` 쪽 값이 이긴다 — 다른 필드와 같은 짜임이다.
+   */
+  bloodType?: BloodType;
+  /** 종교 — **문자열이다**(`RELIGION_OPTIONS`는 고르기 편하라고 둔 보기일 뿐) */
+  religion?: string;
+  /** 신앙년수(년) — 0이면 올해 시작한 것이고, 값이 없으면 「모름」이다 */
+  faithYears?: number;
+  /**
    * 인교섬(인도자·교사·섬김이) — `glossary.ts` PEOPLE_TERMS 참고. 계정 권한은 없는 관계자다.
    * "지역/부서/이름" 형식 문자열이다(2026-08-09 리드 지시) — 생년월일·전화·주소와 같은 자리,
    * 즉 실연동 시 마팔에서 온다고 가정한 시범 값이다. 지역은 양재·신림·사당·군포·인덕원·금천,
@@ -328,6 +370,39 @@ export function demoGuidePhone(name: string): string {
   const mid = String(1000 + (seed % 9000));
   const tail = String(1000 + ((seed * 7) % 9000));
   return `010-${mid}-${tail}`;
+}
+
+/**
+ * 혈액형 시범 값 (2026-08-18) — 생년월일에서 **결정적으로** 뽑는다. 일주·인교섬 번호와 같은 자리다.
+ *
+ * ⚠️ **실제 혈액형이 아니다**(불변식 6). 마팔 연동이나 교적부에서 실제 값이 오기 전까지
+ * 자리를 채우는 값이고, 담당자가 고르면 그쪽이 이긴다. 화면에 「시범 목업 데이터」 표기가 있다.
+ */
+export function demoBloodType(birthDate: string): BloodType {
+  const n = Number(birthDate.replace(/-/g, "")) || 0;
+  return BLOOD_TYPES[n % BLOOD_TYPES.length];
+}
+
+/**
+ * 종교·신앙년수 시범 값 (2026-08-18) — **신앙 여부에서 파생**한다.
+ *
+ * 무신앙이면 「무교 · 0년」이 자연스럽고, 신앙이면 이 맥락에서 가장 흔한 「기독교」에
+ * 생년월일로 뽑은 년수를 붙인다. 「기타」는 비워 둔다 — 무엇인지 모르는 것을 지어내지 않는다.
+ *
+ * ⚠️ **지어낸 값이다**(불변식 6). 실제 값은 담당자가 채운다. 특히 종교는 민감정보이므로
+ * 시범 값을 근거로 어떤 판단도 하지 않는다.
+ */
+export function demoReligion(faithStatus: FaithStatus): string | undefined {
+  if (faithStatus === "무신앙") return "무교";
+  if (faithStatus === "신앙") return "기독교";
+  return undefined;
+}
+
+export function demoFaithYears(faithStatus: FaithStatus, birthDate: string): number | undefined {
+  if (faithStatus === "무신앙") return 0;
+  if (faithStatus !== "신앙") return undefined;
+  const n = Number(birthDate.replace(/-/g, "")) || 0;
+  return (n % 20) + 1; // 1~20년
 }
 
 export function iljuOf(birthDate: string): string {
