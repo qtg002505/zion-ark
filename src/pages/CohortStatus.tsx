@@ -58,7 +58,13 @@ import {
   weekRates,
   rateOf,
 } from "../lib/attendance-rate";
-import { ENROLLMENT_STATUS_DEFAULT, type EnrollmentStatus } from "../content/student-profiles";
+import {
+  ENROLLMENT_STATUS_DEFAULT,
+  FAITH_STATUS_LABELS,
+  STUDENT_PROFILES,
+  type EnrollmentStatus,
+  type FaithStatus,
+} from "../content/student-profiles";
 import type { Student } from "../lib/types";
 import { PageHeader, Card, StatTile, StatusBadge, EnrollmentStatusBadge } from "./common";
 
@@ -157,6 +163,27 @@ export function CohortStatus() {
   const enrollmentStatusOf = (s: Student): EnrollmentStatus =>
     overrideByKey[s.key]?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT;
 
+  /**
+   * 수강생 구성 — 신앙 여부 · 등록 구분 · 유월 (2026-08-18 리드 지시 「한눈에 보이면 좋겠다」).
+   * 담당자가 고친 값이 있으면 그쪽을, 없으면 씨앗 프로필을 쓴다 — 다른 화면과 같은 규칙이다.
+   */
+  const mix = useMemo(() => {
+    const count = <T extends string>(pick: (s: Student) => T) => {
+      const m = new Map<T, number>();
+      for (const s of students) {
+        const v = pick(s);
+        m.set(v, (m.get(v) ?? 0) + 1);
+      }
+      return m;
+    };
+    const prof = (s: Student) => STUDENT_PROFILES[s.key];
+    return {
+      faith: count((s) => overrideByKey[s.key]?.faithStatus ?? prof(s).faithStatus),
+      registration: count((s) => overrideByKey[s.key]?.registrationType ?? prof(s).registrationType),
+      yuwol: count((s) => overrideByKey[s.key]?.faithType ?? prof(s).faithType),
+    };
+  }, [students, overrideByKey]);
+
   /*
     「출석률 분포」 히스토그램은 2026-08-14 피드백 CHG-01(담당자 확정 지시)로 뺐다 —
     구간 계산(buckets)도 이 화면만 쓰던 것이라 함께 지웠다. 되살릴 때는 git 이력에서 꺼낸다.
@@ -204,6 +231,9 @@ export function CohortStatus() {
         <>
           {/* 총회 점검 기준 — 맨 위다 (2026-08-18 리드 지시 「눈에 띄는 위치에」) */}
           <CheckpointCard students={students} />
+
+          {/* 수강생 구성 — 신앙 여부·등록 구분·유월을 한눈에 (2026-08-18 리드 지시) */}
+          <MixCard mix={mix} total={students.length} />
 
           <div className="mt-5 grid grid-cols-3 gap-3 max-md:grid-cols-1">
             <StatTile label="등록 수강생" value={`${students.length}명`} sub={`${divisions.length}개 분반`} accent />
@@ -431,6 +461,135 @@ const STICKY_NAME_W = 74;
  * 고치는 창이 아니라 **그 옆에 붙는 보강 기록**이다 — 원본 mark는 그대로 있고, 기록은
  * `studentFeedback`(kind `makeup`)으로 남아 수강생 상세의 「보강·상담 메모」에도 그대로 뜬다.
  */
+/**
+ * 수강생 구성 — **신앙 여부 · 등록 구분 · 유월** (2026-08-18 리드 지시).
+ *
+ * 「신앙인·무신앙인 비율, 재수강자·재입교자 등이 한눈에 보이면 좋겠다」는 지시.
+ * 신앙 여부만 도넛으로 그리고 나머지 둘은 가로 막대다 — 셋 다 원으로 그리면 화면이
+ * 무거워지고, 정작 먼저 봐야 할 것이 묻힌다.
+ *
+ * ⚠️ **색만으로 뜻을 전하지 않는다** — 조각마다 이름과 인원을 글자로 함께 적는다.
+ * ⚠️ 도넛은 SVG 한 겹으로 그린다 — 차트 라이브러리를 들이면 번들이 수백 KB 는다
+ * (엑셀·마크다운을 직접 다루는 것과 같은 판단이다).
+ */
+function MixCard({
+  mix,
+  total,
+}: {
+  mix: { faith: Map<string, number>; registration: Map<string, number>; yuwol: Map<string, number> };
+  total: number;
+}) {
+  /** 도넛 조각 색 — 신앙/무신앙/기타 세 갈래뿐이라 진하기로 가른다 */
+  const FAITH_TONE: Record<string, string> = {
+    신앙: "var(--color-zion-700)",
+    무신앙: "var(--color-zion-300)",
+    기타: "var(--color-zion-500)",
+  };
+  const faithOrder = ["신앙", "무신앙", "기타"].filter((k) => (mix.faith.get(k) ?? 0) > 0);
+
+  const R = 42;
+  const C = 2 * Math.PI * R;
+  let acc = 0;
+
+  return (
+    <Card className="mt-5">
+      <div className="mb-3 text-[14px] font-bold text-zion-900">수강생 구성</div>
+
+      <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)]">
+        {/* 신앙 여부 — 도넛 */}
+        <div className="flex items-center gap-4">
+          <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90 shrink-0" role="img" aria-label="신앙 여부 비율">
+            <circle cx="50" cy="50" r={R} fill="none" strokeWidth="14" className="stroke-zion-100" />
+            {faithOrder.map((k) => {
+              const n = mix.faith.get(k) ?? 0;
+              const len = total === 0 ? 0 : (n / total) * C;
+              /*
+                ⚠️ 조각 사이에 **틈**을 둔다. 팔레트가 남색 한 계열이라 어두운 화면에서
+                조각끼리 대비가 2.33까지 떨어진다(실측) — 틈으로 트랙이 비치면 색이 비슷해도
+                경계가 보인다. 세그먼트 탭에서 빗금으로 푼 것과 같은 취지다.
+              */
+              const gap = 2;
+              const el = (
+                <circle
+                  key={k}
+                  cx="50"
+                  cy="50"
+                  r={R}
+                  fill="none"
+                  strokeWidth="14"
+                  stroke={FAITH_TONE[k] ?? "var(--color-zion-500)"}
+                  strokeDasharray={`${Math.max(0, len - gap)} ${C - Math.max(0, len - gap)}`}
+                  strokeDashoffset={-acc}
+                />
+              );
+              acc += len;
+              return el;
+            })}
+          </svg>
+          <ul className="space-y-1.5 text-[12px]">
+            {faithOrder.map((k) => {
+              const n = mix.faith.get(k) ?? 0;
+              return (
+                <li key={k} className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                    style={{ background: FAITH_TONE[k] ?? "var(--color-zion-500)" }}
+                  />
+                  <span className="text-ink">{FAITH_STATUS_LABELS[k as FaithStatus] ?? k}</span>
+                  <span className="font-semibold text-zion-800">
+                    {n}명
+                    <span className="ml-1 font-normal text-ink-soft">
+                      {total === 0 ? 0 : Math.round((n / total) * 100)}%
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {/* 등록 구분 · 유월 — 가로 막대 */}
+        <div className="space-y-4">
+          {(
+            [
+              ["등록 구분", mix.registration, ["신규", "재수강", "재입교"]],
+              ["유월", mix.yuwol, ["오픈", "비오픈", "신앙전환"]],
+            ] as const
+          ).map(([label, map, order]) => (
+            <div key={label}>
+              <div className="mb-1.5 text-[12px] font-semibold text-ink">{label}</div>
+              <div className="space-y-1.5">
+                {order
+                  .filter((k) => (map.get(k) ?? 0) > 0)
+                  .map((k) => {
+                    const n = map.get(k) ?? 0;
+                    const pct = total === 0 ? 0 : Math.round((n / total) * 100);
+                    return (
+                      <div key={k} className="flex items-center gap-2">
+                        <span className="w-14 shrink-0 text-[11.5px] text-ink-soft">{k}</span>
+                        <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-zion-100">
+                          <span className="block h-full rounded-full bg-zion-700" style={{ width: `${pct}%` }} />
+                        </span>
+                        <span className="w-16 shrink-0 text-right text-[11.5px] font-semibold text-zion-800">
+                          {n}명
+                          <span className="ml-1 font-normal text-ink-soft">{pct}%</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+        담당자가 수강생 상세에서 고친 값이 있으면 그 값으로 셉니다. 시범 목업 데이터(가상 인물)입니다.
+      </p>
+    </Card>
+  );
+}
+
 /**
  * 총회 점검 기준 — **1주차·4주차 대면 3회** (2026-08-18 리드 확정).
  *
