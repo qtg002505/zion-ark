@@ -230,8 +230,36 @@ export function CohortStatus() {
 
       {tab === "summary" && (
         <>
-          {/* 총회 점검 기준 — 맨 위다 (2026-08-18 리드 지시 「눈에 띄는 위치에」) */}
-          <CheckpointCard students={students} />
+          {/*
+            기수 요약 퍼널 (2026-08-13 리드 지시) — 신카부터 예상 종강까지의 흐름.
+            접어 둘 수 있다(리드 요청 「접어놓기 기능」) — <details>라 상태 저장 없이 접힌다.
+
+            **2026-08-18 리드 지시로 이 카드가 기수 요약의 맨 위다.**
+            ⚠️ 여기에 **개강 1·4주차 출석이 이미 들어 있다**(총회 점검 기준). 같은 날 그 지표를
+            따로 만든 카드를 올렸다가 **뺐다** — 퍼널은 「신카 → 등록」 흐름의 분모를 쓰고
+            새 카드는 등록 수강생 출결을 썼기에 **같은 이름 아래 다른 숫자**가 두 번 보였다.
+            되살릴 때는 git 이력에서 `CheckpointCard`를 꺼낸다(커밋 2fec452).
+          */}
+          <Card>
+            <details open>
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-[14px] font-bold text-zion-900 [&::-webkit-details-marker]:hidden">
+                <ChevronDown size={15} className="shrink-0 text-zion-600 transition-transform [details:not([open])>summary>&]:-rotate-90" />
+                기수 요약 지표
+                <span className="text-[11px] font-normal text-ink-soft">
+                  신카 → 등록 → 과정별 시작 → 예상 종강 (시범 값 · 가상)
+                </span>
+              </summary>
+              <div className="mt-3 grid grid-cols-5 gap-2 max-lg:grid-cols-3 max-md:grid-cols-2">
+                {COHORT_FUNNEL.map((f) => (
+                  <div key={f.label} className="rounded-lg bg-zion-50 px-3 py-2.5">
+                    <div className="text-[11px] leading-tight text-ink-soft">{f.label}</div>
+                    <div className="mt-0.5 text-[16px] font-bold text-zion-900">{f.value}</div>
+                    {f.sub && <div className="mt-0.5 text-[10px] text-ink-soft">{f.sub}</div>}
+                  </div>
+                ))}
+              </div>
+            </details>
+          </Card>
 
           {/* 수강생 구성 — 신앙 여부·등록 구분·유월을 한눈에 (2026-08-18 리드 지시) */}
           <MixCard mix={mix} total={students.length} />
@@ -306,30 +334,6 @@ export function CohortStatus() {
             <LessonRateStrip students={students} />
           </div>
 
-          {/*
-            기수 요약 퍼널 (2026-08-13 리드 지시) — 신카부터 예상 종강까지의 흐름.
-            접어 둘 수 있다(리드 요청 「접어놓기 기능」) — <details>라 상태 저장 없이 접힌다.
-          */}
-          <Card className="mt-5">
-            <details open>
-              <summary className="flex cursor-pointer list-none items-center gap-2 text-[14px] font-bold text-zion-900 [&::-webkit-details-marker]:hidden">
-                <ChevronDown size={15} className="shrink-0 text-zion-600 transition-transform [details:not([open])>summary>&]:-rotate-90" />
-                기수 요약 지표
-                <span className="text-[11px] font-normal text-ink-soft">
-                  신카 → 등록 → 과정별 시작 → 예상 종강 (시범 값 · 가상)
-                </span>
-              </summary>
-              <div className="mt-3 grid grid-cols-5 gap-2 max-lg:grid-cols-3 max-md:grid-cols-2">
-                {COHORT_FUNNEL.map((f) => (
-                  <div key={f.label} className="rounded-lg bg-zion-50 px-3 py-2.5">
-                    <div className="text-[11px] leading-tight text-ink-soft">{f.label}</div>
-                    <div className="mt-0.5 text-[16px] font-bold text-zion-900">{f.value}</div>
-                    {f.sub && <div className="mt-0.5 text-[10px] text-ink-soft">{f.sub}</div>}
-                  </div>
-                ))}
-              </div>
-            </details>
-          </Card>
 
           {/* 사명자 현황 (2026-08-13 리드 지시) — 역할은 표시 문자열일 뿐, 계정·권한과 무관하다 */}
           <Card className="mt-5">
@@ -689,78 +693,6 @@ function MixCard({
 
       <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
         담당자가 수강생 상세에서 고친 값이 있으면 그 값으로 셉니다. 시범 목업 데이터(가상 인물)입니다.
-      </p>
-    </Card>
-  );
-}
-
-/**
- * 총회 점검 기준 — **1주차·4주차 대면 3회** (2026-08-18 리드 확정).
- *
- * 총회가 이 두 주차를 점검한다고 해서 기수 요약 **맨 위**에 뒀다. 4주차는 「최종 대면 3회」를
- * 보는 자리다.
- *
- * ⚠️ **지금 목업은 주마다 마크가 하나**라, 그 주가 대면(`present`)이면 세 회차를 다 나온 것으로
- * 셈한다. 실연동에서 회차별 출결이 오면 **회차 세 칸을 각각 세는 것으로** 바꾼다 —
- * 함수 하나(`weekPresentCount`)만 고치면 화면은 그대로다.
- * ⚠️ 미입력은 「못 지킴」이 아니다. 아직 안 적은 것을 어긴 것으로 세면 사실이 아니라서
- * 따로 헤아려 보여 준다.
- */
-function CheckpointCard({ students }: { students: Student[] }) {
-  const WEEKS = [1, 4] as const;
-
-  const rows = WEEKS.map((weekNo) => {
-    /* weeksAgo = DONE_WEEKS - weekNo — 격자가 쓰는 것과 같은 규칙이다 */
-    const ago = DONE_WEEKS - weekNo;
-    let ok = 0;
-    let miss = 0;
-    let unknown = 0;
-    for (const s of students) {
-      const mark = studentWeekHistory(s, ago + 1).find((w) => w.weeksAgo === ago)?.mark ?? "unknown";
-      if (mark === "unknown") unknown++;
-      else if (mark === "present") ok++;
-      else miss++;
-    }
-    const counted = ok + miss;
-    return { weekNo, ok, miss, unknown, counted, pct: counted === 0 ? null : Math.round((ok / counted) * 100) };
-  });
-
-  return (
-    <Card>
-      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <div className="text-[14px] font-bold text-zion-900">총회 점검 — 1주차 · 4주차 대면 3회</div>
-        <span className="text-[11px] text-ink-soft">4주차는 최종 확인입니다</span>
-      </div>
-      <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
-        두 주차에 대면으로 세 번 다 나왔는지 봅니다. 아직 출결이 안 적힌 분은 따로 셉니다.
-      </p>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {rows.map((r) => (
-          <div key={r.weekNo} className="rounded-lg border border-zion-200 p-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-bold text-zion-900">{r.weekNo}주차</span>
-              <span className="text-[20px] font-bold leading-none text-zion-800">
-                {r.pct === null ? "—" : `${r.pct}%`}
-                <span className="ml-1 text-[12px] font-normal text-ink-soft">
-                  {r.ok}/{r.counted}명
-                </span>
-              </span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-zion-100">
-              <div className="h-full rounded-full bg-zion-700" style={{ width: `${r.pct ?? 0}%` }} />
-            </div>
-            <div className="mt-1.5 text-[11px] text-ink-soft">
-              지킴 {r.ok}명 · 못 지킴 {r.miss}명
-              {r.unknown > 0 && <> · 미입력 {r.unknown}명</>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
-        지금은 주 단위 출결로 셉니다 — 그 주가 대면이면 세 번 다 나온 것으로 봅니다. 회차별
-        출결이 붙으면 세 칸을 각각 셉니다.
       </p>
     </Card>
   );
