@@ -78,6 +78,28 @@ export function cohortRates(students: Student[]): { withMakeup: number; presentO
 }
 
 /**
+ * 기수 전체의 **실제 횟수 합계** (2026-08-18 리드 지시 — 「퍼센트뿐 아니라 실제 숫자도」).
+ *
+ * ⚠️ 위 `cohortRates`는 **사람 단위 비율의 평균**이고 이 함수는 **칸을 그대로 센 것**이라,
+ * 여기서 나온 비율(`present/counted`)이 그 평균과 1~2%p 다를 수 있다. 사람마다 분모가
+ * 다르기 때문이다 — 어느 쪽도 틀린 것이 아니라 **묻는 것이 다르다.**
+ * 화면에서는 대표 숫자로 평균을 쓰고, 이 값은 **「몇 번 중 몇 번인지」를 보여 주는 데만** 쓴다.
+ */
+export function cohortTotals(students: Student[]): {
+  present: number;
+  makeupDone: number;
+  counted: number;
+} {
+  const rows = students.map(rateOf);
+  const sum = (pick: (r: RateBreakdown) => number) => rows.reduce((a, r) => a + pick(r), 0);
+  return {
+    present: sum((r) => r.presentCount),
+    makeupDone: sum((r) => r.makeupDoneCount),
+    counted: sum((r) => r.counted),
+  };
+}
+
+/**
  * **한 주(회차 묶음)의 기수 전체 비율** (2026-08-18 리드 지시 — 「주차별 보강 포함 현황」).
  *
  * 전체 평균(`cohortRates`)은 「지금 이 기수가 어떤가」를 한 숫자로 말한다. 그런데 담당자가

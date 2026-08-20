@@ -54,6 +54,7 @@ import {
   MARK_LABEL,
   MARK_TONE,
   cohortRates,
+  cohortTotals,
   weekRates,
   rateOf,
 } from "../lib/attendance-rate";
@@ -166,6 +167,8 @@ export function CohortStatus() {
    * 대면만 세면 보강으로 따라잡은 사람이 결석자와 같이 묶여 실제보다 나빠 보인다.
    */
   const rates = useMemo(() => cohortRates(students), [students]);
+  /** 실제 횟수 — 퍼센트 옆에 「몇 번 중 몇 번인지」를 함께 내기 위한 값 (2026-08-18) */
+  const totals = useMemo(() => cohortTotals(students), [students]);
 
   return (
     <div>
@@ -233,16 +236,27 @@ export function CohortStatus() {
                 <strong className="text-zion-800">차이 {rates.withMakeup - rates.presentOnly}%p</strong>가
                 보강으로 따라잡은 몫입니다.
               </p>
+              {/*
+                퍼센트 옆에 **실제 횟수**를 함께 낸다 (2026-08-18 리드 지시).
+                ⚠️ 퍼센트는 **사람 단위 비율의 평균**이고 괄호 안 숫자는 **칸을 그대로 센 것**이라
+                둘을 나눈 값이 1~2%p 다를 수 있다 — 사람마다 분모가 달라서다. 대표 숫자는
+                평균을 쓰고, 횟수는 「몇 번 중 몇 번인지」를 보여 주는 데만 쓴다.
+              */}
               {(
                 [
-                  ["보강 포함 (대면 + 보강 완료)", rates.withMakeup],
-                  ["대면만", rates.presentOnly],
+                  ["보강 포함 (대면 + 보강 완료)", rates.withMakeup, totals.present + totals.makeupDone],
+                  ["대면만", rates.presentOnly, totals.present],
                 ] as const
-              ).map(([label, v]) => (
+              ).map(([label, v, n]) => (
                 <div key={label} className="mb-2.5">
-                  <div className="mb-1 flex justify-between text-[12px]">
-                    <span className="text-ink-soft">{label}</span>
-                    <span className="font-semibold text-zion-800">{v}%</span>
+                  <div className="mb-1 flex justify-between gap-2 text-[12px]">
+                    <span className="min-w-0 truncate text-ink-soft">{label}</span>
+                    <span className="shrink-0 font-semibold text-zion-800">
+                      {v}%
+                      <span className="ml-1 text-[11px] font-normal text-ink-soft">
+                        {n}/{totals.counted}회
+                      </span>
+                    </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-zion-100">
                     <div className="h-full rounded-full bg-zion-700" style={{ width: `${v}%` }} />
@@ -987,12 +1001,25 @@ function AttendanceGrid({
         `w-max`라 칸이 눌려 찌그러지지 않는다 — 대신 번호·이름이 왼쪽에 붙박인다.
         **붙잡고 끌어도 넘어간다** (2026-08-14 리드 지시) — `useDragScroll` 참고.
       */}
+      {/*
+        ⚠️ **세로로 내려도 머리가 남는다** (2026-08-18 리드 지시 — 「번호·이름·상태가 스크롤을
+        내리면 보이지 않는다」). 표를 제 높이 안에서 굴려(`max-h`) 머리를 그 위에 붙였다 —
+        페이지째 굴리면 머리를 어디에 붙일지가 헤더 높이에 매여 화면마다 어긋난다.
+        ⚠️ 머리가 두 줄이라 아래 줄은 윗줄 높이(26px)만큼 내려 붙인다. 두 줄을 같은 자리에
+        붙이면 겹쳐 읽히지 않는다.
+      */}
       <div
         ref={dragGrid.ref}
         onPointerDown={dragGrid.onPointerDown}
-        className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
+        className={"-mx-1 max-h-[72vh] overflow-auto px-1 " + DRAG_SCROLL_CLASS}
       >
-        <table className="w-max min-w-full text-[13px]">
+        <table
+          className={
+            "w-max min-w-full text-[13px] " +
+            "[&_thead_th]:sticky [&_thead_th]:bg-white " +
+            "[&_thead_tr:first-child_th]:top-0 [&_thead_tr:last-child_th]:top-[26px]"
+          }
+        >
           <thead>
             <tr className="border-b border-zion-100 text-center text-[11px] text-ink-soft">
               <th className="sticky z-20 bg-white pb-1" style={{ left: 0, minWidth: STICKY_NO_W }} />
@@ -1217,11 +1244,22 @@ function AttendanceGrid({
                       <td className="whitespace-nowrap px-2 py-2">
                         <StatusBadge status={s.status} />
                       </td>
+                      {/*
+                        퍼센트 옆에 **실제 횟수**를 함께 낸다 (2026-08-18 리드 지시).
+                        분모는 미입력을 뺀 「센 회차」다 — 사람마다 다를 수 있어 비율만으로는
+                        「몇 번 중 몇 번인지」가 안 보였다.
+                      */}
                       <td className="px-2 py-2 text-right font-semibold text-zion-800">
                         {r.withMakeup}%
+                        <span className="ml-1 text-[11px] font-normal text-ink-soft">
+                          {r.presentCount + r.makeupDoneCount}/{r.counted}
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-right text-[12px] text-ink-soft">
                         {r.presentOnly}%
+                        <span className="ml-1 text-[11px]">
+                          {r.presentCount}/{r.counted}
+                        </span>
                       </td>
                       {axis !== "week"
                         ? columnGroups.flatMap((g) =>

@@ -481,13 +481,16 @@ function AiGrowthPanel({
               >
                 {/* 점수 — 숫자와 막대를 함께 낸다(색만으로 뜻을 전하지 않는다) */}
                 <span className="w-9 shrink-0 text-right text-[15px] font-bold text-zion-800">{score}</span>
-                <span className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-zion-100">
+                {/* 막대·분반은 좁은 화면에서 접는다 — 점수·이름·등급·추천이 먼저다 */}
+                <span className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-zion-100 max-sm:hidden">
                   <span className="block h-full rounded-full bg-zion-700" style={{ width: `${score}%` }} />
                 </span>
                 <span className="w-20 shrink-0 truncate text-[13px] font-semibold text-ink">
                   {student.name}
                 </span>
-                <span className="w-16 shrink-0 truncate text-[11px] text-ink-soft">{student.division}</span>
+                <span className="w-16 shrink-0 truncate text-[11px] text-ink-soft max-sm:hidden">
+                  {student.division}
+                </span>
                 <span className="shrink-0 rounded-full bg-zion-100 px-2 py-0.5 text-[11px] font-semibold text-zion-800">
                   {GRADE_LABELS[grade]}({grade})
                 </span>
