@@ -202,7 +202,10 @@ export function CohortStatus() {
 
       {tab === "summary" && (
         <>
-          <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
+          {/* 총회 점검 기준 — 맨 위다 (2026-08-18 리드 지시 「눈에 띄는 위치에」) */}
+          <CheckpointCard students={students} />
+
+          <div className="mt-5 grid grid-cols-3 gap-3 max-md:grid-cols-1">
             <StatTile label="등록 수강생" value={`${students.length}명`} sub={`${divisions.length}개 분반`} accent />
             <StatTile
               label="수강"
@@ -428,6 +431,78 @@ const STICKY_NAME_W = 74;
  * 고치는 창이 아니라 **그 옆에 붙는 보강 기록**이다 — 원본 mark는 그대로 있고, 기록은
  * `studentFeedback`(kind `makeup`)으로 남아 수강생 상세의 「보강·상담 메모」에도 그대로 뜬다.
  */
+/**
+ * 총회 점검 기준 — **1주차·4주차 대면 3회** (2026-08-18 리드 확정).
+ *
+ * 총회가 이 두 주차를 점검한다고 해서 기수 요약 **맨 위**에 뒀다. 4주차는 「최종 대면 3회」를
+ * 보는 자리다.
+ *
+ * ⚠️ **지금 목업은 주마다 마크가 하나**라, 그 주가 대면(`present`)이면 세 회차를 다 나온 것으로
+ * 셈한다. 실연동에서 회차별 출결이 오면 **회차 세 칸을 각각 세는 것으로** 바꾼다 —
+ * 함수 하나(`weekPresentCount`)만 고치면 화면은 그대로다.
+ * ⚠️ 미입력은 「못 지킴」이 아니다. 아직 안 적은 것을 어긴 것으로 세면 사실이 아니라서
+ * 따로 헤아려 보여 준다.
+ */
+function CheckpointCard({ students }: { students: Student[] }) {
+  const WEEKS = [1, 4] as const;
+
+  const rows = WEEKS.map((weekNo) => {
+    /* weeksAgo = DONE_WEEKS - weekNo — 격자가 쓰는 것과 같은 규칙이다 */
+    const ago = DONE_WEEKS - weekNo;
+    let ok = 0;
+    let miss = 0;
+    let unknown = 0;
+    for (const s of students) {
+      const mark = studentWeekHistory(s, ago + 1).find((w) => w.weeksAgo === ago)?.mark ?? "unknown";
+      if (mark === "unknown") unknown++;
+      else if (mark === "present") ok++;
+      else miss++;
+    }
+    const counted = ok + miss;
+    return { weekNo, ok, miss, unknown, counted, pct: counted === 0 ? null : Math.round((ok / counted) * 100) };
+  });
+
+  return (
+    <Card>
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="text-[14px] font-bold text-zion-900">총회 점검 — 1주차 · 4주차 대면 3회</div>
+        <span className="text-[11px] text-ink-soft">4주차는 최종 확인입니다</span>
+      </div>
+      <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
+        두 주차에 대면으로 세 번 다 나왔는지 봅니다. 아직 출결이 안 적힌 분은 따로 셉니다.
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {rows.map((r) => (
+          <div key={r.weekNo} className="rounded-lg border border-zion-200 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[13px] font-bold text-zion-900">{r.weekNo}주차</span>
+              <span className="text-[20px] font-bold leading-none text-zion-800">
+                {r.pct === null ? "—" : `${r.pct}%`}
+                <span className="ml-1 text-[12px] font-normal text-ink-soft">
+                  {r.ok}/{r.counted}명
+                </span>
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-zion-100">
+              <div className="h-full rounded-full bg-zion-700" style={{ width: `${r.pct ?? 0}%` }} />
+            </div>
+            <div className="mt-1.5 text-[11px] text-ink-soft">
+              지킴 {r.ok}명 · 못 지킴 {r.miss}명
+              {r.unknown > 0 && <> · 미입력 {r.unknown}명</>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+        지금은 주 단위 출결로 셉니다 — 그 주가 대면이면 세 번 다 나온 것으로 봅니다. 회차별
+        출결이 붙으면 세 칸을 각각 셉니다.
+      </p>
+    </Card>
+  );
+}
+
 /**
  * 진도별 보강 포함 현황 — **주마다 한 칸**, 최신이 왼쪽 (2026-08-18 리드 지시).
  *
