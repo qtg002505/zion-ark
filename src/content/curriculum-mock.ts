@@ -6,8 +6,10 @@ import {
 } from "../lib/cohort-calendar";
 import {
   ELEMENTARY_COURSE_TITLES,
+  ELEMENTARY_SHORT_TITLES,
   HIGH_COURSE_TITLES,
   MIDDLE_COURSE_TITLES,
+  MIDDLE_SHORT_TITLES,
 } from "./curriculum-titles";
 import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
 
@@ -32,7 +34,8 @@ export type LessonLevel = "초등" | "중등" | "고등";
 export const LEVEL_SHORT: Record<LessonLevel, string> = { 초등: "초", 중등: "중", 고등: "고" };
 
 /**
- * 단계 색 (2026-08-15 리드 지시 — 초등 하늘색 · 중등 주황색 · 고등 남색).
+ * 단계 색 — **초등 초록 · 중등 주황 · 고등 남색**
+ * (2026-08-15 리드 지시 · **초등은 2026-08-18에 하늘색에서 초록으로 바뀌었다**).
  *
  * ⚠️ **색값은 여기 없다.** `index.css`의 `@theme`에 토큰(`--color-level-*`)으로 있고
  * 여기는 그 유틸리티 이름만 짝지어 둔다 — 화면에 색을 하드코딩하지 않는다는 규칙 그대로다.
@@ -79,8 +82,11 @@ export interface CurriculumStep {
   /** 원문 제목 — **그대로다**(불변식 5). 표기를 줄일 때도 이 값은 안 건드린다 */
   title: string;
   /**
-   * 화면 표기용 핵심단어 — **정본 과수 목록의 표기**다 (2026-08-15 리드 전달).
-   * 초등·중등은 과수 제목 그대로, 고등은 장 표기(「계 1:1~8」)다.
+   * 화면 표기용 요약 — **리드가 과수마다 정해 준 줄임말**이다 (2026-08-18 전달).
+   * 「빛 · 등대와 소경 · 귀머거리 · 예복」 → 「빛 ~ 예복」, 고등은 장 표기(「계 2장」).
+   *
+   * ⚠️ 종전에는 제목을 여덟 글자에서 **기계적으로 잘라** 뜻이 끊겼다(「빛 · 등대와 …」).
+   * 이제 사이트가 줄이지 않는다 — 목록(`curriculum-titles.ts`)에 없으면 원 제목을 그대로 쓴다.
    */
   keyword: string;
   /**
@@ -133,17 +139,21 @@ export function revelationKeyword(label: string): string {
  */
 export const CURRICULUM: CurriculumStep[] = (() => {
   const out: CurriculumStep[] = [
+    /*
+      `keyword`는 **리드가 정해 준 요약 표기**다 (2026-08-18). 목록에 없으면 원 제목을
+      그대로 쓴다 — 사이트가 지어서 줄이지 않는다.
+    */
     ...ELEMENTARY_COURSE_TITLES.map((t, i) => ({
       level: "초등" as const,
       lessonNo: i + 1,
       title: t,
-      keyword: t,
+      keyword: ELEMENTARY_SHORT_TITLES[i] ?? t,
     })),
     ...MIDDLE_COURSE_TITLES.map((t, i) => ({
       level: "중등" as const,
       lessonNo: i + 1,
       title: t,
-      keyword: t,
+      keyword: MIDDLE_SHORT_TITLES[i] ?? t,
     })),
     ...HIGH_COURSE_TITLES.map((h, i) => ({
       level: "고등" as const,

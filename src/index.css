@@ -66,8 +66,13 @@
    * ⚠️ 고등(남색)은 주색(`zion`)과 비슷해 **일부러 조금 더 보라 쪽**으로 기울였다 —
    *    같은 화면에서 버튼·머리글과 뒤섞이지 않게 하기 위해서다.
    */
-  --color-level-el: oklch(0.45 0.11 232); /* 초등 — 하늘색 계열 글자 */
-  --color-level-el-soft: oklch(0.95 0.03 232); /* 초등 뱃지 바탕 */
+  /*
+   * 초등은 2026-08-18 리드 지시로 **하늘색 → 초록**이 됐다.
+   * ⚠️ hue를 145로 잡은 것은 상태색 `emerald`(165)와 벌리기 위해서다 — 「강점」·「상담」
+   *    표시와 단계 뱃지가 같은 화면에 있어 너무 가까우면 섞여 보인다.
+   */
+  --color-level-el: oklch(0.45 0.11 145); /* 초등 — 초록 계열 글자 */
+  --color-level-el-soft: oklch(0.95 0.035 145); /* 초등 뱃지 바탕 */
   --color-level-mid: oklch(0.49 0.13 55); /* 중등 — 주황 계열 글자 */
   --color-level-mid-soft: oklch(0.955 0.035 60); /* 중등 뱃지 바탕 */
   --color-level-high: oklch(0.38 0.13 285); /* 고등 — 남색 계열 글자 */
@@ -179,8 +184,8 @@
    * 과정 단계 색 (2026-08-15) — 옅은 뱃지 바탕(`-soft`)은 어둡게, 글자는 밝게 뒤집는다.
    * 상태색(red·emerald·amber)과 똑같은 취급이라 새로 생각할 것이 없다.
    */
-  --color-level-el: oklch(0.82 0.11 232);
-  --color-level-el-soft: oklch(0.28 0.05 232);
+  --color-level-el: oklch(0.82 0.13 145);
+  --color-level-el-soft: oklch(0.28 0.05 145);
   --color-level-mid: oklch(0.83 0.12 60);
   --color-level-mid-soft: oklch(0.29 0.05 55);
   --color-level-high: oklch(0.81 0.1 285);
