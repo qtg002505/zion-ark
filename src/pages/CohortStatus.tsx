@@ -54,6 +54,7 @@ import {
   MARK_LABEL,
   MARK_TONE,
   cohortRates,
+  weekRates,
   rateOf,
 } from "../lib/attendance-rate";
 import { ENROLLMENT_STATUS_DEFAULT, type EnrollmentStatus } from "../content/student-profiles";
@@ -180,7 +181,12 @@ export function CohortStatus() {
             그래프도 2026-08-10에 같은 방식으로 뺐다 — 시간대 집계(`slotCounts`)는 데이터에
             남아 있다(불변식 10).
           */}
-          <div className="mt-5">
+          {/*
+            2026-08-18 리드 지시 — 요약을 **왼쪽으로 몰고 오른쪽에 진도별 흐름**을 둔다.
+            한 숫자(전체 평균)만으로는 「어느 주에 무너졌나」가 안 보인다. 출석 현황과 같은
+            규칙으로 **최신이 왼쪽**이고, 붙잡아 끌어서 넘긴다.
+          */}
+          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
             <Card>
               <div className="mb-1 text-[14px] font-bold text-zion-900">보강 포함 출석률</div>
               <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
@@ -210,6 +216,8 @@ export function CohortStatus() {
                 보강(▽)은 결석으로 셉니다.
               </p>
             </Card>
+
+            <LessonRateStrip students={students} />
           </div>
 
           {/*
@@ -368,6 +376,96 @@ const STICKY_NAME_W = 74;
  * 고치는 창이 아니라 **그 옆에 붙는 보강 기록**이다 — 원본 mark는 그대로 있고, 기록은
  * `studentFeedback`(kind `makeup`)으로 남아 수강생 상세의 「보강·상담 메모」에도 그대로 뜬다.
  */
+/**
+ * 진도별 보강 포함 현황 — **주마다 한 칸**, 최신이 왼쪽 (2026-08-18 리드 지시).
+ *
+ * 왼쪽 요약 카드가 「지금 이 기수가 어떤가」를 한 숫자로 말한다면, 여기는 **어느 주에
+ * 무너졌는가**를 보여 준다. 그 주의 진도와 함께 놓여 있어 원인을 짚을 수 있다.
+ *
+ * ⚠️ 차례는 **출석 현황과 같은 규칙**이다 — 최근이 왼쪽. 두 화면이 서로 다른 방향으로
+ * 놓이면 같은 기수를 보면서 머리를 다시 돌려야 한다.
+ * ⚠️ 그 주가 통째로 미입력이면 **막대를 그리지 않는다**(`weekRates`가 `null`) —
+ * 0%로 그리면 아직 안 적은 주가 최악의 주로 보인다.
+ */
+function LessonRateStrip({ students }: { students: Student[] }) {
+  const drag = useDragScroll<HTMLDivElement>();
+  /** 최신이 앞 — 23주차, 22주차 … 1주차 */
+  const weekNos = Array.from({ length: DONE_WEEKS }, (_, i) => DONE_WEEKS - i);
+
+  return (
+    <Card>
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="text-[14px] font-bold text-zion-900">진도별 보강 포함 현황</div>
+        <span className="text-[11px] text-ink-soft">최근이 왼쪽 · 붙잡아 끌면 넘어갑니다</span>
+      </div>
+      <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
+        주마다 그 주 진도와 함께 봅니다. 진한 칸이 대면, 옅은 칸이 보강으로 따라잡은 몫입니다.
+      </p>
+
+      <div
+        ref={drag.ref}
+        onPointerDown={drag.onPointerDown}
+        className={"-mx-1 overflow-x-auto px-1 pb-1 " + DRAG_SCROLL_CLASS}
+      >
+        <div className="flex items-end gap-1.5">
+          {weekNos.map((weekNo) => {
+            const r = weekRates(students, DONE_WEEKS - weekNo);
+            const first = sessionsOfWeek(weekNo)[0];
+            const step = first ? lessonOfSession(first.sessionNo) : null;
+            return (
+              <div key={weekNo} className="flex w-[58px] shrink-0 flex-col items-center gap-1">
+                {/* 막대 — 보강 포함이 바깥(옅은), 대면만이 안쪽(진한) */}
+                <div
+                  className="relative flex h-[104px] w-full items-end overflow-hidden rounded-md bg-zion-100"
+                  title={
+                    r
+                      ? `${weekNo}주차 · 보강 포함 ${r.withMakeup}% · 대면만 ${r.presentOnly}%`
+                      : `${weekNo}주차 · 아직 적힌 출결이 없습니다`
+                  }
+                >
+                  {r && (
+                    <>
+                      {/*
+                        보강 몫은 **빗금**으로 가른다 — 팔레트가 남색 한 계열이라 명도만으로는
+                        두 구간이 3:1까지 안 벌어진다(실측: 밝은 화면 1.51 · 어두운 화면 2.33).
+                        무늬 색을 트랙과 같은 변수로 두면 밝은·어두운 화면이 저절로 따라온다.
+                        ⚠️ 색·무늬만으로 뜻을 전하지 않는다 — 칸 아래 숫자와 툴팁이 값을 말한다.
+                      */}
+                      <div
+                        className="absolute inset-x-0 bottom-0 rounded-md bg-zion-300"
+                        style={{
+                          height: `${r.withMakeup}%`,
+                          backgroundImage:
+                            "repeating-linear-gradient(45deg, transparent 0 5px, var(--color-zion-100) 5px 10px)",
+                        }}
+                      />
+                      <div
+                        className="absolute inset-x-0 bottom-0 rounded-md bg-zion-700"
+                        style={{ height: `${r.presentOnly}%` }}
+                      />
+                    </>
+                  )}
+                </div>
+                <div className="text-[11px] font-bold text-zion-800">{r ? `${r.withMakeup}%` : "—"}</div>
+                {/* 진도 — 정본 요약 표기를 쓴다(사이트가 지어서 줄이지 않는다) */}
+                <div className="w-full truncate text-center text-[10.5px] text-ink-soft" title={step?.title}>
+                  {step && !step.undecided ? step.keyword : "미정"}
+                </div>
+                <div className="text-[10px] text-ink-soft">{weekNo}주</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+        출결이 하나도 없는 주는 막대를 그리지 않습니다 — 아직 안 적은 주가 가장 나쁜 주로 보이지
+        않게 하기 위해서입니다.
+      </p>
+    </Card>
+  );
+}
+
 function AttendanceGrid({
   students,
   weekdayPeriods,

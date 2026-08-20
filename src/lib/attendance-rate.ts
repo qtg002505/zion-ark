@@ -77,6 +77,32 @@ export function cohortRates(students: Student[]): { withMakeup: number; presentO
   return { withMakeup: avg((r) => r.withMakeup), presentOnly: avg((r) => r.presentOnly) };
 }
 
+/**
+ * **한 주(회차 묶음)의 기수 전체 비율** (2026-08-18 리드 지시 — 「주차별 보강 포함 현황」).
+ *
+ * 전체 평균(`cohortRates`)은 「지금 이 기수가 어떤가」를 한 숫자로 말한다. 그런데 담당자가
+ * 보고 싶은 것은 **어느 주에 무너졌는가**다 — 그 주의 진도와 함께 놓고 봐야 원인이 보인다.
+ *
+ * ⚠️ 여기서는 **사람 단위 평균이 아니라 칸 단위**로 센다. 한 주에는 사람마다 마크가 하나씩이라
+ * 둘이 같은 값이 되지만, 셈의 뜻이 다르다 — 이 함수는 「그 주에 찍힌 표 중 몇이 출석인가」다.
+ * ⚠️ 미입력은 분모에서 뺀다(전체 평균과 같은 규칙). 그 주가 통째로 미입력이면 `null`이다 —
+ * 0%로 내면 **아직 안 적은 주가 최악의 주로 보인다.**
+ */
+export function weekRates(
+  students: Student[],
+  weeksAgo: number,
+): { withMakeup: number; presentOnly: number; counted: number } | null {
+  const marks = students
+    .map((s) => s.recentWeeks.find((w) => w.weeksAgo === weeksAgo)?.mark)
+    .filter((m): m is AttendanceMark => m !== undefined);
+  const counted = marks.filter(countsInDenominator).length;
+  if (counted === 0) return null;
+  const pct = (v: number) => Math.round((v / counted) * 100);
+  const present = marks.filter((m) => m === "present").length;
+  const makeupDone = marks.filter((m) => m === "makeupDone").length;
+  return { withMakeup: pct(present + makeupDone), presentOnly: pct(present), counted };
+}
+
 /* ── 화면 표기 ── */
 
 /** 격자 한 칸의 모양 — 사명자가 훑어보고 바로 읽히도록 기호를 고정한다 */
