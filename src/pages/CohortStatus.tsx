@@ -59,6 +59,7 @@ import {
   rateOf,
 } from "../lib/attendance-rate";
 import {
+  DIVISION_EVANGELISTS,
   ENROLLMENT_STATUS_DEFAULT,
   FAITH_STATUS_LABELS,
   STUDENT_PROFILES,
@@ -776,6 +777,11 @@ function AttendanceGrid({
   const cohortKey = cohortKeyOf(session);
   const canEdit = canEditCohortRecord(session, cohortKey);
   const [axis, setAxis] = useState<GridAxis>("lesson");
+  /**
+   * 보고 있는 분반 (2026-08-18 리드 지시 — 「전도사별로 구분되어 반별로 따로 볼 수 있으면」).
+   * 분반 이름이 곧 담당 전도사 자리라, 탭에는 **전도사 이름을 함께** 적는다.
+   */
+  const [divisionTab, setDivisionTab] = useState<string>("all");
   /** 보고 있는 요일 — 비어 있으면 전부 본다 */
   const [dayFilter, setDayFilter] = useState<number[]>([]);
   /** 보강 기록을 남길 칸 */
@@ -904,32 +910,42 @@ function AttendanceGrid({
   );
 
   /**
-   * **출석한 사람이 위, 결석이 아래** (2026-08-15 리드 지시 — 종전 「출석률 낮은 사람이 위」를
-   * 뒤집었다). 첫 열쇠는 **가장 최근 회차의 출결**이고, 같으면 보강 포함 출석률이 높은 순이다.
+   * **손이 필요한 사람이 위** (2026-08-18 리드 지시 — 「수강이 잘 되는 수강생보다 관리가
+   * 필요한 수강생이 상단에」).
+   *
+   * ⚠️ 이 축은 **두 번 뒤집혔다.** 2026-08-14에 「출석률 낮은 사람이 위」였다가 2026-08-15에
+   * 「출석한 사람이 위」로 갔고, 지금 다시 돌아왔다. 또 바뀔 수 있으므로 **순위표 한 곳**만
+   * 고치면 되게 두었다 — 정렬식은 건드릴 일이 없다.
+   *
+   * 첫 열쇠는 **가장 최근 회차의 출결**이고, 같으면 보강 포함 출석률이 **낮은 순**이다.
    */
   const MARK_RANK: Record<string, number> = {
-    present: 0,
-    makeupDone: 1,
-    makeupPending: 2,
-    unknown: 3,
-    absent: 4,
+    absent: 0,
+    makeupPending: 1,
+    unknown: 2,
+    makeupDone: 3,
+    present: 4,
   };
   const sortStudents = (list: Student[]) =>
     [...list].sort((a, b) => {
-      const ra = MARK_RANK[history.get(a.key)?.[0]?.mark ?? "unknown"] ?? 3;
-      const rb = MARK_RANK[history.get(b.key)?.[0]?.mark ?? "unknown"] ?? 3;
+      const ra = MARK_RANK[history.get(a.key)?.[0]?.mark ?? "unknown"] ?? 2;
+      const rb = MARK_RANK[history.get(b.key)?.[0]?.mark ?? "unknown"] ?? 2;
       if (ra !== rb) return ra - rb;
-      return rateOf(b).withMakeup - rateOf(a).withMakeup;
+      return rateOf(a).withMakeup - rateOf(b).withMakeup;
     });
 
-  /** **분반별 가로 띠**로 묶는다 (2026-08-15 리드 지시) — 띠 아래에 그 분반 사람들이 온다 */
+  /**
+   * **분반별 가로 띠**로 묶는다 (2026-08-15 리드 지시) — 띠 아래에 그 분반 사람들이 온다.
+   * 2026-08-18부터 위 탭에서 한 분반만 골라 볼 수 있다 (전도사별로 따로 보기).
+   */
   const groups = useMemo(() => {
+    const scoped = divisionTab === "all" ? students : students.filter((s) => s.division === divisionTab);
     const byDivision = new Map<string, Student[]>();
-    for (const s of students) byDivision.set(s.division, [...(byDivision.get(s.division) ?? []), s]);
+    for (const s of scoped) byDivision.set(s.division, [...(byDivision.get(s.division) ?? []), s]);
     return [...byDivision.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], "ko"))
       .map(([division, list]) => ({ division, list: sortStudents(list) }));
-  }, [students, history]);
+  }, [students, history, divisionTab]);
 
   /** 전체 순번 — 분반 띠를 건너뛰고 사람만 1부터 센다 */
   const rows = groups.flatMap((g) => g.list);
@@ -1099,10 +1115,30 @@ function AttendanceGrid({
                 <strong>1주차가 왼쪽</strong>, 개강부터 차례대로입니다.
               </>
             )}{" "}
-            출석한 분부터 위에 옵니다.
+            <strong>손이 필요한 분부터</strong> 위에 옵니다.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/*
+            분반(전도사) 고르기 (2026-08-18 리드 지시) — 반별로 따로 본다.
+            분반 이름이 곧 담당 전도사 자리라 탭에 이름을 함께 적는다.
+          */}
+          <SegmentedTabs
+            label="분반 고르기"
+            size="sm"
+            scroll
+            value={divisionTab}
+            onChange={setDivisionTab}
+            items={[
+              { id: "all", label: "전체 분반" },
+              ...[...new Set(students.map((s) => s.division))]
+                .sort((a, b) => a.localeCompare(b, "ko"))
+                .map((d) => ({
+                  id: d,
+                  label: DIVISION_EVANGELISTS[d] ? `${d} · ${DIVISION_EVANGELISTS[d]}` : d,
+                })),
+            ]}
+          />
           {/* 보기 전환 — 진도별이 먼저이고 기본이다 (2026-08-14 리드 지시) */}
           <SegmentedTabs
             label="출결 표시 축"
