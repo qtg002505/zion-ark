@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { Search, Users, RotateCcw, Lock, Unlock } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Search, Users, RotateCcw, Lock, Unlock, Sparkles } from "lucide-react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { visibleDivisions } from "../lib/permissions";
@@ -17,6 +19,8 @@ import {
 } from "../content/student-profiles";
 import {
   gradeOf,
+  growthScore,
+  SUGGESTIONS,
   GRADE_LABELS,
   GRADE_TONE,
   GRADE_ICON,
@@ -46,6 +50,14 @@ export function StudentsDashboard() {
   const session = useSession();
   const { studentStatusOverrides } = useStore();
   const divisions = visibleDivisions(session, DIVISIONS);
+
+  /**
+   * 보기 갈래 (2026-08-18 리드 지시) — 명단(`list`)과 AI 추천(`ai`).
+   * ⚠️ **주소(`?view=ai`)가 정본이다** — 사이드바에도 두 항목이 있어, 상태로만 두면
+   * 메뉴에서 눌러도 화면이 안 바뀐다(기수 현황 탭에서 겪은 것과 같은 함정).
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get("view") === "ai" ? "ai" : "list";
 
   const [divisionFilter, setDivisionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<Grade | "all">("all");
@@ -123,16 +135,36 @@ export function StudentsDashboard() {
         정보 한 줄(desc)은 뺐다 — 지파·교회·기수·조회범위는 아래 필터 줄에서 이미 보인다.
       */}
       {/*
-        이름을 「AI 성장 추천」으로 바꿨다 (2026-08-15 리드 지시 — 종전 「수강생 현황」).
-        화면이 하는 일은 그대로다: 명단을 보고, 줄을 누르면 그 사람의 상세(등급·추천 액션·
-        연결 자료)가 열린다. AI 분석이 **추천 특강·교안·분반으로 이어지는 것**이 이 화면의 뜻이다.
+        이름이 **「수강생 현황」으로 돌아왔다** (2026-08-18 리드 지시 — 2026-08-15에
+        「AI 성장 추천」으로 바꿨던 것을 되돌린다). AI 추천은 이 화면 **안의 탭**으로 갈랐다:
+        명단을 훑는 일과 AI 추천을 파고드는 일은 다른 일이라 한 제목에 담기지 않았다.
       */}
       <PageHeader
         crumb="수강생 관리 도우미"
-        title="AI 성장 추천"
-        desc="등급과 추천 활동을 봅니다. 줄을 누르면 그 수강생에게 맞는 교안·보강 자료로 이어집니다."
+        title={view === "ai" ? "AI 성장 추천" : "수강생 현황"}
+        desc={
+          view === "ai"
+            ? "출결에서 계산한 참고 수치와 추천 활동입니다. 점수가 낮은 분이 위에 옵니다."
+            : "담당 범위 수강생의 명단입니다. 줄을 누르면 그 수강생의 상세가 열립니다."
+        }
       />
 
+      {/* 갈래 — 명단 보기와 AI 추천 보기 (2026-08-18 리드 지시) */}
+      <SegmentedTabs
+        label="수강생 보기"
+        className="mb-4"
+        value={view}
+        onChange={(v) => setSearchParams(v === "ai" ? { view: "ai" } : {})}
+        items={[
+          { id: "list", label: "수강생 현황" },
+          { id: "ai", label: "AI 성장 추천" },
+        ]}
+      />
+
+      {view === "ai" && <AiGrowthPanel rows={rows} onPick={setModalKey} />}
+
+      {view === "list" && (
+        <>
       {/* 상단 필터 — 분반(전도사) 선택은 아래 목록 왼쪽 패널에서 한다 */}
       <Card className="mb-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -384,8 +416,94 @@ export function StudentsDashboard() {
 
       {/* 하단: 복합 분석 */}
       <AnalysisSection rows={filtered} divisionFilter={divisionFilter} />
+        </>
+      )}
 
       {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
+    </div>
+  );
+}
+
+/**
+ * AI 성장 추천 — **전문으로 보는 자리** (2026-08-18 리드 지시).
+ *
+ * 종전에는 수강생 한 명을 열어야 성장 점수·추천 활동이 보였다. 담당자가 「지금 누구부터
+ * 손대야 하나」를 보려면 스무 명을 하나씩 열어야 했다는 뜻이다. 여기서는 **점수가 낮은
+ * 사람부터** 한 줄씩 놓아 순서가 바로 읽힌다.
+ *
+ * ⚠️ **출결에서 계산한 참고 수치다** — 신앙·인격을 판정하지 않는다(불변식 4).
+ * 추천 활동도 등급별로 미리 정해 둔 목록(`SUGGESTIONS`)이지 사람마다 지어낸 문장이 아니다.
+ * ⚠️ 여기서 새 판정을 만들지 않는다 — 등급·점수는 목록 화면과 **같은 함수**를 쓴다.
+ */
+function AiGrowthPanel({
+  rows,
+  onPick,
+}: {
+  rows: { student: Student; grade: Grade }[];
+  onPick: (key: string) => void;
+}) {
+  /** 점수가 낮은 분이 위 — 먼저 손대야 할 순서다 */
+  const ranked = useMemo(
+    () =>
+      rows
+        .map((r) => ({ ...r, score: growthScore(r.student) }))
+        .sort((a, b) => a.score - b.score || a.student.name.localeCompare(b.student.name)),
+    [rows],
+  );
+
+  return (
+    <div>
+      <Card className="mb-4">
+        <div className="flex items-start gap-2">
+          <Sparkles size={15} className="mt-0.5 shrink-0 text-zion-600" />
+          <p className="text-[12px] leading-relaxed text-ink-soft">
+            출결 참여도에서 계산한 <strong className="text-ink">참고 수치</strong>입니다. 신앙·인격을
+            확정 판정하지 않으며, 연락 여부는 담당자가 정합니다.
+            <br />
+            추천 활동은 등급별로 미리 정해 둔 것입니다 — 사람마다 새로 지어낸 문장이 아닙니다.
+          </p>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <div className="text-[14px] font-bold text-zion-900">먼저 손댈 순서</div>
+          <span className="text-[11px] text-ink-soft">점수가 낮은 분이 위 · {ranked.length}명</span>
+        </div>
+
+        <ul className="divide-y divide-zion-100">
+          {ranked.map(({ student, grade, score }) => (
+            <li key={student.key}>
+              <button
+                type="button"
+                onClick={() => onPick(student.key)}
+                className="flex w-full items-center gap-3 py-2.5 text-left transition hover:bg-zion-50"
+              >
+                {/* 점수 — 숫자와 막대를 함께 낸다(색만으로 뜻을 전하지 않는다) */}
+                <span className="w-9 shrink-0 text-right text-[15px] font-bold text-zion-800">{score}</span>
+                <span className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-zion-100">
+                  <span className="block h-full rounded-full bg-zion-700" style={{ width: `${score}%` }} />
+                </span>
+                <span className="w-20 shrink-0 truncate text-[13px] font-semibold text-ink">
+                  {student.name}
+                </span>
+                <span className="w-16 shrink-0 truncate text-[11px] text-ink-soft">{student.division}</span>
+                <span className="shrink-0 rounded-full bg-zion-100 px-2 py-0.5 text-[11px] font-semibold text-zion-800">
+                  {GRADE_LABELS[grade]}({grade})
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[12px] text-ink-soft">
+                  {SUGGESTIONS[grade].join(" · ")}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+          줄을 누르면 그 수강생의 상세가 열립니다 — 강점·주의 포인트와 연결 자료는 거기에 있습니다.
+          시범 목업 데이터(가상 인물)입니다.
+        </p>
+      </Card>
     </div>
   );
 }

@@ -325,7 +325,13 @@ const NAV_GROUPS: NavGroup[] = [
     */
     items: [
       /* 2026-08-15 리드 지시 — 「수강생 현황」에서 이름을 바꿨다 (경로 불변) */
-      { to: "/students-dashboard", label: "AI 성장 추천", icon: Sparkles },
+      /*
+        2026-08-18 리드 지시로 **「수강생 현황」으로 되돌렸다** (2026-08-15에 「AI 성장 추천」으로
+        바꿨던 것). AI 분석은 그 화면 **안의 탭**으로 들어갔다 — 명단을 보는 일과 AI 추천을
+        보는 일이 다른 일이라 이름도 갈렸다.
+      */
+      { to: "/students-dashboard", label: "수강생 현황", icon: Users },
+      { to: "/students-dashboard?view=ai", label: "AI 성장 추천", icon: Sparkles },
       /*
         수강생 성향 분석 (2026-08-13 신설, 같은 날 개편) — 수강생을 고르면 기록된 에니어그램
         유형의 원문(성장과정·단계향상·관리팁·보강 성구)을 그대로 보여 준다.
