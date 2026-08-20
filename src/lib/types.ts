@@ -320,6 +320,14 @@ export const MATERIAL_LIKE_SHORT: Record<MaterialLikeKind, string> = {
   growth: "신앙성장",
 };
 
+/**
+ * 개강 갈래 (2026-08-18 리드 확인) — **자장부 개강과 청년 개강으로 나뉜다.**
+ * 「자장부」는 자문·장년·부녀를 묶은 말이다(`FELLOWSHIP_TERMS`의 셋).
+ * ⚠️ 수강생 소속(`Fellowship`)과는 다른 축이다 — 이건 **자료가 어느 개강에 쓰이는가**다.
+ */
+export type OpeningTrack = "자장부" | "청년";
+export const OPENING_TRACKS: OpeningTrack[] = ["자장부", "청년"];
+
 export interface LibraryMaterial {
   id: string;
   category: LibraryCategory;
@@ -377,6 +385,17 @@ export interface LibraryMaterial {
    * 전방 추가 필드 — 옛 자료는 빈 것으로 친다.
    */
   tribeEndorsements?: string[];
+  /**
+   * 찾기 축 셋 (2026-08-18 리드 지시 — 지파별 · 개강 갈래별 · 해시태그).
+   * ⚠️ 셋 다 **전방 추가라 옵션**이다. 이미 저장된 자료에는 값이 없고, 값이 없는 자료는
+   * 그 축으로 거를 때 빠진다 — 「전체」에서는 그대로 보인다.
+   */
+  /** 올린 사람의 지파 — 지파별로 찾을 때 쓴다 (`BoardPost.createdByTribe`와 같은 방식) */
+  createdByTribe?: string;
+  /** 개강 갈래 — 자장부(자문·장년·부녀) 개강과 청년 개강으로 나뉜다 (리드 확인) */
+  openingTrack?: OpeningTrack;
+  /** 해시태그 — 강사 이름 · 수강생 성향처럼 자유롭게 붙인다. `#` 없이 낱말만 담는다 */
+  tags?: string[];
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;

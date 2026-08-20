@@ -4,6 +4,7 @@ import {
   ExternalLink,
   Flame,
   FolderOpen,
+  Hash,
   Plus,
   Search,
   Star,
@@ -29,6 +30,8 @@ import {
   type MaterialScope,
 } from "../lib/types";
 import { looseIncludes } from "../lib/text-match";
+import { TRIBES } from "../content/centers";
+import { OPENING_TRACKS, type OpeningTrack } from "../lib/types";
 import { MediaLinks } from "./MediaLinks";
 import { FavoriteButton } from "./FavoriteButton";
 import { PageHeader, Card } from "../pages/common";
@@ -152,6 +155,13 @@ export function FolderLibrary({
   } = useStore();
 
   const [query, setQuery] = useState(initialQuery ?? "");
+  /**
+   * 찾기 축 셋 (2026-08-18 리드 지시) — 지파별 · 개강 갈래별 · 해시태그.
+   * 태그는 목록에서 눌러도 걸리고 칸에 쳐 넣어도 걸린다.
+   */
+  const [tribeFilter, setTribeFilter] = useState<string>("all");
+  const [trackFilter, setTrackFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState("");
   const [sort, setSort] = useState<MaterialSortKey>("recent");
   /** 팔로우한 작성자 자료만 보기 (2026-08-15 리드 제안) */
   const [followedOnly, setFollowedOnly] = useState(false);
@@ -268,12 +278,25 @@ export function FolderLibrary({
         띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙).
         **작성자도 찾는다** (2026-08-15 리드 지시 — 「작성자로도 검색해 볼 수 있게」).
       */
+      /*
+        찾기 축 셋 (2026-08-18 리드 지시) — 지파 · 개강 갈래 · 해시태그.
+        ⚠️ **값이 없는 자료는 그 축으로 거를 때 빠진다.** 전방 추가라 옛 자료에는 값이 없다 —
+        「전체」에서는 그대로 보이므로 사라지는 자료는 없다.
+      */
+      .filter((m) => tribeFilter === "all" || m.createdByTribe === tribeFilter)
+      .filter((m) => trackFilter === "all" || m.openingTrack === trackFilter)
+      .filter((m) => !tagFilter || (m.tags ?? []).some((t) => looseIncludes(t, tagFilter)))
+      /*
+        띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙).
+        **작성자도 찾는다** (2026-08-15 리드 지시). 해시태그도 함께 훑는다 (2026-08-18).
+      */
       .filter(
         (m) =>
           !q ||
           looseIncludes(m.title, q) ||
           looseIncludes(m.body, q) ||
-          looseIncludes(m.createdBy, q),
+          looseIncludes(m.createdBy, q) ||
+          (m.tags ?? []).some((t) => looseIncludes(t, q)),
       );
 
     // 동점은 전부 최신순 2차 키 — 정렬을 넣으면서 시드가 끝에 붙던 어정쩡한 순서도 사라진다
@@ -313,7 +336,7 @@ export function FolderLibrary({
       default:
         return filtered.sort(pin(recent));
     }
-  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, followedOnly, myFollows]);
+  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, followedOnly, myFollows, tribeFilter, trackFilter, tagFilter]);
 
   /**
    * 상세 열기 — 조회수는 **여는 행위에서만** 오른다 (목록 렌더에서 부르지 않는다).
@@ -400,12 +423,83 @@ export function FolderLibrary({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="제목·내용·작성자 검색"
+            placeholder="제목·내용·작성자·태그 검색"
             aria-label="자료 검색"
             className="min-w-0 flex-1 bg-transparent text-[12px] outline-none"
           />
         </div>
       </div>
+
+      {/*
+        찾기 축 셋 (2026-08-18 리드 지시) — 지파별 · 개강 갈래(자장부/청년) · 해시태그.
+        ⚠️ 전방 추가 필드라 **옛 자료에는 값이 없다.** 축을 고르면 값이 있는 자료만 남고,
+        「전체」에서는 그대로 다 보인다 — 사라지는 자료는 없다.
+      */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <select
+          value={tribeFilter}
+          onChange={(e) => setTribeFilter(e.target.value)}
+          aria-label="지파로 거르기"
+          className="rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-zion-500"
+        >
+          <option value="all">지파 전체</option>
+          {TRIBES.map((t) => (
+            <option key={t} value={t}>
+              {t} 지파
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={trackFilter}
+          onChange={(e) => setTrackFilter(e.target.value)}
+          aria-label="개강 갈래로 거르기"
+          className="rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-zion-500"
+        >
+          <option value="all">개강 전체</option>
+          {OPENING_TRACKS.map((t) => (
+            <option key={t} value={t}>
+              {t} 개강
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-center gap-1.5 rounded-lg border border-zion-200 bg-white px-2.5 py-1.5">
+          <Hash size={12} className="shrink-0 text-ink-soft" />
+          <input
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            placeholder="태그 (예: 김이끎, 무신앙)"
+            aria-label="해시태그로 거르기"
+            className="w-40 bg-transparent text-[12px] outline-none"
+          />
+        </div>
+
+        {(tribeFilter !== "all" || trackFilter !== "all" || tagFilter) && (
+          <button
+            type="button"
+            onClick={() => {
+              setTribeFilter("all");
+              setTrackFilter("all");
+              setTagFilter("");
+            }}
+            className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+          >
+            찾기 조건 지우기
+          </button>
+        )}
+      </div>
+
+      {/*
+        ⚠️ 이 안내가 없으면 「왜 갑자기 0건이지」로 읽힌다 — 지파·개강 갈래는 2026-08-18에
+        생긴 자리라 그 전에 올라온 자료에는 값이 없다.
+      */}
+      {(tribeFilter !== "all" || trackFilter !== "all") && (
+        <p className="mb-3 rounded-lg bg-zion-50 px-3 py-2 text-[11.5px] leading-relaxed text-ink-soft">
+          지파·개강 갈래는 새로 올리는 자료부터 붙습니다. 그 전에 올라온 자료는 값이 없어 이
+          조건에서 빠집니다 — 「찾기 조건 지우기」를 누르면 다시 다 보입니다.
+        </p>
+      )}
 
       {/* 지금 보고 있는 폴더. 폴더 **목록**은 왼쪽 사이드바에만 둔다 */}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-ink-soft">
@@ -750,6 +844,8 @@ export function FolderLibrary({
               ...input,
               level,
               scope,
+              /* 지파는 올린 사람 소속에서 자동으로 붙는다 — 손으로 고르게 하면 어긋난다 */
+              createdByTribe: session.tribe,
               createdBy: session.name,
               createdByRole: session.roleCode,
             });
@@ -785,6 +881,10 @@ function MaterialForm({
     folderPath: string[];
     /** 단계 (FB-05②) — 공통이면 null. 교분기 폴더면 제출부가 폴더 이름으로 덮어쓴다 */
     level: MaterialLevel | null;
+    /** 개강 갈래 (2026-08-18) — 안 고르면 없음(양쪽에 두루 쓰는 자료다) */
+    openingTrack?: OpeningTrack;
+    /** 해시태그 (2026-08-18) — 쉼표로 나눠 담는다. `#`은 떼고 낱말만 남긴다 */
+    tags?: string[];
   }) => void;
 }) {
   const [folder, setFolder] = useState(defaultFolder);
@@ -795,6 +895,9 @@ function MaterialForm({
   const [url, setUrl] = useState("");
   const [ppt, setPpt] = useState("");
   const [video, setVideo] = useState("");
+  /** 개강 갈래 · 해시태그 (2026-08-18 리드 지시) */
+  const [track, setTrack] = useState<OpeningTrack | "공통">("공통");
+  const [tagText, setTagText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function submit(e: React.FormEvent) {
@@ -818,6 +921,12 @@ function MaterialForm({
       section: "instructor",
       folderPath: [folder],
       level: level === "공통" ? null : level,
+      openingTrack: track === "공통" ? undefined : track,
+      /* 쉼표로 나누고 `#`을 뗀다 — 사람이 어떻게 적든 저장값은 낱말만 남는다 */
+      tags: tagText
+        .split(",")
+        .map((t) => t.trim().replace(/^#/, ""))
+        .filter(Boolean),
     });
   }
 
@@ -931,6 +1040,37 @@ function MaterialForm({
                 placeholder="https://vimeo.com/… 또는 위플 주소"
                 className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
               />
+            </div>
+          </div>
+
+          {/* 찾기 축 (2026-08-18 리드 지시) — 지파는 올린 사람 소속에서 자동으로 붙는다 */}
+          <div className="mb-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">개강 갈래 (선택)</label>
+              <select
+                value={track}
+                onChange={(e) => setTrack(e.target.value as OpeningTrack | "공통")}
+                className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              >
+                <option value="공통">공통 (양쪽에 씁니다)</option>
+                {OPENING_TRACKS.map((t) => (
+                  <option key={t} value={t}>
+                    {t} 개강
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-ink">해시태그 (선택)</label>
+              <input
+                value={tagText}
+                onChange={(e) => setTagText(e.target.value)}
+                placeholder="쉼표로 나눕니다 (예: 김이끎, 무신앙)"
+                className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+              />
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+                강사 이름이나 수강생 성향처럼 나중에 찾을 말을 답니다.
+              </p>
             </div>
           </div>
 

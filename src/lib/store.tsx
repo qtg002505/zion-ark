@@ -27,6 +27,7 @@ import type {
   MaterialLevel,
   MaterialRating,
   MaterialScope,
+  OpeningTrack,
   MaterialValidView,
   QuoteCategory,
   PlanEntry,
@@ -463,6 +464,13 @@ interface StoreValue {
     level?: MaterialLevel | null;
     /** 공유 범위 (2026-08-14 FB-06 · Q-03) — 없으면 common. 교분기 지파 보충본이 쓴다 */
     scope?: MaterialScope;
+    /**
+     * 찾기 축 셋 (2026-08-18 리드 지시 — 지파별 · 개강 갈래별 · 해시태그).
+     * 지파는 **올린 사람 소속에서 자동으로** 붙는다 — 손으로 고르게 하면 어긋난다.
+     */
+    createdByTribe?: string;
+    openingTrack?: OpeningTrack;
+    tags?: string[];
     createdBy: string;
     createdByRole: RoleCode;
   }) => void;
