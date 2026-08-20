@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from "../components/TransitionLink";
 import { ChevronDown, ChevronRight, LogOut, Pin, PinOff, X } from "lucide-react";
@@ -165,8 +165,12 @@ export function Sidebar({
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4" aria-label="주 메뉴">
             {groups.map((group) => (
+              <Fragment key={group.label}>
+                {/* 접힌 레일에서도 같은 자리에 선을 긋는다 — 두 화면이 어긋나지 않게 */}
+                {group.dividerBefore && (
+                  <div aria-hidden className="mx-auto my-2 w-6 border-t border-zion-200" />
+                )}
               <RailIcon
-                key={group.label}
                 group={group}
                 active={group.label === activeGroup}
                 isNew={fresh.has(group.label)}
@@ -179,6 +183,7 @@ export function Sidebar({
                   setOpenGroup(group.label);
                 }}
               />
+              </Fragment>
             ))}
           </nav>
           <div className="flex justify-center border-t border-zion-100 py-3.5">
@@ -247,8 +252,15 @@ export function Sidebar({
 
           <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="주 메뉴">
             {groups.map((group) => (
+              <Fragment key={group.label}>
+                {/*
+                  「우리 기수 것」과 「모두에게 공통인 것」 사이의 선 (2026-08-18 리드 지시).
+                  ⚠️ 표시일 뿐이라 `aria-hidden`이다 — 낭독기에는 메뉴 항목이 그대로 이어진다.
+                */}
+                {group.dividerBefore && (
+                  <div aria-hidden className="my-2 border-t border-zion-200" />
+                )}
               <NavGroupBlock
-                key={group.label}
                 group={group}
                 isNew={fresh.has(group.label)}
                 isOpen={openGroup === group.label}
@@ -259,6 +271,7 @@ export function Sidebar({
                 onToggle={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
                 onToggleSub={toggleSub}
               />
+              </Fragment>
             ))}
           </nav>
 
