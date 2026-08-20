@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Portal } from "../components/Portal";
 import { useSearchParams } from "react-router-dom";
@@ -109,6 +109,36 @@ export function CohortStatus() {
     ? (searchParams.get("tab") as Tab)
     : "summary";
   const setTab = (next: Tab) => setSearchParams(next === "summary" ? {} : { tab: next });
+  /** 화면을 처음 열 때는 움직이지 않는다 — 딥링크(`?tab=`)로 들어온 사람을 끌고 다니지 않게 */
+  const firstTabRender = useRef(true);
+
+  /*
+    ⚠️ **탭이 바뀐 뒤에 자리를 맞춘다** (리드 지적 — 「탭 버튼에 따라 위치 이동이 있다」).
+    탭마다 내용 길이가 크게 다른데 스크롤 자리는 그대로 남아, 아래쪽에서 탭을 누르면
+    **엉뚱한 대목이 펼쳐진 채로** 보였다.
+
+    ⚠️ **맨 위로 보낸다 — 탭 줄 자리를 계산하지 않는다.** 두 번 시도해 보고 접은 방법이다:
+    누르는 순간에 옮기면 아직 **옛 내용의 높이**라 187px 어긋났고, 렌더 뒤에 옮겨도
+    기수 요약처럼 무거운 탭은 **그 뒤에 또 높이가 바뀌어** 105px 어긋났다(둘 다 실측).
+    맨 위는 레이아웃 변화와 경쟁하지 않아 언제나 같은 결과가 나오고, 탭 줄은 화면 위쪽에
+    있으므로 함께 보인다.
+  */
+  useEffect(() => {
+    if (firstTabRender.current) {
+      firstTabRender.current = false;
+      return;
+    }
+    /*
+      ⚠️ **두 번 보낸다.** 한 번만 부르면 356px 자리에 멈춘다(실측) — 브라우저의 스크롤
+      앵커링이 「보이던 것을 계속 보이게」 하려고 되돌리고, 무거운 탭은 그 뒤에 높이가 또
+      바뀌기 때문이다. 렌더가 가라앉은 뒤 한 번 더 확정한다.
+      ⚠️ `behavior`는 즉시(`auto`)다 — 부드럽게 굴리는 동안 높이가 바뀌면 중간에 멈춘다.
+    */
+    const go = () => window.scrollTo({ top: 0, behavior: "auto" });
+    go();
+    const t = setTimeout(go, 120);
+    return () => clearTimeout(t);
+  }, [tab]);
 
   const divisions = visibleDivisions(session, DIVISIONS);
   const students = STUDENTS.filter((s) => divisions.includes(s.division));
@@ -150,14 +180,22 @@ export function CohortStatus() {
         「왼쪽 대카테고리에서 펼치고, 우측 큰 창은 지난번처럼 가로 열」이 리드의 뜻이다.
         누르면 주소(`?tab=`)가 바뀌므로 **사이드바 항목과 이 탭이 늘 같은 곳을 가리킨다.**
       */}
-      <SegmentedTabs
-        label="기수 현황 탭"
-        className="mb-5"
-        scroll
-        value={tab}
-        onChange={setTab}
-        items={TABS.map((t) => ({ id: t.id, label: t.label }))}
-      />
+      {/*
+        ⚠️ **탭을 바꾸면 그 줄이 보이도록 맞춘다** (2026-08-18 리드 지적 — 「탭 버튼에 따라
+        위치 이동이 있다」). 탭마다 내용 길이가 크게 다른데 스크롤 자리는 그대로 남아서,
+        아래쪽에서 탭을 누르면 **엉뚱한 대목이 펼쳐진 채로** 보였다. 화면이 흔들린 것처럼
+        읽히는 것이 이 때문이다. `scroll-mt-20`은 붙박이 머리에 가려지지 않을 만큼의 여백이다.
+      */}
+      <div className="scroll-mt-20">
+        <SegmentedTabs
+          label="기수 현황 탭"
+          className="mb-5"
+          scroll
+          value={tab}
+          onChange={setTab}
+          items={TABS.map((t) => ({ id: t.id, label: t.label }))}
+        />
+      </div>
 
       {tab === "summary" && (
         <>
