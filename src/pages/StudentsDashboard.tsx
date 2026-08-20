@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Users, RotateCcw, Lock, Unlock, Sparkles } from "lucide-react";
+import { Search, Users, RotateCcw, Lock, Unlock, Sparkles, BookOpen } from "lucide-react";
 import { SegmentedTabs } from "../components/SegmentedTabs";
+import { Link } from "../components/TransitionLink";
+import { strengthsOf, cautionsOf } from "../lib/growth-analysis";
+import { resolveSuggestionLinks } from "../lib/suggestion-links";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { visibleDivisions } from "../lib/permissions";
@@ -28,7 +31,7 @@ import {
   type Grade,
 } from "../lib/student-grade";
 import { enneagramGuides } from "../content/enneagram-guides";
-import type { Student } from "../lib/types";
+import type { LibraryMaterial, Student } from "../lib/types";
 import { StudentDetailModal } from "../components/StudentDetailModal";
 import { PageHeader, Card, EnrollmentStatusBadge } from "./common";
 
@@ -442,6 +445,7 @@ function AiGrowthPanel({
   rows: { student: Student; grade: Grade }[];
   onPick: (key: string) => void;
 }) {
+  const { studentFeedback, materials } = useStore();
   /** 점수가 낮은 분이 위 — 먼저 손대야 할 순서다 */
   const ranked = useMemo(
     () =>
@@ -450,6 +454,13 @@ function AiGrowthPanel({
         .sort((a, b) => a.score - b.score || a.student.name.localeCompare(b.student.name)),
     [rows],
   );
+
+  /**
+   * 펼쳐 볼 사람 — 처음에는 **맨 위(가장 손이 필요한 분)**를 연다 (2026-08-18).
+   * 수강생 상세에 있던 「AI 성장 분석 상세」가 이 자리로 옮겨 왔다.
+   */
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const picked = ranked.find((r) => r.student.key === (openKey ?? ranked[0]?.student.key));
 
   return (
     <div>
@@ -476,8 +487,13 @@ function AiGrowthPanel({
             <li key={student.key}>
               <button
                 type="button"
-                onClick={() => onPick(student.key)}
-                className="flex w-full items-center gap-3 py-2.5 text-left transition hover:bg-zion-50"
+                /* 줄을 누르면 아래 분석이 그 사람으로 바뀐다 — 상세는 이름 옆 단추로 연다 */
+                onClick={() => setOpenKey(student.key)}
+                aria-pressed={picked?.student.key === student.key}
+                className={
+                  "flex w-full items-center gap-3 py-2.5 text-left transition hover:bg-zion-50 " +
+                  (picked?.student.key === student.key ? "bg-zion-50" : "")
+                }
               >
                 {/* 점수 — 숫자와 막대를 함께 낸다(색만으로 뜻을 전하지 않는다) */}
                 <span className="w-9 shrink-0 text-right text-[15px] font-bold text-zion-800">{score}</span>
@@ -503,11 +519,159 @@ function AiGrowthPanel({
         </ul>
 
         <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
-          줄을 누르면 그 수강생의 상세가 열립니다 — 강점·주의 포인트와 연결 자료는 거기에 있습니다.
-          시범 목업 데이터(가상 인물)입니다.
+          줄을 누르면 아래 분석이 그 수강생으로 바뀝니다. 시범 목업 데이터(가상 인물)입니다.
         </p>
       </Card>
+
+      {picked && (
+        <GrowthDetail
+          student={picked.student}
+          grade={picked.grade}
+          score={picked.score}
+          counselCount={
+            studentFeedback.filter((f) => f.studentKey === picked.student.key && f.kind === "counsel").length
+          }
+          materials={materials}
+          onOpenStudent={() => onPick(picked.student.key)}
+        />
+      )}
     </div>
+  );
+}
+
+/** 등급 고리 색 — 수강생 상세에 있던 것을 2026-08-18에 이 화면으로 옮겼다 */
+const RING_STROKE: Record<Grade, string> = {
+  A: "stroke-emerald-500",
+  B: "stroke-amber-500",
+  D: "stroke-orange-500",
+  E: "stroke-red-500",
+};
+
+/**
+ * AI 성장 분석 상세 — **수강생 상세에 있던 카드를 그대로 옮겨 왔다** (2026-08-18 리드 지시).
+ *
+ * ⚠️ 계산은 `lib/growth-analysis.ts` 한 곳이다 — 화면을 옮기며 복제하지 않았다.
+ * ⚠️ 추천 활동은 **존재하는 자료만** 잇는다(`suggestion-links.ts`) — 링크를 지어내지 않고,
+ * 맞는 자료가 없으면 「연결 자료 없음」으로 비운다.
+ */
+function GrowthDetail({
+  student,
+  grade,
+  score,
+  counselCount,
+  materials,
+  onOpenStudent,
+}: {
+  student: Student;
+  grade: Grade;
+  score: number;
+  counselCount: number;
+  materials: LibraryMaterial[];
+  onOpenStudent: () => void;
+}) {
+  const strengths = strengthsOf(student, counselCount);
+  const cautions = cautionsOf(student);
+  const links = resolveSuggestionLinks(SUGGESTIONS[grade], materials);
+  const penalty = Math.max(0, Math.round(student.attendanceRate - score));
+
+  return (
+    <Card className="mt-4">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
+          <Sparkles size={15} className="text-zion-600" /> {student.name} — AI 성장 분석 상세
+        </div>
+        <button
+          type="button"
+          onClick={onOpenStudent}
+          className="rounded-lg border border-zion-200 px-2.5 py-1 text-[11px] font-semibold text-zion-700 transition hover:bg-zion-50"
+        >
+          수강생 상세 열기
+        </button>
+      </div>
+      <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
+        출결 참여도를 바탕으로 한 참고 수치·제안입니다. 신앙·인격을 확정 판정하지 않으며, 연락
+        여부는 담당자가 정합니다.
+      </p>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-zion-100 p-3">
+          <div className="mb-1 text-[12px] font-semibold text-ink-soft">AI 성장 종합 분석</div>
+          <div className="relative flex h-24 w-24 items-center justify-center">
+            <svg viewBox="0 0 100 100" className="h-24 w-24 -rotate-90">
+              <circle cx="50" cy="50" r="42" fill="none" strokeWidth="10" className="stroke-zion-100" />
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                strokeWidth="10"
+                strokeLinecap="round"
+                className={RING_STROKE[grade]}
+                strokeDasharray={`${(score / 100) * 2 * Math.PI * 42} ${2 * Math.PI * 42}`}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-[22px] font-bold leading-none text-zion-800">{score}</span>
+              <span className="text-[10px] text-ink-soft">/100</span>
+            </div>
+          </div>
+          <div className="mt-1 text-[11px] text-ink-soft">성장 점수</div>
+        </div>
+
+        <div className="rounded-lg border border-zion-100 p-3">
+          <div className="mb-1.5 text-[12px] font-semibold text-emerald-700">강점</div>
+          <ul className="space-y-1 text-[11.5px] leading-relaxed text-ink">
+            {strengths.slice(0, 3).map((s, i) => (
+              <li key={i} className="flex gap-1">
+                <span className="text-emerald-600">·</span> {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-lg border border-zion-100 p-3">
+          <div className="mb-1.5 text-[12px] font-semibold text-amber-700">주의 포인트</div>
+          <ul className="space-y-1 text-[11.5px] leading-relaxed text-ink">
+            {cautions.slice(0, 3).map((s, i) => (
+              <li key={i} className="flex gap-1">
+                <span className="text-amber-600">·</span> {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-lg border border-zion-100 p-3">
+          <div className="mb-1.5 text-[12px] font-semibold text-zion-800">추천 활동</div>
+          <ul className="space-y-1.5 text-[11.5px] leading-relaxed text-ink">
+            {links.map(({ suggestion, link }) => (
+              <li key={suggestion}>
+                <span className="flex gap-1">
+                  <span className="text-zion-600">·</span> {suggestion}
+                </span>
+                {link.material && link.href ? (
+                  <Link
+                    viewTransition
+                    to={link.href}
+                    className="ml-3 mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-zion-700 hover:underline"
+                    title={link.material.title}
+                  >
+                    <BookOpen size={11} className="shrink-0" />
+                    <span className="truncate">{link.material.title}</span>
+                  </Link>
+                ) : (
+                  <span className="ml-3 mt-0.5 block text-[10.5px] text-ink-soft">연결 자료 없음</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <p className="mt-3 text-[10.5px] leading-relaxed text-ink-soft">
+        출결에서 계산한 값입니다 — 사람의 신앙·인격을 판정하지 않습니다.
+        {penalty > 0 && ` (관찰 신호 가중치 -${penalty} 반영됨)`}
+      </p>
+    </Card>
   );
 }
 

@@ -6,7 +6,6 @@ import { Link } from "../components/TransitionLink";
 import { Portal } from "../components/Portal";
 import {
   ArrowLeft,
-  BookOpen,
   Sparkles,
   StickyNote,
   PencilLine,
@@ -51,9 +50,12 @@ import {
   type ShapeType,
   type StudentNoteItem,
 } from "../content/student-profiles";
-import { attendanceStreak, readSignals } from "../lib/attendance-signals";
-import { gradeOf, GRADE_LABELS, SUGGESTIONS, growthScore, type Grade } from "../lib/student-grade";
-import { resolveSuggestionLinks } from "../lib/suggestion-links";
+/*
+  ⚠️ 성장 점수·추천 자료 연결은 2026-08-18에 「AI 성장 추천」 탭으로 옮겨졌다.
+  이 화면은 더 쓰지 않으므로 그 import도 함께 걷어냈다 — 안 쓰는 것을 남겨 두면
+  「여기서도 쓰나」 하고 다음 사람이 찾게 된다.
+*/
+import { gradeOf, GRADE_LABELS, type Grade } from "../lib/student-grade";
 import { maskAddress, maskPhone } from "../lib/privacy";
 import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
@@ -125,12 +127,7 @@ const CHILDREN_LIVING_OPTIONS: ("동거" | "비동거")[] = ["동거", "비동�
  * 등급 고리 색. **E까지 있어야 한다** — 등급은 A·B·D·E 네 단계이고(`student-grade.ts`,
  * 2026-08-13부터 "집중"(C)을 없앴다), E가 빠지면 그 등급 수강생에서 색이 비어 고리가 사라진다.
  */
-const RING_STROKE: Record<Grade, string> = {
-  A: "stroke-emerald-500",
-  B: "stroke-amber-500",
-  D: "stroke-orange-500",
-  E: "stroke-red-500",
-};
+/* RING_STROKE는 2026-08-18에 「AI 성장 추천」 탭으로 옮겼다 (`StudentsDashboard`) */
 /** 오행 색 — 전통 오방색을 참고한 표시용 배색일 뿐, 별도 의미 판정에 쓰지 않는다 */
 /**
  * 오행 뱃지 색 (2026-08-11 머지에서 손봤다).
@@ -203,7 +200,6 @@ export function StudentDetailPage({
     deleteStudentFeedback,
     checklistProgress,
     setChecklistItemScore,
-    materials,
     logStudentAccess,
   } = useStore();
   /**
@@ -263,8 +259,6 @@ export function StudentDetailPage({
   const enrollmentStatus = override?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT;
   const yuwol = override?.faithType ?? (p.faithType === "비오픈" ? "비오픈" : "오픈");
   const faithStatus = override?.faithStatus ?? p.faithStatus;
-  /** AI 추천 액션 → 자료 딥링크 (2026-08-14 FB-08) — 규칙 기반, 존재하는 자료만 잇는다 */
-  const suggestionLinks = resolveSuggestionLinks(SUGGESTIONS[grade], materials);
   const note = override?.note ?? p.note;
   // 이력 목록 — 지금 값은 안 넣는다(위에 이미 보이므로). "최초"(씨앗 값)를 맨 끝에 덧붙인다:
   // override가 처음 생길 때는 store가 씨앗을 몰라 이력에 못 넣으므로 여기서 항상 붙여 준다
@@ -322,8 +316,6 @@ export function StudentDetailPage({
   // ⚠️ 일주 기본값은 (덮어썼을 수 있는) birthDate에서 뽑는다 — 생년월일을 고치면 같이 따라온다
   const ilju = override?.ilju ?? iljuOf(birthDate);
   const ohaeng = override?.ohaeng ?? ohaengOf(p.sajuElement);
-  const score = growthScore(student);
-  const streak = attendanceStreak(student.recentWeeks);
   // 씨앗 기록(RAW.feedback, 고정 id 부여) + 담당자가 직접 남긴 기록(store)을 합치고,
   // 수정분(feedbackEdits)을 덮어쓴 뒤 지워진 것(deletedFeedbackIds)을 뺀다
   const seedFeedback = p.feedback.map((f, i) => ({ ...f, id: `seed-${student.key}-${i}` }));
@@ -333,22 +325,10 @@ export function StudentDetailPage({
     .filter((f) => !deletedFeedbackIds.includes(f.id))
     .map((f) => ({ ...f, ...editsById[f.id] }))
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  const counselEntries = combinedFeedback.filter((f) => f.kind === "counsel");
-  const makeupDoneCount = student.recentWeeks.filter((w) => w.mark === "makeupDone").length;
-  const hasMakeupPending = student.recentWeeks.some((w) => w.mark === "makeupPending");
-  const penalty = Math.round(
-    student.recentWeeks.length ? student.attendanceRate - score : 0,
-  );
-
-  // 강점 · 주의 포인트는 지어낸 성격 평가가 아니라 실제 관찰 기록에서 그대로 뽑는다(불변식 4)
-  const strengths: string[] = [];
-  if (student.attendanceRate >= 90) strengths.push(`출석률 ${student.attendanceRate}% — 꾸준한 참여`);
-  if (streak >= 4) strengths.push(`최근 ${streak}주 연속 출석`);
-  if (!hasMakeupPending && makeupDoneCount > 0) strengths.push("보강을 미루지 않고 이행함");
-  if (counselEntries.length > 0) strengths.push("상담 기록을 통해 꾸준히 소통 중");
-  if (strengths.length === 0) strengths.push("아직 뚜렷한 강점 관찰 기록이 없습니다");
-  const cautions = readSignals(student).signals.map((s) => s.text);
-  if (cautions.length === 0) cautions.push("관찰된 주의 신호가 없습니다");
+  /*
+    강점 · 주의 포인트 계산은 2026-08-18에 `lib/growth-analysis.ts`로 옮겼다 —
+    「AI 성장 추천」 탭과 같은 문장을 내야 해서 한 곳에 모았다. 이 화면에서는 더 쓰지 않는다.
+  */
 
   /*
     ⚠️ 여기 있던 `trend`(3개월 추정 추세)는 2026-08-15 리드 지시로 화면과 함께 걷어냈다 —
@@ -1201,103 +1181,12 @@ export function StudentDetailPage({
         </div>
       </div>
 
-      <Card className="mt-4">
-        <SectionTitle icon={Sparkles}>AI 성장 분석 상세</SectionTitle>
-        <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
-          출결 참여도를 바탕으로 한 참고 수치·제안입니다. 신앙·인격을 확정 판정하지 않으며,
-          연락 여부는 담당자가 정합니다(불변식 4). AI 분석·텔레그램 연동 자료는 이후 이 자리에 이어집니다.
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="flex flex-col items-center justify-center rounded-lg border border-zion-100 p-3">
-            <div className="mb-1 text-[12px] font-semibold text-ink-soft">AI 성장 종합 분석</div>
-            <div className="relative flex h-24 w-24 items-center justify-center">
-              <svg viewBox="0 0 100 100" className="h-24 w-24 -rotate-90">
-                <circle cx="50" cy="50" r="42" fill="none" strokeWidth="10" className="stroke-zion-100" />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  className={RING_STROKE[grade]}
-                  strokeDasharray={`${(score / 100) * 2 * Math.PI * 42} ${2 * Math.PI * 42}`}
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-[22px] font-bold leading-none text-zion-800">{score}</span>
-                <span className="text-[10px] text-ink-soft">/100</span>
-              </div>
-            </div>
-            <div className="mt-1 text-[11px] text-ink-soft">성장 점수</div>
-          </div>
-
-          <div className="rounded-lg border border-zion-100 p-3">
-            <div className="mb-1.5 text-[12px] font-semibold text-emerald-700">강점</div>
-            <ul className="space-y-1 text-[11.5px] leading-relaxed text-ink">
-              {strengths.slice(0, 3).map((s, i) => (
-                <li key={i} className="flex gap-1">
-                  <span className="text-emerald-600">·</span> {s}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-lg border border-zion-100 p-3">
-            <div className="mb-1.5 text-[12px] font-semibold text-amber-700">주의 포인트</div>
-            <ul className="space-y-1 text-[11.5px] leading-relaxed text-ink">
-              {cautions.slice(0, 3).map((s, i) => (
-                <li key={i} className="flex gap-1">
-                  <span className="text-amber-600">·</span> {s}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-lg border border-zion-100 p-3">
-            {/* 「액션」 같은 외래어 명명 대신 우리말로 (2026-08-16 문구 점검) */}
-            <div className="mb-1.5 text-[12px] font-semibold text-zion-800">추천 활동</div>
-            {/*
-              2026-08-14 FB-08 — 추천이 글로 끝나지 않고 **맞는 보강 교안·교재로 바로 이어진다.**
-              연결은 규칙 기반이고(`lib/suggestion-links.ts`) 존재하는 자료만 잇는다 —
-              AI가 링크를 지어내지 않으며, 맞는 자료가 없으면 「연결 자료 없음」으로 비운다.
-            */}
-            <ul className="space-y-1.5 text-[11.5px] leading-relaxed text-ink">
-              {suggestionLinks.map(({ suggestion, link }) => (
-                <li key={suggestion}>
-                  <span className="flex gap-1">
-                    <span className="text-zion-600">·</span> {suggestion}
-                  </span>
-                  {link.material && link.href ? (
-                    <Link
-                      viewTransition
-                      to={link.href}
-                      className="ml-3 mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-zion-700 hover:underline"
-                      title={link.material.title}
-                    >
-                      <BookOpen size={11} className="shrink-0" />
-                      <span className="truncate">{link.material.title}</span>
-                    </Link>
-                  ) : (
-                    <span className="ml-3 mt-0.5 block text-[10.5px] text-ink-soft">연결 자료 없음</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-        </div>
-
-        {/*
-          ⚠️ 「성장 추세」 꺾은선은 **2026-08-15 리드 지시로 뺐다.** 과거 점수를 기록해 둔 적이
-          없어 지금 점수로 지어낸 추정선이었다 — 사실이 아닌 그림은 없는 편이 낫다.
-          실제 점수 이력이 쌓이면 실측값으로 되살린다(git 이력에 남아 있다).
-        */}
-        <p className="mt-3 text-[10.5px] leading-relaxed text-ink-soft">
-          출결에서 계산한 값입니다 — 사람의 신앙·인격을 판정하지 않습니다.
-          {penalty > 0 && ` (관찰 신호 가중치 -${penalty} 반영됨)`}
-        </p>
-      </Card>
+      {/*
+        「AI 성장 분석 상세」는 2026-08-18 리드 지시로 **여기서 뺐다** — 같은 내용이
+        수강생 관리 도우미의 **「AI 성장 추천」 탭**으로 옮겨졌다 (`StudentsDashboard`).
+        한 사람을 열어야 보이던 것을 기수 전체 순서로 볼 수 있게 한 것이 그 탭의 뜻이다.
+        ⚠️ 계산은 `lib/growth-analysis.ts` 한 곳이다 — 화면을 옮기며 복제하지 않았다.
+      */}
 
       <p className="mt-4 text-[11px] leading-relaxed text-ink-soft">
         시범 목업 데이터(가상 인물)입니다. 원문 개인정보는 담당 범위 밖으로 반출되지 않으며, 이
