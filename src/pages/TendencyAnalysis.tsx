@@ -5,6 +5,7 @@ import { visibleDivisions } from "../lib/permissions";
 import { COHORT, DIVISIONS, STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
 import { enneagramGuides } from "../content/enneagram-guides";
+import { MBTI_SOURCE_NOTE, preferencesOf } from "../content/mbti-guides";
 import { TEMPERAMENT_GUIDES } from "../content/temperament-guides";
 import { GuideItems } from "./Enneagram";
 import { Accordion, type AccordionItem } from "../components/Accordion";
@@ -139,6 +140,46 @@ export function TendencyAnalysis() {
             <StatTile label="도형" value={profile.shapeType} />
             <StatTile label="오행" value={profile.sajuElement} />
           </div>
+
+          {/*
+            MBTI 안내 (2026-08-18 리드 지시 「MBTI 관리도 나오게」).
+            ⚠️ 에니어그램은 **리드가 준 원문**이고 이쪽은 **바깥 자료를 정리한 것**이라,
+            출처와 한계를 함께 낸다. 신학부 원문을 받으면 그때 갈아 끼운다.
+          */}
+          <Card>
+            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <div className="text-[14px] font-bold text-zion-900">MBTI {profile.mbti} — 말을 걸 때</div>
+              <span className="text-[11px] text-ink-soft">참고 자료 · 확정 판정이 아닙니다</span>
+            </div>
+            <p className="mb-3 text-[12px] leading-relaxed text-ink-soft">
+              네 글자를 축마다 나눠 봅니다. 사람을 유형에 가두는 것이 아니라, 그 사람에게 말이
+              닿는 방식을 찾아보는 자리입니다.
+            </p>
+
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              {preferencesOf(profile.mbti).map((p) => (
+                <div key={p.letter} className="rounded-lg border border-zion-200 p-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="rounded bg-zion-700 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                      {p.label}
+                    </span>
+                    <span className="text-[11px] text-ink-soft">{p.axis}</span>
+                  </div>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-ink">{p.trait}</p>
+                  <p className="mt-1.5 border-t border-zion-100 pt-1.5 text-[12px] leading-relaxed text-zion-800">
+                    {p.tip}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-3 border-t border-zion-100 pt-2.5 text-[11px] leading-relaxed text-ink-soft">
+              {MBTI_SOURCE_NOTE}
+              <br />
+              MBTI는 선호 경향을 나눠 보는 도구이며 능력·신앙·인격을 재는 잣대가 아닙니다.
+              신뢰도를 두고 학계에서 논란이 이어져 온 도구이기도 하니, 사람을 규정하는 데 쓰지 않습니다.
+            </p>
+          </Card>
 
           <Card>
             <div className="mb-4 flex items-center justify-between gap-3">
