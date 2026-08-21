@@ -14,6 +14,90 @@ import type { ChecklistProgress, CourseLevel } from "./student-profiles";
 export const COHORT = { tribe: "요한", church: "과천교회", cohort: "113기" };
 
 /**
+ * 저장·권한에 쓰는 기수 키 — **`cohortKeyOf(session)`과 같은 모양**이다 (2026-08-21).
+ *
+ * ⚠️ 화면에서 「113기」만 넘기면 조용히 어긋난다 — 주간계획·주차 기록·기수 세팅이
+ * 전부 이 전체 키로 저장돼 있어, 짧은 이름으로 거르면 **아무것도 안 걸린다.**
+ * 실제로 그렇게 넣었다가 보충 항목이 화면에 안 나오는 것으로 잡았다.
+ */
+export const COHORT_KEY = `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`;
+
+/**
+ * 기수 목록 — **지난 기수까지 함께 둔다** (2026-08-21 리드 지시로 신설).
+ *
+ * 종전에는 `COHORT` 하나뿐이라 「이전 기수」라는 것이 없었다. 리드가 「현재 기수는 고칠 수
+ * 있게, 종료된 기수는 조회·다운로드만」이라고 정해 상태(`status`)를 함께 둔다.
+ *
+ * ⚠️ **가상 기수다**(불변식 6). 지난 기수의 숫자는 지금 기수와 견줄 수 있게 지은 시범 값이고,
+ * 화면에도 시범 값임을 적는다. 실연동 시 `cohorts` 테이블 목록으로 갈아 끼운다 —
+ * 이 파일이 교체 경계다.
+ * ⚠️ **「우수 기수」는 표시만 해 둔다.** 신임 사명자가 참고하도록 열람·다운로드를 열지는
+ * 리드가 정한다(공개 범위 미정) — 지금은 같은 기수 담당자에게만 보인다.
+ */
+export interface CohortRecord {
+  key: string;
+  tribe: string;
+  church: string;
+  startsOn: string;
+  endsOn: string;
+  /** 진행 중이면 고칠 수 있고, 종료면 읽기 전용이다 */
+  status: "running" | "closed";
+  /** 개강 시점 수강생 수 */
+  startedCount: number;
+  /** 종강까지 남은 수 — 진행 중인 기수는 지금 인원 */
+  currentCount: number;
+  instructors: string[];
+  evangelists: string[];
+  /** 운영이 좋았던 기수 — 신임 사명자가 일정·사례를 참고한다 */
+  exemplary?: boolean;
+  note?: string;
+}
+
+export const COHORT_LIST: CohortRecord[] = [
+  {
+    key: "113기",
+    tribe: "요한",
+    church: "과천교회",
+    startsOn: "2026-03-02",
+    endsOn: "2026-10-29",
+    status: "running",
+    startedCount: 17,
+    currentCount: 17,
+    instructors: ["김강사"],
+    evangelists: ["이전도", "박전도", "최전도", "정전도"],
+  },
+  {
+    key: "112기",
+    tribe: "요한",
+    church: "과천교회",
+    startsOn: "2025-07-07",
+    endsOn: "2026-02-26",
+    status: "closed",
+    startedCount: 21,
+    currentCount: 12,
+    instructors: ["김강사"],
+    evangelists: ["이전도", "박전도", "한전도"],
+    exemplary: true,
+    note: "초반 이탈이 적었던 기수 — 개강 4주까지 주 2회 심방을 붙였다",
+  },
+  {
+    key: "111기",
+    tribe: "요한",
+    church: "과천교회",
+    startsOn: "2024-11-04",
+    endsOn: "2025-06-26",
+    status: "closed",
+    startedCount: 19,
+    currentCount: 8,
+    instructors: ["송강사"],
+    evangelists: ["한전도", "최전도"],
+  },
+];
+
+/** 지금 열려 있는 기수 — 세팅 화면의 기본 선택값이다 */
+export const RUNNING_COHORT = COHORT_LIST.find((c) => c.status === "running") ?? COHORT_LIST[0];
+
+/**
  * 기수 일정 — 점검자가 진행 상황을 가늠하는 기준 (2026-08-06 회의 확정).
  * 실연동 시 `cohorts` 테이블의 개강일·종강예정일 컬럼에서 온다.
  *

@@ -55,6 +55,9 @@ const Counseling = lazy(() => import("./pages/Counseling").then((m) => ({ defaul
 const Centers = lazy(() => import("./pages/Centers").then((m) => ({ default: m.Centers })));
 const SiteUsage = lazy(() => import("./pages/SiteUsage").then((m) => ({ default: m.SiteUsage })));
 const MyPage = lazy(() => import("./pages/MyPage").then((m) => ({ default: m.MyPage })));
+const CohortSetup = lazy(() =>
+  import("./pages/CohortSetup").then((m) => ({ default: m.CohortSetup })),
+);
 
 function Routed() {
   const { session } = useAuth();
@@ -73,6 +76,8 @@ function Routed() {
         <Route path="/overview" element={<Overview />} />
         <Route path="/cohort" element={<CohortStatus />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
+        {/* 기수 세팅 · 지난 기수 (2026-08-21 리드 지시) */}
+        <Route path="/cohort-setup" element={<CohortSetup />} />
         <Route path="/cases" element={<CounselCases />} />
         <Route path="/counseling" element={<Counseling />} />
         {/*

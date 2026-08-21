@@ -20,7 +20,7 @@ import {
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, canEditCohortRecord } from "../lib/permissions";
-import { STUDENTS, COHORT } from "../content/cohort-mock";
+import { STUDENTS, COHORT, COHORT_KEY } from "../content/cohort-mock";
 import { LEVEL_NAME, LEVEL_TONE } from "../content/curriculum-mock";
 import {
   STUDENT_PROFILES,
@@ -60,6 +60,8 @@ import { gradeOf, GRADE_LABELS, type Grade } from "../lib/student-grade";
 import { maskAddress, maskPhone } from "../lib/privacy";
 import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
+/* 지파 보충 항목을 표준 뒤에 이어 붙인다 (2026-08-21) — 합치는 규칙은 그 파일 한 곳이다 */
+import { checklistWithExtras } from "../lib/checklist";
 import { PageHeader, Card } from "./common";
 
 const FELLOWSHIPS: Fellowship[] = ["청년회", "장년회", "부녀회", "자문회"];
@@ -2107,7 +2109,13 @@ function LevelChecklistCard({
   const [level, setLevel] = useState<CourseLevel>("초등");
   const [openGroup, setOpenGroup] = useState<number | null>(null);
   const [recordWeek, setRecordWeek] = useState(1);
-  const standard = CHECKLIST_STANDARDS[level];
+  /*
+    지파가 덧붙인 세부 항목이 **표준 뒤에 이어 붙는다** (2026-08-21 리드 지시 —
+    「단계 향상표는 지금 우리 기수는과 수강생 상세 성장 지표에 동시 연동」).
+    기수 세팅에서 넣은 것이 여기와 「지금 우리 기수는」에 함께 나온다.
+  */
+  const { checklistExtras } = useStore();
+  const standard = checklistWithExtras(level, COHORT_KEY, checklistExtras);
   const levelProgress = progress.filter((p) => p.level === level);
 
   const scoreOf = (groupNo: number, qIndex: number) =>

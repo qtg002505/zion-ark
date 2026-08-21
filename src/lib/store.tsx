@@ -34,6 +34,8 @@ import type {
   PlanEntryKind,
   RoleCode,
   ScheduleOverride,
+  CohortChange,
+  ChecklistExtra,
   TipReport,
   WeekNote,
   WeeklyPlan,
@@ -87,6 +89,9 @@ const FEEDBACK_EDIT_KEY = "zion_ark_student_feedback_edits";
 const FEEDBACK_DELETED_KEY = "zion_ark_student_feedback_deleted";
 const CHECKLIST_KEY = "zion_ark_checklist_progress";
 const SCHEDULE_KEY = "zion_ark_schedule_overrides";
+/** 기수 세팅 (2026-08-21) — 편성 변동 · 지파 보충 체크 항목. 실연동 시 D1 테이블로 교체 */
+const COHORT_CHANGE_KEY = "zion_ark_cohort_changes";
+const CHECKLIST_EXTRA_KEY = "zion_ark_checklist_extras";
 const MATERIAL_VIEW_KEY = "zion_ark_material_views";
 /** 작성자 팔로우 · 특강 (2026-08-15 리드 지시) — 실연동 시 D1 테이블로 교체 */
 const AUTHOR_FOLLOW_KEY = "zion_ark_author_follows";
@@ -439,6 +444,10 @@ interface StoreValue {
   weekNotes: WeekNote[];
   /** 기수 일정 수정 (2026-08-13) — 읽는 쪽은 `effectiveSchedule()`로 병합한다 */
   scheduleOverrides: ScheduleOverride[];
+  /** 기수 편성 변동 (2026-08-21) — 전도사 변경 · 유급 이동 · 합반 */
+  cohortChanges: CohortChange[];
+  /** 지파가 덧붙인 단계 향상 세부 항목 (2026-08-21) — 표준 뒤에 붙는다 */
+  checklistExtras: ChecklistExtra[];
   counselCases: CounselCase[];
   counselingTips: CounselingTip[];
   tipReports: TipReport[];
@@ -573,6 +582,15 @@ interface StoreValue {
     updatedBy: string,
     updatedByRole: RoleCode,
   ) => void;
+  /**
+   * 기수 편성 변동 더하기·지우기 (2026-08-21).
+   * 권한 대조는 화면이 먼저 한다 (`canEditCohortRecord` — 종료된 기수는 화면이 막는다).
+   */
+  addCohortChange: (input: Omit<CohortChange, "id" | "createdAt">) => void;
+  removeCohortChange: (id: string) => void;
+  /** 지파 보충 체크 항목 더하기·지우기 — 표준 항목은 건드리지 않는다 */
+  addChecklistExtra: (input: Omit<ChecklistExtra, "id" | "createdAt">) => void;
+  removeChecklistExtra: (id: string) => void;
   addCounselCase: (input: Omit<CounselCase, "id" | "createdAt" | "updatedAt" | "helpfulBy">) => void;
   /** 본인 글만 — 권한 대조는 화면이 먼저 한다 */
   updateCounselCase: (
@@ -812,6 +830,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [scheduleOverrides, setScheduleOverrides] = useState<ScheduleOverride[]>(() =>
     loadPlain<ScheduleOverride>(SCHEDULE_KEY),
   );
+  const [cohortChanges, setCohortChanges] = useState<CohortChange[]>(() =>
+    loadPlain<CohortChange>(COHORT_CHANGE_KEY),
+  );
+  const [checklistExtras, setChecklistExtras] = useState<ChecklistExtra[]>(() =>
+    loadPlain<ChecklistExtra>(CHECKLIST_EXTRA_KEY),
+  );
   const [counselCases, setCounselCases] = useState<CounselCase[]>(() =>
     migrateCases(load(CASE_KEY, SEED_CASES)),
   );
@@ -912,6 +936,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScheduleOverrides(next);
   }, []);
 
+  const persistCohortChanges = useCallback((next: CohortChange[]) => {
+    localStorage.setItem(COHORT_CHANGE_KEY, JSON.stringify(next));
+    setCohortChanges(next);
+  }, []);
+
+  const persistChecklistExtras = useCallback((next: ChecklistExtra[]) => {
+    localStorage.setItem(CHECKLIST_EXTRA_KEY, JSON.stringify(next));
+    setChecklistExtras(next);
+  }, []);
+
   const persistCases = useCallback((next: CounselCase[]) => {
     localStorage.setItem(CASE_KEY, JSON.stringify(next));
     setCounselCases(next);
@@ -990,6 +1024,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plans,
       weekNotes,
       scheduleOverrides,
+      cohortChanges,
+      checklistExtras,
       counselCases,
       counselingTips,
       tipReports,
@@ -1217,6 +1253,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           },
           ...rest,
         ]);
+      },
+      addCohortChange: (input) => {
+        persistCohortChanges([{ id: uid(), ...input, createdAt: nowIso() }, ...cohortChanges]);
+      },
+      removeCohortChange: (id) => {
+        persistCohortChanges(cohortChanges.filter((c) => c.id !== id));
+      },
+      addChecklistExtra: (input) => {
+        persistChecklistExtras([{ id: uid(), ...input, createdAt: nowIso() }, ...checklistExtras]);
+      },
+      removeChecklistExtra: (id) => {
+        persistChecklistExtras(checklistExtras.filter((c) => c.id !== id));
       },
       addCounselCase: (input) => {
         persistCases([{ id: uid(), ...input, createdAt: nowIso(), helpfulBy: [] }, ...counselCases]);
@@ -1626,6 +1674,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plans,
       weekNotes,
       scheduleOverrides,
+      cohortChanges,
+      checklistExtras,
       counselCases,
       counselingTips,
       tipReports,

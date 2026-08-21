@@ -2,8 +2,10 @@ import { useMemo, useState, type ReactNode } from "react";
 import { SegmentedTabs } from "../components/SegmentedTabs";
 import { ChevronDown, TriangleAlert, Trophy } from "lucide-react";
 import { useStore } from "../lib/store";
-import { STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
+import { COHORT_KEY, STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
+/* 지파 보충 항목을 표준 뒤에 이어 붙인다 (2026-08-21) — 합치는 규칙은 그 파일 한 곳이다 */
+import { checklistWithExtras, standardQuestionCount } from "../lib/checklist";
 import { LEVEL_NAME, LEVEL_TONE } from "../content/curriculum-mock";
 import type { ChecklistProgress, CourseLevel } from "../content/student-profiles";
 import {
@@ -33,7 +35,7 @@ const LEVELS: CourseLevel[] = ["초등", "중등", "고등"];
  * 어느 쪽에도 넣지 않는다. 모르는 것을 약점으로 세면 사실이 아니다.
  */
 export function CohortNow({ students }: { students: typeof STUDENTS }) {
-  const { checklistProgress } = useStore();
+  const { checklistProgress, checklistExtras } = useStore();
   const [level, setLevel] = useState<CourseLevel>("초등");
   const [openGroup, setOpenGroup] = useState<number | null>(null);
   const [modalKey, setModalKey] = useState<string | null>(null);
@@ -53,9 +55,18 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
     return [...checklistProgress, ...demo];
   }, [checklistProgress]);
 
+  /*
+    기수 세팅에서 **지파가 덧붙인 항목**이 있으면 함께 센다 (2026-08-21 리드 지시 —
+    수강생 상세의 성장 지표와 같은 기준표를 본다).
+  */
+  const standard = useMemo(
+    () => checklistWithExtras(level, COHORT_KEY, checklistExtras),
+    [level, checklistExtras],
+  );
+
   const stats = useMemo(
-    () => cohortChecklistStats(students, level, progress),
-    [students, level, progress],
+    () => cohortChecklistStats(students, level, progress, standard),
+    [students, level, progress, standard],
   );
 
   const strong = stats.filter((s) => toneOf(s) === "strong").sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0));
@@ -334,10 +345,18 @@ function GroupRow({
   );
 }
 
-/** 항목의 점검 질문 원문 — 「무엇을 보고 매긴 점수인지」가 있어야 숫자가 뜻을 갖는다 */
+/**
+ * 항목의 점검 질문 원문 — 「무엇을 보고 매긴 점수인지」가 있어야 숫자가 뜻을 갖는다.
+ * ⚠️ **표준과 지파 보충을 갈라 보여 준다** (2026-08-21) — 어느 것이 원문인지 흐려지면
+ * 다른 지파와 견줄 때 헷갈린다. 표준 개수까지가 원문이고 그 뒤가 보충이다.
+ */
 function QuestionList({ stat }: { stat: GroupStat }) {
-  const group = CHECKLIST_STANDARDS[stat.level].groups.find((g) => g.no === stat.groupNo);
+  const { checklistExtras } = useStore();
+  const group = checklistWithExtras(stat.level, COHORT_KEY, checklistExtras).groups.find(
+    (g) => g.no === stat.groupNo,
+  );
   if (!group) return null;
+  const stdCount = standardQuestionCount(stat.level, stat.groupNo);
   return (
     <details className="mt-2.5 border-t border-zion-100 pt-2">
       <summary className="cursor-pointer list-none text-[11px] font-semibold text-zion-700 [&::-webkit-details-marker]:hidden">
@@ -348,6 +367,11 @@ function QuestionList({ stat }: { stat: GroupStat }) {
           <li key={i} className="flex gap-1.5">
             <span className="shrink-0 text-zion-400">·</span>
             <span className="whitespace-pre-wrap">{q}</span>
+            {i >= stdCount && (
+              <span className="shrink-0 rounded bg-zion-100 px-1 py-0.5 text-[10px] font-semibold text-zion-700">
+                지파 보충
+              </span>
+            )}
           </li>
         ))}
       </ul>

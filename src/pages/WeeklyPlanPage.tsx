@@ -5,6 +5,7 @@ import {
   Cake,
   CalendarPlus,
   ChevronLeft,
+  Download,
   ChevronRight,
   History,
   Lock,
@@ -13,20 +14,22 @@ import {
   Plus,
   Star,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { canEditCohortRecord, cohortKeyOf, isFieldStaff } from "../lib/permissions";
+import { canEditCohortRecord, isFieldStaff } from "../lib/permissions";
 import { scanPII } from "../lib/privacy";
 import { PLAN_ENTRY_LABELS, ROLE_LABELS, type PlanEntry, type PlanEntryKind } from "../lib/types";
-import { COHORT, SCHEDULE, STUDENTS } from "../content/cohort-mock";
+import { STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
 import { effectiveSchedule, newcomerEndOf } from "../lib/cohort-calendar";
 import { HOLIDAYS_2026 } from "../content/holidays-kr-2026";
 import { SCJ_SEASONS } from "../content/scj-seasons";
-import { buildXlsx, downloadBlob, readXlsx } from "../lib/xlsx";
+/* 진도표 업로드는 기수 세팅과 **같은 부품**을 쓴다 (2026-08-21) — 복제하면 양식이 갈라진다 */
+import { ProgressUpload } from "../components/ProgressUpload";
+import { buildXlsx, downloadBlob } from "../lib/xlsx";
+import { COHORT_LIST, RUNNING_COHORT } from "../content/cohort-mock";
 import { AnchoredPopover } from "../components/AnchoredPopover";
 import { MonthYearPicker } from "../components/MonthYearPicker";
 import { PageHeader, Card } from "./common";
@@ -117,8 +120,17 @@ export function WeeklyPlanPage() {
   const session = useSession();
   const { planEntries, plans, scheduleOverrides } = useStore();
 
-  const cohortKey = cohortKeyOf(session);
-  const canEdit = canEditCohortRecord(session, cohortKey);
+  /*
+    ⚠️ **기수를 골라 지난 기수의 달력을 볼 수 있다** (2026-08-21 리드 지시 —
+    「기수를 선택하면 과거 운영 일정을 바로 확인하고 진도표를 내려받을 수 있게」).
+    고르는 값은 「113기」이고, 저장·권한에 쓰는 키는 「지파|교회|기수」 전체다.
+    종료된 기수는 담당자여도 못 고친다 — 기수 세팅 화면과 같은 규칙이다.
+  */
+  const [cohortId, setCohortId] = useState(session.cohort);
+  const cohort = COHORT_LIST.find((c) => c.key === cohortId) ?? RUNNING_COHORT;
+  const cohortKey = `${cohort.tribe}|${cohort.church}|${cohort.key}`;
+  const closed = cohort.status === "closed";
+  const canEdit = !closed && canEditCohortRecord(session, cohortKey);
 
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -127,7 +139,11 @@ export function WeeklyPlanPage() {
   const [weekStart, setWeekStart] = useState(() => weekStartOf(todayYmd()));
 
   /** 화면에서 고친 일정이 있으면 그 값 — 개강·종강·새신자교육 표시가 따라온다 */
-  const sched = effectiveSchedule(SCHEDULE, scheduleOverrides, `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`);
+  const sched = effectiveSchedule(
+    { startsOn: cohort.startsOn, endsOn: cohort.endsOn },
+    scheduleOverrides,
+    cohortKey,
+  );
 
   /**
    * 담당 수강생 생일 (MM-DD → 이름들) — 마이페이지 주간 스케줄러의 로직을 옮겨 왔다.
@@ -224,17 +240,60 @@ export function WeeklyPlanPage() {
       <PageHeader
         crumb="기수 현황"
         title="월간·주간 계획"
-        desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 담당 강사·전도사가 함께 작성하고 고칩니다.`}
+        desc={
+          `${cohort.tribe} 지파 · ${cohort.church} · ${cohort.key} — ` +
+          (closed
+            ? "종료된 기수입니다. 지난 일정을 보고 진도표를 내려받을 수 있습니다."
+            : "담당 강사·전도사가 함께 작성하고 고칩니다.")
+        }
         action={
           canEdit ? (
             <ProgressUpload cohortKey={cohortKey} />
           ) : (
             <span className="flex items-center gap-1 text-[11px] text-ink-soft">
-              <Lock size={12} /> 수정은 해당 기수 강사·전도사만
+              <Lock size={12} />{" "}
+              {closed ? "종료된 기수라 보기만 됩니다" : "수정은 해당 기수 강사·전도사만"}
             </span>
           )
         }
       />
+
+      {/* 기수 고르기 + 진도표 내려받기 (2026-08-21 리드 지시) */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <label htmlFor="plan-cohort" className="text-[12px] font-semibold text-ink">
+          기수
+        </label>
+        <select
+          id="plan-cohort"
+          value={cohortId}
+          onChange={(e) => setCohortId(e.target.value)}
+          className="rounded-lg border border-zion-200 bg-white px-3 py-1.5 text-[12.5px] outline-none focus:border-zion-500"
+        >
+          {COHORT_LIST.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.key} · {c.startsOn.slice(0, 7)} ~ {c.endsOn.slice(0, 7)}
+              {c.status === "closed" ? " (종료)" : ""}
+            </option>
+          ))}
+        </select>
+        {closed && (
+          <span className="rounded-lg bg-zion-100 px-2 py-1 text-[11.5px] font-semibold text-zion-700">
+            지난 기수를 보고 있습니다
+          </span>
+        )}
+        <button
+          onClick={() => {
+            const rows: string[][] = [["날짜", "구분", "회차", "내용"]];
+            for (const e of planEntries.filter((x) => x.cohortKey === cohortKey)) {
+              rows.push([e.date, PLAN_ENTRY_LABELS[e.kind], e.session ? String(e.session) : "", e.title]);
+            }
+            downloadBlob(buildXlsx(rows, "진도표"), `${cohortId}_진도표.xlsx`);
+          }}
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-zion-200 px-3 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+        >
+          <Download size={14} /> 이 기수 진도표 내려받기
+        </button>
+      </div>
 
       {/* 보기 전환 + 이동 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -1120,124 +1179,6 @@ function DayPopover({
   );
 }
 
-/* ── 진도표 업로드 — 한 파일로 주간계획과 진도표를 함께 채운다 ── */
-
-function ProgressUpload({ cohortKey }: { cohortKey: string }) {
-  const session = useSession();
-  const { replaceUploadedPlanEntries } = useStore();
-  const [msg, setMsg] = useState<string | null>(null);
-
-  /** 공통 양식 — 이 열 이름·순서 그대로 쓰면 그대로 읽힌다 (2026-08-10 리드 지시로 엑셀) */
-  function downloadTemplate() {
-    const rows = [
-      ["날짜", "구분", "회차", "내용"],
-      ["2026-08-11", "진도", "60", "예) 비유한 짐승과 머리"],
-      ["2026-08-13", "보강", "", "예) 목요일 저녁 보강"],
-      ["2026-08-14", "상담", "", "예) 오전 상담 2건"],
-      ["2026-08-16", "심방", "", "예) 오후 심방"],
-      ["2026-08-17", "행사", "", "예) 새신자 교육"],
-    ];
-    downloadBlob(buildXlsx(rows, "진도표"), "진도표_양식.xlsx");
-  }
-
-  const KIND_BY_LABEL: Record<string, PlanEntryKind> = {
-    진도: "progress",
-    보강: "makeup",
-    상담: "counsel",
-    심방: "visit",
-    행사: "event",
-    메모: "note",
-  };
-
-  /**
-   * 날짜 칸 읽기 — 사람이 엑셀에서 손대면 `2026-08-11` 말고 `2026. 8. 11` 처럼
-   * 적히기도 한다. 흔한 형태는 받아 준다. 그래도 못 읽으면 그 줄만 건너뛴다.
-   */
-  function normalizeDate(raw: string): string | null {
-    const s = raw.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const m = /^(\d{4})[.\-/\s]+(\d{1,2})[.\-/\s]+(\d{1,2})\.?$/.exec(s);
-    if (!m) return null;
-    return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  }
-
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setMsg("읽는 중…");
-
-    let table: string[][];
-    try {
-      table = file.name.toLowerCase().endsWith(".csv")
-        ? (await file.text())
-            .replace(/^﻿/, "")
-            .split(/\r?\n/)
-            .filter((l) => l.trim())
-            .map((l) => l.split(",").map((c) => c.trim()))
-        : await readXlsx(file);
-    } catch {
-      setMsg("파일을 읽지 못했습니다. 양식을 내려받아 그대로 채운 뒤 다시 올려 주세요.");
-      e.target.value = "";
-      return;
-    }
-
-    const rows: { date: string; kind: PlanEntryKind; title: string; session: number | null }[] = [];
-    let skipped = 0;
-
-    for (const [i, cols] of table.entries()) {
-      if (i === 0 && (cols[0] ?? "").includes("날짜")) continue; // 머리글
-      const date = normalizeDate(cols[0] ?? "");
-      const title = (cols[3] ?? "").trim();
-      // 한 줄이 어긋나도 통째로 실패시키지 않는다 — 그 줄만 건너뛰고 몇 줄인지 알린다
-      if (!date || !title) {
-        if ((cols[0] ?? "").trim() || title) skipped++;
-        continue;
-      }
-      const sessionNo = (cols[2] ?? "").trim();
-      rows.push({
-        date,
-        kind: KIND_BY_LABEL[(cols[1] ?? "").trim()] ?? "note",
-        title,
-        session: /^\d+$/.test(sessionNo) ? Number(sessionNo) : null,
-      });
-    }
-
-    if (rows.length === 0) {
-      setMsg("읽을 수 있는 줄이 없습니다. 양식을 내려받아 열 순서(날짜·구분·회차·내용)를 맞춰 주세요.");
-      e.target.value = "";
-      return;
-    }
-    replaceUploadedPlanEntries(cohortKey, rows, session.name, session.roleCode);
-    setMsg(
-      `${rows.length}건을 달력에 반영했습니다.${skipped > 0 ? ` (읽지 못한 ${skipped}줄은 건너뛰었습니다)` : ""}`,
-    );
-    e.target.value = "";
-  }
-
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={downloadTemplate}
-          className="rounded-lg border border-zion-200 px-3 py-2 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
-        >
-          양식 내려받기
-        </button>
-        <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-zion-800 px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-zion-700">
-          <Upload size={14} /> 진도표 올리기
-          {/* 엑셀이 기본이고 CSV도 받는다 — 이미 CSV로 만들어 둔 것이 있을 수 있다 */}
-          <input
-            type="file"
-            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-            onChange={onFile}
-            className="hidden"
-          />
-        </label>
-      </div>
-      {msg && <span className="max-w-[280px] text-right text-[11px] leading-relaxed text-ink-soft">{msg}</span>}
-    </div>
-  );
-}
 
 /* ── 종전 주차별 글 (지우지 않고 남긴다) ── */
 

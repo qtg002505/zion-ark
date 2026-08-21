@@ -1,4 +1,5 @@
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
+import type { LevelChecklist } from "../content/checklist-standards";
 import type { ChecklistProgress, CourseLevel } from "../content/student-profiles";
 import type { Student } from "./types";
 
@@ -74,15 +75,18 @@ export const TONE_LABEL: Record<GroupTone, string> = {
  * 단계 하나의 항목별 기수 통계.
  *
  * @param students 조회 범위 안의 수강생 (권한 필터는 호출부가 이미 했다)
- * @param level    초·중·고
+ * @param level    단계
  * @param progress 담당자가 매긴 점수 전부 (store)
+ * @param standard 쓸 기준표 — 넘기지 않으면 표준이다.
+ *   기수 세팅에서 **지파가 덧붙인 항목**이 있으면 합친 것을 넘긴다 (2026-08-21 리드 지시).
  */
 export function cohortChecklistStats(
   students: Student[],
   level: CourseLevel,
   progress: ChecklistProgress[],
+  standardOverride?: LevelChecklist,
 ): GroupStat[] {
-  const standard = CHECKLIST_STANDARDS[level];
+  const standard = standardOverride ?? CHECKLIST_STANDARDS[level];
   // (studentKey, groupNo) → 점수 목록. 한 번만 훑어 만든다
   const byStudentGroup = new Map<string, number[]>();
   for (const c of progress) {

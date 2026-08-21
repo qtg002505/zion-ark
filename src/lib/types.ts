@@ -617,6 +617,60 @@ export interface PlanEntry {
 }
 
 /**
+ * 기수 편성 변동 (2026-08-21 리드 지시) — **행정 시스템에 즉시 반영되지 않는 것**을 적는 자리다.
+ * 전도사가 바뀌고, 유급 수강생이 옮겨 오고, 청년·장년이 합반하는 일은 시스템보다 현장이 빠르다.
+ *
+ * ⚠️ **원본을 고치는 것이 아니라 「이렇게 바뀌었다」를 남기는 것이다.** 출결 원본은 읽기
+ * 전용이고(불변식 3) 수강생 명단도 행정 쪽이 정본이라, 여기 적힌 것은 **화면에 함께 보이는
+ * 메모**로만 쓴다. 실연동 시 행정 시스템의 변동 이력 테이블에 대응한다.
+ * ⚠️ 이름을 적는 자리라 **개인정보가 들어간다** — 기수 안에서만 보이고 반출하지 않는다(불변식 2).
+ */
+export type CohortChangeKind = "evangelist" | "repeat" | "merge" | "etc";
+
+export const COHORT_CHANGE_LABELS: Record<CohortChangeKind, string> = {
+  evangelist: "전도사 변경",
+  repeat: "유급 수강생 이동",
+  merge: "청년·장년 합반",
+  etc: "그 밖의 변동",
+};
+
+export interface CohortChange {
+  id: string;
+  cohortKey: string;
+  kind: CohortChangeKind;
+  /** 무엇이 어떻게 바뀌었는지 — 사람이 쓴 문장 그대로 */
+  body: string;
+  /** 언제부터 적용되는지 (YYYY-MM-DD) */
+  effectiveOn: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+}
+
+/**
+ * 지파가 덧붙이는 단계 향상 세부 항목 (2026-08-21 리드 지시 —
+ * 「지파마다 다른 체크리스트는 공통 양식 안에서 세부 항목을 자율 입력」).
+ *
+ * ⚠️ **표준(`CHECKLIST_STANDARDS`)은 못 고친다. 뒤에 덧붙을 뿐이다.** 표준이 지파마다
+ * 갈라지면 기수 비교가 무너진다 — 그래서 원문 항목은 그대로 두고 보충만 받는다.
+ * 자료실의 「표준 + 지파 보충」 2계층(2026-08-14 Q-03)과 같은 방식이다.
+ * ⚠️ 지파별·교회별 적용 범위의 **공식 기준은 아직 없다** (총회·지파 신학부장 논의 중) —
+ * 지금은 기수 단위로만 붙인다.
+ */
+export interface ChecklistExtra {
+  id: string;
+  cohortKey: string;
+  level: MaterialLevel;
+  /** 어느 표준 그룹에 붙는 세부 항목인지 */
+  groupNo: number;
+  /** 점검 질문 — 사람이 쓴 문장 그대로 */
+  question: string;
+  createdBy: string;
+  createdByRole: RoleCode;
+  createdAt: string;
+}
+
+/**
  * 기수 일정 수정 (2026-08-13 리드 지시 — 개강일·종강 예정일을 화면에서 고친다).
  * 목업 `SCHEDULE`은 기본값이고, 이 수정이 있으면 그 값을 쓴다
  * (`cohort-calendar.ts`의 `effectiveSchedule`이 병합한다).
