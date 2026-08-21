@@ -4,7 +4,7 @@ import { ChevronDown, TriangleAlert, Trophy } from "lucide-react";
 import { useStore } from "../lib/store";
 import { STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
-import { LEVEL_TONE } from "../content/curriculum-mock";
+import { LEVEL_NAME, LEVEL_TONE } from "../content/curriculum-mock";
 import type { ChecklistProgress, CourseLevel } from "../content/student-profiles";
 import {
   STRONG_MIN,
@@ -84,8 +84,10 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
               {goal && <> 이 단계의 목표는 「{goal}」입니다.</>}
             </p>
           </div>
-          {/* 단계 토글 — 고른 단계는 그 단계 색으로 칠한다 (2026-08-15 리드 지시) */}
-          {/* 고른 단계는 **그 단계 색**으로 칠한다 (초등 하늘 · 중등 주황 · 고등 남색) */}
+          {/*
+            단계 토글 — 고른 단계는 그 단계 색으로 칠한다 (2026-08-15 리드 지시).
+            ⚠️ 이름은 **색 이름**이다 (2026-08-21 리드 지시 — 학원법). `LEVEL_NAME` 한 곳에서 온다.
+          */}
           <SegmentedTabs
             label="단계"
             size="sm"
@@ -94,7 +96,11 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
               setLevel(l);
               setOpenGroup(null);
             }}
-            items={LEVELS.map((l) => ({ id: l, label: l, activeClass: `${LEVEL_TONE[l]} shadow-sm` }))}
+            items={LEVELS.map((l) => ({
+              id: l,
+              label: LEVEL_NAME[l],
+              activeClass: `${LEVEL_TONE[l]} shadow-sm`,
+            }))}
           />
         </div>
 

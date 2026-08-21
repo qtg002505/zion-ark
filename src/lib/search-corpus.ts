@@ -1,5 +1,7 @@
 import { elementaryLessons } from "../content/elementary-lessons";
 import { ELEMENTARY_COURSE_TITLES } from "../content/curriculum-titles";
+/* 출처 표기의 단계 이름 — **색 이름**이 정본이다 (2026-08-21 리드 지시 · 학원법) */
+import { LEVEL_NAME } from "../content/level-labels";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { enneagramGuides } from "../content/enneagram-guides";
 import { SERIES } from "../content/series-content";
@@ -49,7 +51,7 @@ export function buildStaticDocs(): SearchDoc[] {
     */
     const courseTitle = ELEMENTARY_COURSE_TITLES[lesson.lessonNo - 1] ?? lesson.title;
     docs.push({
-      source: `초등 교안 — ${courseTitle}`,
+      source: `${LEVEL_NAME["초등"]} 교안 — ${courseTitle}`,
       sourceType: "교안",
       title: courseTitle,
       href: "/lessons",
@@ -59,7 +61,7 @@ export function buildStaticDocs(): SearchDoc[] {
 
   for (const l of HIGH_LESSONS) {
     docs.push({
-      source: `고등 교안 ${l.label}`,
+      source: `${LEVEL_NAME["고등"]} 교안 ${l.label}`,
       sourceType: "교안",
       title: `${l.label} — ${l.title}`,
       href: "/lessons?course=high",

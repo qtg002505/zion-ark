@@ -350,9 +350,10 @@ export const COHORT_FUNNEL: FunnelMetric[] = [
   { label: "개강 1주차 출석", value: "20명", sub: "출석률 87%" },
   { label: "개강 4주차 출석", value: "18명", sub: "출석률 78%" },
   { label: "등록", value: "17명", sub: "등록률 74% (신카 대비)" },
-  { label: "초등 시작 출석수", value: "17명" },
-  { label: "중등 시작 출석수", value: "15명" },
-  { label: "고등 시작 출석수", value: "―", sub: "아직 진입 전" },
+  /* 단계는 **색 이름**으로 부른다 (2026-08-21 리드 지시 — 학원법). 표기는 `LEVEL_NAME`이 정본이다 */
+  { label: "연두 시작 출석수", value: "17명" },
+  { label: "주황 시작 출석수", value: "15명" },
+  { label: "파랑 시작 출석수", value: "―", sub: "아직 진입 전" },
   { label: "예상 종강률", value: "47%", sub: "유지 8명 / 17명 기준" },
 ];
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "../components/TransitionLink";
 import { Clock, Palette, Star, StickyNote, Trash2, UserPlus, X } from "lucide-react";
 import { useSession } from "../lib/auth";
@@ -265,16 +265,51 @@ export function MyPage() {
   );
 }
 
+/** 저장하지 않고 떠난 글을 담아 두는 자리 — 계정 이름과 함께 넣어 남의 글이 뜨지 않게 한다 */
+const MEMO_DRAFT_KEY = "zion_ark_memo_draft";
+
 /**
  * 개인 메모장 (2026-08-18 리드 지시) — 계정당 한 장, 본인만 본다.
- * 적는 대로 자동 저장한다 — 저장 단추를 두면 안 누르고 떠나 잃는다.
  * 내보내기가 없어 반출 경로도 없다(개인 일정과 달리 캘린더로 안 나간다).
+ *
+ * ⚠️ **저장은 단추를 눌러야 된다** (2026-08-21 리드 지시 — 종전 자동 저장을 대체한다).
+ * 대신 **안 누르고 떠나도 글은 남는다** — 적는 동안 초안을 따로 담아 두고 다시 오면
+ * 되살린다. 저장 단추의 약점(안 누르고 떠나 잃는 것)을 그것으로 막는다.
  */
 function PersonalMemoPad() {
   const session = useSession();
   const { personalMemos, savePersonalMemo } = useStore();
   const saved = personalMemos.find((m) => m.userName === session.name);
-  const [text, setText] = useState(saved?.text ?? "");
+  const savedText = saved?.text ?? "";
+  const [text, setText] = useState(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(MEMO_DRAFT_KEY) ?? "null");
+      if (draft && draft.userName === session.name && typeof draft.text === "string") {
+        return draft.text as string;
+      }
+    } catch {
+      /* 담긴 값이 깨졌으면 없는 셈 친다 */
+    }
+    return savedText;
+  });
+  const [justSaved, setJustSaved] = useState(false);
+  const dirty = text !== savedText;
+
+  // 아직 저장하지 않은 글만 담아 둔다 — 저장하면 지워 「저장 안 된 글」이 남지 않게 한다
+  useEffect(() => {
+    if (dirty) {
+      localStorage.setItem(MEMO_DRAFT_KEY, JSON.stringify({ userName: session.name, text }));
+    } else {
+      localStorage.removeItem(MEMO_DRAFT_KEY);
+    }
+  }, [dirty, text, session.name]);
+
+  // 「저장했습니다」는 잠깐만 띄운다
+  useEffect(() => {
+    if (!justSaved) return;
+    const id = setTimeout(() => setJustSaved(false), 2500);
+    return () => clearTimeout(id);
+  }, [justSaved]);
 
   return (
     <Card className="mt-4">
@@ -283,7 +318,7 @@ function PersonalMemoPad() {
           <StickyNote size={15} className="text-zion-600" /> 개인 메모장
         </div>
         <span className="text-[11px] text-ink-soft">
-          나만 봅니다 · 적는 대로 저장됩니다
+          나만 봅니다
           {saved && ` · 마지막 저장 ${saved.updatedAt.slice(5, 16).replace("T", " ")}`}
         </span>
       </div>
@@ -291,13 +326,33 @@ function PersonalMemoPad() {
         value={text}
         onChange={(e) => {
           setText(e.target.value);
-          savePersonalMemo(session.name, e.target.value);
+          setJustSaved(false);
         }}
         rows={3}
         placeholder="예) 다음 주 준비물, 확인할 일, 떠오른 생각"
         aria-label="개인 메모"
         className="w-full resize-y rounded-lg border border-zion-100 bg-zion-50/40 px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
       />
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+        <span aria-live="polite" className="mr-auto text-[11px] text-ink-soft">
+          {dirty
+            ? "아직 저장하지 않았습니다. 다른 화면에 갔다 와도 적은 글은 남습니다."
+            : justSaved
+              ? "저장했습니다."
+              : ""}
+        </span>
+        <button
+          type="button"
+          disabled={!dirty}
+          onClick={() => {
+            savePersonalMemo(session.name, text);
+            setJustSaved(true);
+          }}
+          className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+        >
+          저장
+        </button>
+      </div>
     </Card>
   );
 }

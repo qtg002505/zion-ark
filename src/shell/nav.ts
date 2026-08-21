@@ -9,6 +9,8 @@ import {
   folderLabel,
 } from "../lib/types";
 import { MISSION_CENTER_VIEW_ROLES, SITE_USAGE_VIEW_ROLES } from "../lib/permissions";
+/* 단계 표기·색 — 셸이 지므로 **가벼운 표만 든 파일**에서 가져온다 (`curriculum-mock` 아님) */
+import { LEVEL_NAME, LEVEL_TONE } from "../content/level-labels";
 import { COHORT_TABS } from "../pages/CohortStatus";
 import {
   Home,
@@ -94,11 +96,17 @@ export interface NavItem {
   restrictTo?: RoleCode[];
 }
 
-/** 대주제 안의 중간 묶음 (예: 강의 도우미 › 초등·중등·고등) */
+/** 대주제 안의 중간 묶음 (예: 강의 도우미 › 연두·주황·파랑) */
 export interface NavSubGroup {
   label: string;
   icon: LucideIcon;
   items: NavItem[];
+  /**
+   * 묶음 이름에 입히는 **단계 바탕색** (2026-08-21 리드 지시 — 「제목의 배경색상을 다르게」).
+   * 값은 `LEVEL_TONE`에서 온 유틸리티 이름이다 — 여기에 색을 하드코딩하지 않는다.
+   * ⚠️ 색은 이름과 **늘 짝으로** 나간다. 색만으로 뜻을 지우지 않기 위해서다.
+   */
+  tone?: string;
 }
 
 export interface NavGroup {
@@ -256,11 +264,19 @@ const NAV_GROUPS: NavGroup[] = [
         `level` 파라미터가 붙어 **그 단계 자료만** 나온다 — 종전에는 어느 단계에서
         들어가도 같은 목록이었다. FB-06 — 각 단계에 「교분기」 탭을 더했다(추가 확정분).
       */
+      /*
+        ⛔ **묶음 이름은 색 이름이다 — 학원법 때문이다** (2026-08-21 리드 지시).
+        종전 「초등·중등·고등」은 학년 편성처럼 읽혀 화면에서 뺐다. 표기 정본은
+        `curriculum-mock.ts`의 `LEVEL_NAME`이고, 여기서는 그 값을 그대로 적는다.
+        ⚠️ **주소의 `level`·`folder` 값은 종전 그대로다** — 저장된 자료가 그 문자열로
+        묶여 있어 바꾸면 폴더에서 빠진다(불변식 10). 바뀐 것은 사람이 보는 이름뿐이다.
+      */
       {
-        label: "초등",
+        label: LEVEL_NAME["초등"],
         icon: Baby,
+        tone: LEVEL_TONE["초등"],
         items: [
-          { to: "/lessons", label: "초등 강의자료", icon: BookText },
+          { to: "/lessons", label: "강의자료", icon: BookText },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("초등")}`, label: "우수 교안·특강", icon: Star },
           /* 우수 판서 (2026-08-15 리드 지시로 신설) — 잘 쓴 판서를 모으는 자리 */
           { to: `/teaching?folder=${encodeURIComponent("우수 판서 초등")}`, label: "우수 판서", icon: PenLine },
@@ -269,27 +285,29 @@ const NAV_GROUPS: NavGroup[] = [
             ⚠️ **저장값은 「교분기 초등」 그대로이고 표기만 「흐름교육」이다** (2026-08-15) —
             폴더 값을 바꾸면 이미 저장된 자료가 폴더에서 빠진다(불변식 10 · `folderLabel`).
           */
-          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: folderLabel("교분기 초등").replace(" 초등", ""), icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: folderLabel("교분기 초등").replace(` ${LEVEL_NAME["초등"]}`, ""), icon: BookOpenText },
         ],
       },
       {
-        label: "중등",
+        label: LEVEL_NAME["중등"],
         icon: Leaf,
+        tone: LEVEL_TONE["중등"],
         items: [
-          { to: "/lessons?course=middle", label: "중등 강의자료", icon: BookText, badge: "준비 중" },
+          { to: "/lessons?course=middle", label: "강의자료", icon: BookText, badge: "준비 중" },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("중등")}`, label: "우수 교안·특강", icon: Star },
           { to: `/teaching?folder=${encodeURIComponent("우수 판서 중등")}`, label: "우수 판서", icon: PenLine },
-          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: folderLabel("교분기 중등").replace(" 중등", ""), icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: folderLabel("교분기 중등").replace(` ${LEVEL_NAME["중등"]}`, ""), icon: BookOpenText },
         ],
       },
       {
-        label: "고등",
+        label: LEVEL_NAME["고등"],
         icon: TreeDeciduous,
+        tone: LEVEL_TONE["고등"],
         items: [
-          { to: "/lessons?course=high", label: "고등 강의자료", icon: BookText },
+          { to: "/lessons?course=high", label: "강의자료", icon: BookText },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("고등")}`, label: "우수 교안·특강", icon: Star },
           { to: `/teaching?folder=${encodeURIComponent("우수 판서 고등")}`, label: "우수 판서", icon: PenLine },
-          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: folderLabel("교분기 고등").replace(" 고등", ""), icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: folderLabel("교분기 고등").replace(` ${LEVEL_NAME["고등"]}`, ""), icon: BookOpenText },
         ],
       },
       {

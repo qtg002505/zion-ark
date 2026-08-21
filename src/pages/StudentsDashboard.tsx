@@ -316,15 +316,28 @@ export function StudentsDashboard() {
                 <div
                   ref={dragTable.ref}
                   onPointerDown={dragTable.onPointerDown}
-                  className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
+                  className={"-mx-1 max-h-[70vh] overflow-auto px-1 " + DRAG_SCROLL_CLASS}
                 >
                   {/*
                     열이 늘어 좁은 화면에서는 표만 가로로 넘긴다 — 본문은 밀리지 않는다.
                     붙잡고 끌어도 넘어간다 (2026-08-14) — 문턱이 있어 줄 클릭은 그대로 산다.
                   */}
-                  <table className="w-full min-w-[720px] text-[12px]">
+                  {/*
+                    ⚠️ **세로로 내려도 머리가 남는다** (2026-08-21 리드 지시 — 「긴 표를 스크롤해도
+                    상단 항목이 고정되도록」). 출석 격자와 같은 방식이다: 표를 제 높이 안에서
+                    굴리고(`max-h`) 머리를 그 위에 붙인다 — 페이지째 굴리면 머리를 어디에 붙일지가
+                    헤더 높이에 매여 화면마다 어긋난다.
+                    ⚠️ 밑줄은 `tr`이 아니라 `th`에 준다 — `tr`에 두면 머리만 붙어 있을 때 줄이 안 따라온다.
+                  */}
+                  <table
+                    className={
+                      "w-full min-w-[720px] text-[12px] " +
+                      "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-white " +
+                      "[&_thead_th]:border-b [&_thead_th]:border-zion-100"
+                    }
+                  >
                     <thead>
-                      <tr className="border-b border-zion-100 text-left text-[11px] text-ink-soft">
+                      <tr className="text-left text-[11px] text-ink-soft">
                         <th className="whitespace-nowrap pb-1.5 pr-2 font-medium">이름</th>
                         {/*
                           나이 · 소속 · 등록 · 상태 · 등급 · 신앙 · 유월 · 특이사항 순 —

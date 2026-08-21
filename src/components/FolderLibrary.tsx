@@ -29,6 +29,8 @@ import {
   type MaterialLevel,
   type MaterialScope,
 } from "../lib/types";
+/* 단계 표기·색 — 가벼운 표만 든 파일에서 가져온다 (`curriculum-mock` 아님) */
+import { LEVEL_NAME, LEVEL_TONE } from "../content/level-labels";
 import { looseIncludes } from "../lib/text-match";
 import { TRIBES } from "../content/centers";
 import { OPENING_TRACKS, type OpeningTrack } from "../lib/types";
@@ -785,9 +787,19 @@ export function FolderLibrary({
                               : `${m.scope.slice("tribe:".length)} 보충`}
                           </span>
                         )}
+                        {/*
+                          단계 표시 — **색 이름 + 그 단계 바탕색** (2026-08-21 리드 지시).
+                          종전에는 남색 뱃지에 「초등」이라 적었다. 이름을 색 이름으로 바꾸면서
+                          바탕도 그 단계 색으로 칠해, 목록을 훑을 때 곁눈으로도 갈리게 했다.
+                        */}
                         {levelFilter === null && m.level && (
-                          <span className="shrink-0 rounded bg-zion-100 px-1.5 py-0.5 text-[10px] font-semibold text-zion-700">
-                            {m.level}
+                          <span
+                            className={
+                              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold " +
+                              LEVEL_TONE[m.level]
+                            }
+                          >
+                            {LEVEL_NAME[m.level]}
                           </span>
                         )}
                         <button
@@ -976,7 +988,11 @@ function MaterialForm({
               </select>
             </div>
             <div>
-              {/* 단계 (FB-05②) — 초/중/고 우수 교안·특강 필터가 이 값을 본다 */}
+              {/*
+                단계 (FB-05②) — 세 과정의 우수 교안·특강 필터가 이 값을 본다.
+                ⚠️ **고르는 값은 종전 그대로이고 보이는 이름만 색 이름이다**
+                (2026-08-21 리드 지시 · 학원법) — 저장된 자료가 옛 값으로 묶여 있다.
+              */}
               <label className="mb-1 block text-[12px] font-semibold text-ink">단계</label>
               <select
                 value={level}
@@ -986,7 +1002,7 @@ function MaterialForm({
                 <option value="공통">공통 (모든 단계)</option>
                 {MATERIAL_LEVELS.map((l) => (
                   <option key={l} value={l}>
-                    {l}
+                    {LEVEL_NAME[l]}
                   </option>
                 ))}
               </select>

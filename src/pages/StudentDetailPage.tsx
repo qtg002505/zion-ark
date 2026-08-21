@@ -21,6 +21,7 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, canEditCohortRecord } from "../lib/permissions";
 import { STUDENTS, COHORT } from "../content/cohort-mock";
+import { LEVEL_NAME, LEVEL_TONE } from "../content/curriculum-mock";
 import {
   STUDENT_PROFILES,
   DIVISION_EVANGELISTS,
@@ -2151,6 +2152,10 @@ function LevelChecklistCard({
         </span>
       </div>
 
+      {/*
+        ⚠️ 단계는 **색 이름**으로 부르고 고른 것은 그 단계 색으로 칠한다
+        (2026-08-21 리드 지시 — 학원법). 이름은 `LEVEL_NAME` 한 곳에서 온다.
+      */}
       <SegmentedTabs
         label="단계"
         size="sm"
@@ -2158,7 +2163,11 @@ function LevelChecklistCard({
         className="mb-3"
         value={level}
         onChange={selectLevel}
-        items={COURSE_LEVELS.map((l) => ({ id: l, label: l }))}
+        items={COURSE_LEVELS.map((l) => ({
+          id: l,
+          label: LEVEL_NAME[l],
+          activeClass: `${LEVEL_TONE[l]} shadow-sm`,
+        }))}
       />
 
       {standard.goal && (
@@ -2378,7 +2387,13 @@ function FeedbackItem({
           />
           {showChecklist && (
             <div>
-              <div className="mb-1 text-[10.5px] text-ink-soft">다룬 초등 단계 항목</div>
+              <div className="mb-1 text-[10.5px] text-ink-soft">
+                다룬{" "}
+                <span className={"rounded px-1 py-0.5 font-semibold " + LEVEL_TONE["초등"]}>
+                  {LEVEL_NAME["초등"]}
+                </span>{" "}
+                단계 항목
+              </div>
               <ChecklistPicker
                 selected={checklistItems}
                 onToggle={(no) =>

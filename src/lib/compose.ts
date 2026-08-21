@@ -1,5 +1,7 @@
 import { elementaryLessons } from "../content/elementary-lessons";
 import { ELEMENTARY_COURSE_TITLES } from "../content/curriculum-titles";
+/* 출처 표기의 단계 이름 — **색 이름**이 정본이다 (2026-08-21 리드 지시 · 학원법) */
+import { LEVEL_NAME } from "../content/level-labels";
 import { HIGH_LESSONS } from "../content/lessons-high";
 import { SERIES } from "../content/series-content";
 import { QUOTE_ITEMS } from "../content/quotes-data";
@@ -50,7 +52,10 @@ export interface ComposeResult {
  * 강 수·자료 건수는 늘어나므로 설명에 숫자를 박지 않는다.
  */
 export const COMPOSE_SOURCES: { kind: ComposeKind; desc: string }[] = [
-  { kind: "교안", desc: "초등 · 고등 강의 교안 — 항목 단위로 찾습니다" },
+  {
+    kind: "교안",
+    desc: `${LEVEL_NAME["초등"]} · ${LEVEL_NAME["고등"]} 강의 교안 — 항목 단위로 찾습니다`,
+  },
   { kind: "시리즈", desc: "신천지도서 — 장 안의 소주제 단위로 찾습니다" },
   { kind: "어록", desc: "총회장님 어록 — 주제와 번호를 출처로 붙입니다" },
   { kind: "에니어그램", desc: "수강생 응대 참고 자료입니다 (판정 근거가 아닙니다)" },
@@ -124,7 +129,7 @@ export function composeMaterials(
       if (score === 0) continue;
       hits.push({
         kind: "교안",
-        source: `초등 교안 「${courseTitle}」 — ${sec.label}`,
+        source: `${LEVEL_NAME["초등"]} 교안 「${courseTitle}」 — ${sec.label}`,
         title: `${courseTitle} · ${sec.label}`,
         body: sec.items.map((i) => `· ${i}`).join("\n"),
         href: "/lessons",
@@ -140,7 +145,7 @@ export function composeMaterials(
       if (score === 0) continue;
       hits.push({
         kind: "교안",
-        source: `고등 교안 ${lesson.label} 「${lesson.title}」 — ${sec.title}`,
+        source: `${LEVEL_NAME["고등"]} 교안 ${lesson.label} 「${lesson.title}」 — ${sec.title}`,
         title: `${lesson.label} ${sec.title}`,
         body: clip(sec.body),
         href: "/lessons?course=high",

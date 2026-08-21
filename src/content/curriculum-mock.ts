@@ -27,32 +27,20 @@ import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
  * **한 회차가 한 강**이다. 실제 기수의 진도표와 다르다 — 화면에도 시범 값임을 표기한다.
  */
 
-/** 과정 단계 — `student-profiles`의 `CourseLevel`과 같은 어휘를 쓴다 */
-export type LessonLevel = "초등" | "중등" | "고등";
-
-/** 좁은 칸(격자 머리)에 쓰는 한 글자 표기 */
-export const LEVEL_SHORT: Record<LessonLevel, string> = { 초등: "초", 중등: "중", 고등: "고" };
-
 /**
- * 단계 색 — **초등 초록 · 중등 주황 · 고등 남색**
- * (2026-08-15 리드 지시 · **초등은 2026-08-18에 하늘색에서 초록으로 바뀌었다**).
- *
- * ⚠️ **색값은 여기 없다.** `index.css`의 `@theme`에 토큰(`--color-level-*`)으로 있고
- * 여기는 그 유틸리티 이름만 짝지어 둔다 — 화면에 색을 하드코딩하지 않는다는 규칙 그대로다.
- * 뱃지는 「옅은 바탕 + 진한 글자」 한 벌이라 둘을 함께 적는다.
+ * 단계 표기·색은 **`level-labels.ts` 하나가 정본**이다 (2026-08-21).
+ * 사이드바(셸)가 그것을 읽어야 해서 가벼운 파일로 갈랐다 — 여기서 다시 내보내므로
+ * 종전처럼 `curriculum-mock`에서 가져와도 그대로 산다.
  */
-export const LEVEL_TONE: Record<LessonLevel, string> = {
-  초등: "bg-level-el-soft text-level-el",
-  중등: "bg-level-mid-soft text-level-mid",
-  고등: "bg-level-high-soft text-level-high",
-};
+import { LEVEL_SHORT, type LessonLevel } from "./level-labels";
 
-/** 색만 필요한 자리(글자·테두리)용 */
-export const LEVEL_TEXT: Record<LessonLevel, string> = {
-  초등: "text-level-el",
-  중등: "text-level-mid",
-  고등: "text-level-high",
-};
+export {
+  LEVEL_NAME,
+  LEVEL_SHORT,
+  LEVEL_TONE,
+  LEVEL_TEXT,
+  type LessonLevel,
+} from "./level-labels";
 
 export interface SessionInfo {
   /** 1부터 — 개강 후 N회차 */

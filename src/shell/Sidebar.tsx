@@ -518,13 +518,20 @@ function SubGroupBlock({
         }
       >
         <SubIcon size={14} className={"shrink-0 " + (hasActive ? "text-zion-700" : "text-zion-400")} />
+        {/*
+          단계 묶음은 **이름에 그 단계 바탕색**을 입는다 (2026-08-21 리드 지시).
+          `tone`이 없는 보통 묶음은 종전 그대로다 — 색이 붙는 것은 과정 셋뿐이다.
+        */}
         <span
           className={
-            "flex-1 text-[13px] font-semibold " + (hasActive ? "text-zion-700" : "text-ink")
+            sub.tone
+              ? `rounded px-1.5 py-0.5 text-[13px] font-bold ${sub.tone}`
+              : "flex-1 text-[13px] font-semibold " + (hasActive ? "text-zion-700" : "text-ink")
           }
         >
           {sub.label}
         </span>
+        {sub.tone && <span className="flex-1" />}
         <ChevronRight
           size={13}
           className={"shrink-0 text-zion-300 transition-transform " + (isOpen ? "rotate-90" : "")}

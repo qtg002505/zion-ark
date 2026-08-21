@@ -8,6 +8,7 @@ import { HIGH_LESSONS } from "../content/lessons-high";
 import {
   keywordOf,
   revelationKeyword,
+  LEVEL_NAME,
   LEVEL_TONE,
   type LessonLevel,
 } from "../content/curriculum-mock";
@@ -67,14 +68,19 @@ function LevelGuidance({ course }: { course: Course }) {
   const items: AccordionItem[] = [
     {
       id: "level-guidance",
-      title: `시기 따른 관리 방향 — ${levelTerm.term}`,
+      title: `시기 따른 관리 방향 — ${LEVEL_NAME[level]}`,
       hint: "이 단계가 이르러야 할 곳과 인교섬이 지는 몫",
       content: (
         <div className="space-y-3">
           <div>
             <div className="mb-1 flex items-center gap-1.5">
+              {/*
+                ⚠️ 뱃지는 **색 이름**이다 (2026-08-21 리드 지시 — 학원법). 아래 정의문은
+                용어집 원문이라 그 안의 표현은 손대지 않는다(불변식 5) — 사이트가 짓는
+                라벨만 바꾼다.
+              */}
               <span className={"rounded px-1.5 py-0.5 text-[10.5px] font-bold " + LEVEL_TONE[level]}>
-                {levelTerm.term}
+                {LEVEL_NAME[level]}
               </span>
               <span className="text-[12px] font-semibold text-ink">이 단계가 이르러야 할 곳</span>
             </div>
@@ -189,19 +195,20 @@ export function Lessons() {
         title="강의 교안"
         desc={
           course === "elementary"
-            ? "초등 교안 — 과수 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
+            ? "과수 1건당 7항목: 교육 핵심 · 기존 관점 · 예상 반응·질문 · 강의 주의사항 · 유도형 질문 · 예방·상담 · 교정 포인트"
             : course === "high"
-              ? "고등 교안 — 계시록 장별로 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
-              : "중등 강의 교안 — 준비 중입니다. 원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다."
+              ? "계시록 장별로 핵심 · 서론 · 본론 · 결론 구조. 원문 그대로 제공합니다."
+              : "준비 중입니다. 원본을 확보하면 다른 두 과정과 같은 소주제 구조로 탑재합니다."
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {/*
-          고른 과정은 **그 단계 색**으로 칠한다 (2026-08-15 리드 지시 —
-          초등 하늘색 · 중등 주황색 · 고등 남색). 색값은 `index.css` 한 곳에 있다.
-          ⚠️ 개수를 적지 않는다 — 정본 과수(초 25 · 고 23)와 지금 탑재된 교안 원문
-          (초 23)이 달라 숫자를 적으면 어긋난 값이 보인다. 단계 이름만 낸다.
+          고른 과정은 **그 단계 색**으로 칠한다. 색값은 `index.css` 한 곳에 있다.
+          ⚠️ **과정을 색 이름으로 부른다** (2026-08-21 리드 지시 — 학원법). 「초등·중등·고등」은
+          학년 편성처럼 읽혀 화면에서 뺐고, 그 자리를 색이 대신한다. 이름은 `LEVEL_NAME` 한 곳이다.
+          ⚠️ 개수를 적지 않는다 — 정본 과수(25 · 23)와 지금 탑재된 교안 원문(23)이 달라
+          숫자를 적으면 어긋난 값이 보인다. 색 이름만 낸다.
         */}
         <SegmentedTabs
           label="과정 선택"
@@ -210,13 +217,13 @@ export function Lessons() {
           onChange={switchCourse}
           items={(
             [
-              ["elementary", "초등", "초등"],
-              ["middle", "중등 (준비 중)", "중등"],
-              ["high", "고등", "고등"],
-            ] as [Course, string, LessonLevel][]
-          ).map(([id, label, level]) => ({
+              ["elementary", "초등"],
+              ["middle", "중등"],
+              ["high", "고등"],
+            ] as [Course, LessonLevel][]
+          ).map(([id, level]) => ({
             id,
-            label,
+            label: level === "중등" ? `${LEVEL_NAME[level]} (준비 중)` : LEVEL_NAME[level],
             activeClass: `${LEVEL_TONE[level]} shadow-sm`,
           }))}
         />
@@ -261,10 +268,15 @@ export function Lessons() {
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
             <Hourglass size={32} className="text-zion-300" />
-            <p className="mt-4 text-[15px] font-semibold text-zion-900">중등 강의 교안은 준비 중입니다</p>
+            <p className="mt-4 text-[15px] font-semibold text-zion-900">
+              <span className={"rounded px-1.5 py-0.5 " + LEVEL_TONE["중등"]}>
+                {LEVEL_NAME["중등"]}
+              </span>{" "}
+              강의 교안은 준비 중입니다
+            </p>
             <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-ink-soft">
-              원본을 확보하면 초등·고등과 같은 소주제 구조로 탑재합니다. 그때까지는 초등·고등 교안을
-              이용해 주세요.
+              원본을 확보하면 다른 두 과정과 같은 소주제 구조로 탑재합니다. 그때까지는 연두·파랑
+              교안을 이용해 주세요.
             </p>
           </div>
         </Card>
@@ -348,25 +360,39 @@ export function Lessons() {
           <Card>
             {course === "elementary" ? (
               <>
-                {/* 단계만 적는다 — 강 번호는 넣지 않는다(2026-08-15) */}
-                <div className="text-[12px] font-semibold text-zion-700">초등</div>
+                {/*
+                  ⚠️ **단계 이름을 적지 않는다** (2026-08-21 리드 지시 — 학원법).
+                  종전에는 제목 위에 「초등」을 얹었다. 지금은 **제목에 그 단계 바탕색**을
+                  입혀 대신한다 — 강 번호를 넣지 않는 것(2026-08-15)은 그대로다.
+                */}
                 {/* 정본 과수 제목이 큰 제목, 교안 원문 제목은 그 아래 그대로 (2026-08-15) */}
-                <h2 className="mt-0.5 text-[19px] font-bold text-zion-900">
+                <h2
+                  className={
+                    "inline-block rounded-lg px-2.5 py-1 text-[19px] font-bold " + LEVEL_TONE["초등"]
+                  }
+                >
                   {ELEMENTARY_COURSE_TITLES[elCurrent.lessonNo - 1] ?? keywordOf(elCurrent.title)}
                 </h2>
-                <p className="mb-4 mt-0.5 text-[12px] text-ink-soft">{elCurrent.title}</p>
+                <p className="mb-4 mt-1 text-[12px] text-ink-soft">{elCurrent.title}</p>
                 <Accordion items={elItems} resetKey={`el-${elCurrent.lessonNo}`} />
                 {/* 교안 바로 아래 그 강의 PPT·영상 — 원스톱 매칭 (2026-08-10) */}
                 <LessonResources lessonKey={`elementary-${elCurrent.lessonNo}`} />
                 <LessonNotes
                   lessonKey={`elementary-${elCurrent.lessonNo}`}
-                  lessonLabel={`초등 — ${ELEMENTARY_COURSE_TITLES[elCurrent.lessonNo - 1] ?? elCurrent.title}`}
+                  lessonLabel={`${LEVEL_NAME["초등"]} — ${ELEMENTARY_COURSE_TITLES[elCurrent.lessonNo - 1] ?? elCurrent.title}`}
                 />
               </>
             ) : highCurrent ? (
               <>
                 <div className="text-[12px] font-semibold text-zion-700">{highCurrent.label}</div>
-                <h2 className="mt-0.5 mb-3 text-[19px] font-bold text-zion-900">{highCurrent.title}</h2>
+                <h2
+                  className={
+                    "mt-0.5 mb-3 inline-block rounded-lg px-2.5 py-1 text-[19px] font-bold " +
+                    LEVEL_TONE["고등"]
+                  }
+                >
+                  {highCurrent.title}
+                </h2>
                 {highParsed.lead && (
                   <div className="mb-3 rounded-lg bg-zion-50 px-3 py-2">
                     <MarkdownLite text={highParsed.lead} />
@@ -376,7 +402,7 @@ export function Lessons() {
                 <LessonResources lessonKey={`high-${highCurrent.id}`} />
                 <LessonNotes
                   lessonKey={`high-${highCurrent.id}`}
-                  lessonLabel={`고등 ${highCurrent.label} — ${highCurrent.title}`}
+                  lessonLabel={`${LEVEL_NAME["고등"]} ${highCurrent.label} — ${highCurrent.title}`}
                 />
               </>
             ) : (
