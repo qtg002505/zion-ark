@@ -188,12 +188,11 @@ const NAV_GROUPS: NavGroup[] = [
    */
   { label: "월간·주간 계획", icon: CalendarDays, to: "/plan" },
 
-  /**
-   * 1-3. 기수 세팅 · 지난 기수 (2026-08-21 리드 지시로 신설).
-   * 새 기수를 열 때 진도표·단계 향상표·사명자·수강생을 한 자리에서 양식으로 넣고,
-   * 지난 기수를 열어 본다. 「우리 기수에 매인 것」 묶음이라 계획 바로 뒤에 둔다.
-   */
-  { label: "기수 세팅", icon: ClipboardList, to: "/cohort-setup" },
+  /*
+    기수 세팅(`/cohort-setup`)은 대주제가 **아니다** (2026-08-21 리드 지시 —
+    「최상단 홈 옆에 작은 이모티콘으로」). 사이드바 홈 행 옆의 작은 아이콘으로만 연다
+    (`Sidebar.tsx`의 홈 특례) — 목록에 넣으면 메인 카테고리 타일에도 파생돼 두 군데가 된다.
+  */
 
   /**
    * 4. 수강생 관리 도우미 — 조직별 운영 영역(개인).
@@ -293,7 +292,7 @@ const NAV_GROUPS: NavGroup[] = [
             ⚠️ **저장값은 「교분기 초등」 그대로이고 표기만 「흐름교육」이다** (2026-08-15) —
             폴더 값을 바꾸면 이미 저장된 자료가 폴더에서 빠진다(불변식 10 · `folderLabel`).
           */
-          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: folderLabel("교분기 초등").replace(` ${LEVEL_NAME["초등"]}`, ""), icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 초등")}`, label: folderLabel("교분기 초등").replace(` (${LEVEL_NAME["초등"]})`, ""), icon: BookOpenText },
         ],
       },
       {
@@ -304,7 +303,7 @@ const NAV_GROUPS: NavGroup[] = [
           { to: "/lessons?course=middle", label: "강의자료", icon: BookText, badge: "준비 중" },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("중등")}`, label: "우수 교안·특강", icon: Star },
           { to: `/teaching?folder=${encodeURIComponent("우수 판서 중등")}`, label: "우수 판서", icon: PenLine },
-          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: folderLabel("교분기 중등").replace(` ${LEVEL_NAME["중등"]}`, ""), icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 중등")}`, label: folderLabel("교분기 중등").replace(` (${LEVEL_NAME["중등"]})`, ""), icon: BookOpenText },
         ],
       },
       {
@@ -315,7 +314,7 @@ const NAV_GROUPS: NavGroup[] = [
           { to: "/lessons?course=high", label: "강의자료", icon: BookText },
           { to: `/teaching?tab=excellent_plan&level=${encodeURIComponent("고등")}`, label: "우수 교안·특강", icon: Star },
           { to: `/teaching?folder=${encodeURIComponent("우수 판서 고등")}`, label: "우수 판서", icon: PenLine },
-          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: folderLabel("교분기 고등").replace(` ${LEVEL_NAME["고등"]}`, ""), icon: BookOpenText },
+          { to: `/teaching?folder=${encodeURIComponent("교분기 고등")}`, label: folderLabel("교분기 고등").replace(` (${LEVEL_NAME["고등"]})`, ""), icon: BookOpenText },
         ],
       },
       {

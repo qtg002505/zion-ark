@@ -228,7 +228,7 @@ export function AskAiBar() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="교안·어록에서 찾기 (예: 배도, 새 언약)"
+            placeholder="교안·어록에서 찾기 (예: 믿음, 기도)"
             className="w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-ink-soft"
             aria-label="질문 입력"
           />

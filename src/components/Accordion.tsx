@@ -148,7 +148,20 @@ export function Accordion({
                 </span>
               </button>
               {isOpen && (
-                <div className={"border-t border-zion-100 " + (compact ? "px-3 py-2.5" : "px-4 py-3")}>
+                /*
+                  ⚠️ **긴 본문은 소주제 안에서 굴린다** (2026-08-21 리드 지시 — 「자료가 긴 경우
+                  스크롤이 너무 내려가며 상단이 안 보인다. 내부 스크롤을 넣되 너무 작지 않도록」).
+                  한 소주제를 펼치면 페이지가 수천 px로 늘어나 목록·머리가 시야에서 사라졌다.
+                  `72vh`는 화면 세 뼘 중 두 뼘 — 많은 내용이 한눈에 보이면서 그 안에서 내려간다.
+                  짧은 본문은 max-h에 안 닿아 아무 변화가 없다.
+                  ⚠️ 모달은 `Portal`로 밖에 떠서 이 overflow에 갇히지 않는다(2026-08-13 결정 덕).
+                */
+                <div
+                  className={
+                    "max-h-[72vh] overflow-y-auto border-t border-zion-100 " +
+                    (compact ? "px-3 py-2.5" : "px-4 py-3")
+                  }
+                >
                   {item.content}
                 </div>
               )}

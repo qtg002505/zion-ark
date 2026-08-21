@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from "../components/TransitionLink";
-import { ChevronDown, ChevronRight, LogOut, Pin, PinOff, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardList, LogOut, Pin, PinOff, X } from "lucide-react";
 import { useAuth, useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { ROLE_LABELS } from "../lib/types";
@@ -423,12 +423,12 @@ function NavGroupBlock({
   // 하위가 없는 단독 대주제(공지사항·총회장님 어록)는 바로 이동한다
   if (group.to) {
     return (
-      <div className="mt-1 first:mt-0">
+      <div className="mt-1 flex items-center gap-1 first:mt-0">
         <NavLink
           viewTransition
           to={group.to}
           className={
-            "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition " +
+            "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left transition " +
             (hasActive ? "bg-zion-50" : "hover:bg-zion-50")
           }
         >
@@ -436,6 +436,28 @@ function NavGroupBlock({
           <span className={labelClass}>{group.label}</span>
           {newBadge}
         </NavLink>
+        {/*
+          기수 세팅 (2026-08-21 리드 지시 — 「최상단 홈 옆에 작은 이모티콘으로」).
+          대주제 목록에 넣지 않고 **홈 행 옆의 작은 아이콘**으로만 연다 — 목록에 넣으면
+          메인 카테고리 타일에도 파생돼 두 군데가 된다. 이모지는 화면 문구 규칙으로 못 쓰므로
+          아이콘(lucide)이다. 좁은 레일에서는 호버 펼침으로 닿는다.
+        */}
+        {group.to === "/" && (
+          <NavLink
+            viewTransition
+            to="/cohort-setup"
+            title="기수 세팅 · 지난 기수"
+            aria-label="기수 세팅 · 지난 기수"
+            className={
+              "shrink-0 rounded-lg p-1.5 transition " +
+              (pathname === "/cohort-setup"
+                ? "bg-zion-100 text-zion-700"
+                : "text-zion-400 hover:bg-zion-50 hover:text-zion-700")
+            }
+          >
+            <ClipboardList size={15} />
+          </NavLink>
+        )}
       </div>
     );
   }

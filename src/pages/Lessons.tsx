@@ -19,7 +19,7 @@ import { Accordion, type AccordionItem } from "../components/Accordion";
 import { LessonNotes } from "../components/LessonNotes";
 import { LessonResources } from "../components/LessonResources";
 import { COURSE_LEVEL_TERMS, WORK_TERMS } from "../content/glossary";
-import { INSTRUCTOR_BATGARI_FOLDERS } from "../lib/types";
+import { INSTRUCTOR_BATGARI_FOLDERS, folderLabel } from "../lib/types";
 import { PageHeader, Card } from "./common";
 
 type Course = "elementary" | "middle" | "high";
@@ -253,8 +253,9 @@ export function Lessons() {
         자료실 전체가 열렸다. 밭갈이는 강의 도우미 안에서 연다.
       */}
       <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+        {/* 폴더는 저장값이 아니라 **표시 이름**으로 낸다 — 저장값에는 단계 이름이 남아 있다 */}
         개강 초반에는 <span className="font-semibold text-zion-700">밭갈이</span> 자료를 교안과 함께
-        씁니다 ({INSTRUCTOR_BATGARI_FOLDERS.join(" · ")}) —{" "}
+        씁니다 ({INSTRUCTOR_BATGARI_FOLDERS.map(folderLabel).join(" · ")}) —{" "}
         <Link
           viewTransition
           to="/teaching"
@@ -275,8 +276,8 @@ export function Lessons() {
               강의 교안은 준비 중입니다
             </p>
             <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-ink-soft">
-              원본을 확보하면 다른 두 과정과 같은 소주제 구조로 탑재합니다. 그때까지는 연두·파랑
-              교안을 이용해 주세요.
+              원본을 확보하면 다른 두 과정과 같은 소주제 구조로 탑재합니다. 그때까지는{" "}
+              {LEVEL_NAME["초등"]}·{LEVEL_NAME["고등"]} 교안을 이용해 주세요.
             </p>
           </div>
         </Card>
