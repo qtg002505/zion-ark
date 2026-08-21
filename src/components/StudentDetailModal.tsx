@@ -4,7 +4,7 @@ import { Link } from "./TransitionLink";
 import { Portal } from "./Portal";
 import { useSession } from "../lib/auth";
 import { canEditCohortRecord } from "../lib/permissions";
-import { STUDENTS, COHORT } from "../content/cohort-mock";
+import { STUDENTS, COHORT_KEY } from "../content/cohort-mock";
 import { StudentDetailPage } from "../pages/StudentDetailPage";
 
 /**
@@ -46,7 +46,7 @@ export function StudentDetailModal({
    * `StudentDetailPage`에 `mode`/`onModeChange`로 넘겨 그 안의 칩·입력이 이 값을 따르게 한다.
    */
   const session = useSession();
-  const cohortKey = `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`;
+  const cohortKey = COHORT_KEY;
   const rawCanEdit = canEditCohortRecord(session, cohortKey);
   const [mode, setMode] = useState<"view" | "edit">("view");
 

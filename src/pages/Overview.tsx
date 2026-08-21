@@ -4,7 +4,7 @@ import { CalendarDays, Megaphone, PencilLine } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf, isFieldStaff, studentScopeLabel } from "../lib/permissions";
-import { STUDENTS, COHORT, DIVISIONS, SCHEDULE } from "../content/cohort-mock";
+import { STUDENTS, COHORT, COHORT_KEY, DIVISIONS, SCHEDULE } from "../content/cohort-mock";
 import {
   CLASS_WEEKDAYS,
   LATE_CLASS_WEEKDAYS,
@@ -68,7 +68,7 @@ export function Overview() {
   const pinned = entries.filter((e) => e.kind === "notice_hq" && e.pinned).slice(0, 2);
 
   /** 화면에서 고친 일정이 있으면 그 값 — 진행률·요약·달력이 전부 이걸 본다 */
-  const cohortKey = `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`;
+  const cohortKey = COHORT_KEY;
   const sched = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKey);
   // 수업 요일이 기수 도중에 바뀌므로 회차 수는 요일 구간까지 넘겨야 맞는다 (2026-08-14)
   const summary = scheduleSummary(sched.startsOn, sched.endsOn, sched.weekdayPeriods);

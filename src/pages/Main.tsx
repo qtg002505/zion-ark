@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Link } from "../components/TransitionLink";
-import { ArrowRight, CalendarDays, Megaphone, Search } from "lucide-react";
+import { ArrowRight, CalendarDays, Megaphone, MessageSquarePlus, Search } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { cohortKeyOf, isFieldStaff, landingPath, studentScopeLabel } from "../lib/permissions";
 import { PLAN_ENTRY_LABELS } from "../lib/types";
-import { COHORT, SCHEDULE, STUDENTS } from "../content/cohort-mock";
+import { COHORT, COHORT_KEY, SCHEDULE, STUDENTS } from "../content/cohort-mock";
 import { STUDENT_PROFILES } from "../content/student-profiles";
 import { effectiveSchedule, progressPct, scheduleSummary } from "../lib/cohort-calendar";
 import { newGroups } from "../lib/nav-badges";
@@ -96,7 +96,7 @@ export function Main() {
   const sched = effectiveSchedule(
     SCHEDULE,
     store.scheduleOverrides,
-    `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`,
+    COHORT_KEY,
   );
   // 요일 구간까지 넘겨야 수업 회차가 맞는다 — 기수 도중에 요일이 바뀐다 (2026-08-14)
   const summary = scheduleSummary(sched.startsOn, sched.endsOn, sched.weekdayPeriods);
@@ -215,7 +215,8 @@ export function Main() {
             실선 노릇을 하는 값이라 위쪽에 흰 띠로 남는다. 간격은 판의 `mb-10`이 맡는다.
           */}
           <div className="mt-auto grid grid-cols-4 gap-px overflow-hidden rounded-xl bg-white/15 max-lg:grid-cols-3 max-sm:grid-cols-2">
-            {categories.map((g) => {
+            {/* 게시판은 아래 전폭 막대가 따로 맡는다 (2026-08-21 리드 지시) — 격자에서 뺀다 */}
+            {categories.filter((g) => g.label !== "게시판").map((g) => {
               const Icon = g.icon;
               const items = groupItems(g);
               const to = g.to ?? items[0]?.to ?? "/";
@@ -255,6 +256,36 @@ export function Main() {
               );
             })}
           </div>
+
+          {/*
+            게시판 — **하단 전폭의 얇은 막대** (2026-08-21 리드 지시 — 「게시판은 하단에
+            제일 길게, 얇게 만들어서 균형을 맞춰줘. 배경은 투명도 있는 흰색」).
+            격자 마지막 줄에 홀로 남아 빈칸이 생기던 것을 이 막대가 채운다.
+
+            ⚠️ **반투명 흰 면을 일부러 쓴 자리다.** 다크 되돌리기 목록(`.bg-white`·`/95`) 밖의
+            투명도라 어두운 화면에서도 흰색 그대로인데, 여기 바탕은 테마 면이 아니라 **사진**이라
+            그게 맞다 — 사진 위 흰 막대는 두 테마에서 같은 모습이어야 한다.
+            글자도 같은 이유로 테마에 안 뒤집히는 `text-zion-950`(뒤집지 않는 값)만 쓴다.
+          */}
+          {/*
+            ⚠️ 이 막대의 글자는 **`text-zion-950`(+투명도)만 쓴다.** `text-zion-800`은 다크에서
+            0.9로 밝아지는 변수라(실측) 흰 막대 위에서 사라진다 — zion-950은 뒤집지 않는 값이다.
+          */}
+          <Link
+            viewTransition
+            to="/board"
+            className="group mt-2 flex items-center gap-2.5 rounded-xl bg-white/80 px-4 py-2.5 backdrop-blur-sm transition duration-300 hover:bg-white/90"
+          >
+            <MessageSquarePlus size={17} className="shrink-0 text-zion-950/80" />
+            <span className="text-[13.5px] font-bold text-zion-950">게시판</span>
+            {/* 부제는 게시판의 실제 성격(FB-09 건의·의견 창구) 그대로 — 새 성격을 지어내지 않는다 */}
+            <span className="text-[11.5px] text-zion-950/75 max-sm:hidden">
+              플랫폼 건의·의견을 남기는 자리
+            </span>
+            <span className="ml-auto text-[11.5px] font-semibold text-zion-950/80 transition group-hover:translate-x-0.5">
+              바로 가기
+            </span>
+          </Link>
         </div>
       </section>
 

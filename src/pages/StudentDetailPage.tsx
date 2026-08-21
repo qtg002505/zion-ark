@@ -247,7 +247,7 @@ export function StudentDetailPage({
   }
 
   const p = STUDENT_PROFILES[student.key];
-  const cohortKey = `${COHORT.tribe}|${COHORT.church}|${COHORT.cohort}`;
+  const cohortKey = COHORT_KEY;
   /**
    * `rawCanEdit`은 진짜 권한(해당 기수 강사·전도사인지), `canEdit`은 거기에 지금
    * 「편집」 상태(`mode`, 위에서 선언)인지까지 곱한 값이다 — 아래 모든 PillGroup·EditableText

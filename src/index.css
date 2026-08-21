@@ -237,6 +237,15 @@
   background-color: var(--color-card);
 }
 /*
+ * 붙는 표 머리의 arbitrary variant도 같이 챙긴다 (2026-08-21 재점검에서 잡았다).
+ * 출석 격자·수강생 표가 `[&_thead_th]:bg-white`로 머리 배경을 깔았는데, 이 유틸리티는
+ * 클래스명이 `.bg-white`가 아니라 위 되돌리기에 **안 걸려** 다크에서 흰 띠가 됐다.
+ * (출석 격자는 왼쪽 붙박이 칸만 직접 `bg-white`라 그 칸만 어두워져 더 헷갈렸다.)
+ */
+[data-theme="dark"] .\[\&_thead_th\]\:bg-white thead th {
+  background-color: var(--color-card);
+}
+/*
  * 반투명 흰 면도 같이 챙긴다 (2026-08-11). 수강생 상세 팝업의 붙박이 머리가
  * `bg-white/95`라 이 목록에 없었고, 어두운 화면에서 **흰 띠로 떠서 이름이 안 보였다**(1.05).
  * `bg-white/10`·`bg-white/20`은 진한 브랜드 면 위에 얹는 옅은 덧칠이라 그대로 둔다.
