@@ -1394,24 +1394,21 @@ function AttendanceGrid({
                             {dateOf(c.sess)}
                           </span>
                           {/*
-                            단계 색 (2026-08-15 리드 지시 — 초등 하늘색 · 중등 주황색 · 고등 남색).
+                            진도 표기 — **바탕색이 단계이고 글자는 과수 제목이다**
+                            (2026-08-21 리드 지시 — 「연두색 배경 안에 그릇~지팡이 이런 식으로
+                            단어가 들어가는 거지 색깔 이름이 들어가는 게 아니다」).
+                            종전에는 색 칸에 단계 글자를 넣고 제목을 그 아래 줄에 회색으로 깔았다.
                             색값은 `index.css`의 `@theme`에 있고 여기는 토큰 이름만 쓴다.
                           */}
                           <span
                             className={
-                              "mt-0.5 block rounded px-0.5 text-[9.5px] font-bold " +
+                              "mt-0.5 block truncate rounded px-0.5 text-[9.5px] font-bold " +
                               // 배정 전 회차는 색을 입히지 않는다 — 단계가 정해진 것이 아니다
                               (c.sess.undecided ? "text-ink-soft" : LEVEL_TONE[c.sess.level])
                             }
                           >
                             {shortLessonLabel(c.sess)}
                           </span>
-                          {/* 핵심단어 (2026-08-15 리드 지시) — 칸이 좁아 잘리고, 원문은 툴팁에 있다 */}
-                          {c.sess.lessonKeyword && (
-                            <span className="block truncate text-[9px] font-normal text-ink-soft">
-                              {c.sess.lessonKeyword}
-                            </span>
-                          )}
                         </th>
                       ) : (
                         /* 특강 칸 (2026-08-15) — 금색으로 갈라 놓아 정규와 헷갈리지 않는다 */

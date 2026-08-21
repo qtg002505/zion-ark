@@ -895,6 +895,12 @@ export interface PersonalEvent {
  * 계정당 한 장이고 본인만 본다. 일정과 달리 내보내기가 없어 반출 경로도 없다.
  */
 export interface PersonalMemo {
+  /**
+   * 메모 하나의 id (2026-08-21 리드 지시로 추가 — 「저장한 메모들을 기록으로 보고
+   * 수정·삭제」). 종전에는 **계정당 한 장**이라 id가 없었다.
+   * ⚠️ 옛 저장분에는 이 값이 없다 — 불러올 때 채운다(`migratePersonalMemos`).
+   */
+  id: string;
   userName: string;
   text: string;
   updatedAt: string;

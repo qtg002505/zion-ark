@@ -409,6 +409,15 @@ function loadPlain<T>(key: string): T[] {
 }
 
 /**
+ * 개인 메모 이관 — **계정당 한 장**이던 때(2026-08-18~20)에 저장된 메모에 id를 붙인다.
+ * 2026-08-21에 메모가 쌓이는 구조로 바뀌면서 id가 생겼다. id가 없으면 수정·삭제가
+ * 어느 메모를 가리키는지 알 수 없어 **불러올 때 한 번 채운다.**
+ */
+function migratePersonalMemos(stored: PersonalMemo[]): PersonalMemo[] {
+  return stored.map((m) => (m.id ? m : { ...m, id: uid() }));
+}
+
+/**
  * 자료실 이관 — 구획·폴더가 생기기 전(2026-08-06 이전)에 저장된 자료를 메운다.
  * `section`이 없으면 어느 구획에도 안 잡히므로 「강사 도우미 자료실」로 본다.
  * 빠진 시드를 덧붙이는 일은 `load()`가 이미 한다.
@@ -620,8 +629,14 @@ interface StoreValue {
   }) => void;
   deletePersonalEvent: (id: string) => void;
   /** 개인 메모장 (2026-08-18) — 계정당 한 장, 본인만 본다 */
+  /**
+   * 개인 메모 — **쌓인다** (2026-08-21 리드 지시. 종전에는 계정당 한 장을 덮어썼다).
+   * 최신이 앞이고, 목록·수정·삭제는 마이페이지의 메모 기록에서 한다.
+   */
   personalMemos: PersonalMemo[];
-  savePersonalMemo: (userName: string, text: string) => void;
+  addPersonalMemo: (userName: string, text: string) => void;
+  updatePersonalMemo: (id: string, text: string) => void;
+  removePersonalMemo: (id: string) => void;
   /**
    * 기수 회의록 (2026-08-18) — 주간계획과 같은 권한(해당 기수의 강사·전도사만 쓴다).
    * 권한 대조는 화면이 먼저 한다.
@@ -900,7 +915,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [siteVisits, setSiteVisits] = useState<SiteVisit[]>(() => loadPlain<SiteVisit>(SITE_VISIT_KEY));
   const [personalMemos, setPersonalMemos] = useState<PersonalMemo[]>(() =>
-    loadPlain<PersonalMemo>(PERSONAL_MEMO_KEY),
+    migratePersonalMemos(loadPlain<PersonalMemo>(PERSONAL_MEMO_KEY)),
   );
   const [meetingNotes, setMeetingNotes] = useState<CohortMeetingNote[]>(() =>
     loadPlain<CohortMeetingNote>(MEETING_NOTE_KEY),
@@ -984,6 +999,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const persistPersonal = useCallback((next: PersonalEvent[]) => {
     localStorage.setItem(PERSONAL_KEY, JSON.stringify(next));
     setPersonalEvents(next);
+  }, []);
+
+  const persistPersonalMemos = useCallback((next: PersonalMemo[]) => {
+    localStorage.setItem(PERSONAL_MEMO_KEY, JSON.stringify(next));
+    setPersonalMemos(next);
   }, []);
 
   const persistActivity = useCallback((next: ActivityLog[]) => {
@@ -1315,13 +1335,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         persistPersonal([...personalEvents, { id: uid(), ...input, createdAt: nowIso() }]);
       },
       personalMemos,
-      savePersonalMemo: (userName, text) => {
-        const next = [
-          ...personalMemos.filter((m) => m.userName !== userName),
-          { userName, text, updatedAt: nowIso() },
-        ];
-        localStorage.setItem(PERSONAL_MEMO_KEY, JSON.stringify(next));
-        setPersonalMemos(next);
+      addPersonalMemo: (userName, text) => {
+        /* 새 메모가 앞에 온다 — 기록 목록이 최신순이다 */
+        persistPersonalMemos([{ id: uid(), userName, text, updatedAt: nowIso() }, ...personalMemos]);
+      },
+      updatePersonalMemo: (id, text) => {
+        persistPersonalMemos(
+          personalMemos.map((m) => (m.id === id ? { ...m, text, updatedAt: nowIso() } : m)),
+        );
+      },
+      removePersonalMemo: (id) => {
+        persistPersonalMemos(personalMemos.filter((m) => m.id !== id));
       },
       meetingNotes,
       addMeetingNote: (input) => {

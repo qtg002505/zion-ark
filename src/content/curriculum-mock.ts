@@ -32,11 +32,10 @@ import { SCHEDULE, TOTAL_SESSIONS } from "./cohort-mock";
  * 사이드바(셸)가 그것을 읽어야 해서 가벼운 파일로 갈랐다 — 여기서 다시 내보내므로
  * 종전처럼 `curriculum-mock`에서 가져와도 그대로 산다.
  */
-import { LEVEL_SHORT, type LessonLevel } from "./level-labels";
+import type { LessonLevel } from "./level-labels";
 
 export {
   LEVEL_NAME,
-  LEVEL_SHORT,
   LEVEL_TONE,
   LEVEL_TEXT,
   type LessonLevel,
@@ -173,19 +172,29 @@ export function lessonOfSession(sessionNo: number): CurriculumStep {
 }
 
 /**
- * 좁은 칸용 단계 표기 — 「초」·「중」·「고」. 배정 전 회차는 **「미정」**이다.
+ * 좁은 칸의 진도 표기 — **과수 제목만** 낸다. 배정 전 회차는 **「미정」**이다.
+ *
+ * ⚠️ **단계 글자를 넣지 않는다** (2026-08-21 리드 지시 — 「연두색 배경 안에 그릇~지팡이
+ * 이런 식으로 단어가 들어가는 거지 색깔 이름이 들어가는 게 아니다」).
+ * 종전에는 「초」·「중」·「고」를 냈고, 학원법 지시(2026-08-21) 뒤에는 색 이름 첫 글자를
+ * 냈다 — 둘 다 틀렸다. **단계는 바탕색이 알리고, 글자 자리는 과수 제목이 쓴다.**
+ * ⚠️ 그래서 이 표기를 쓰는 자리는 **그 색을 바탕으로 깔아야** 단계를 알 수 있다
+ * (`LEVEL_TONE`). 색을 안 깔면 무슨 단계인지 사라진다.
  *
  * ⚠️ **강 번호를 붙이지 않는다** (2026-08-15 리드 지시 — 「학원법 위반에 걸리지 않도록
  * 초등1 2 3 · 중등1 2 3 · 고등1 2 3 같은 **연속적인 형식의 구분은 제외**한다」).
- * 종전에는 「초1강」·「중12강」처럼 단계+번호로 냈는데, 그 표기가 학년·학기 편성처럼 읽힌다.
  * **번호(`lessonNo`)는 데이터로 남긴다** — 차례를 매기고 회차와 짝짓는 데 쓴다. 화면에만 안 낸다.
  */
 export function shortLessonLabel(step: {
-  level: LessonLevel;
   lessonNo: number;
+  /** `SessionInfo`가 담는 이름 */
+  lessonKeyword?: string;
+  /** `CURRICULUM` 항목이 담는 이름 — 같은 값이다 */
+  keyword?: string;
   undecided?: boolean;
 }): string {
-  return step.undecided || step.lessonNo === 0 ? "미정" : LEVEL_SHORT[step.level];
+  if (step.undecided || step.lessonNo === 0) return "미정";
+  return step.lessonKeyword || step.keyword || "";
 }
 
 /**
@@ -228,16 +237,21 @@ export function sessionsThroughWeek(weekNo: number, periods?: ClassWeekdayPeriod
 }
 
 /**
- * 회차 라벨 — 「12회차 · 월 · 초등 천국 비밀 비유」 형태 (툴팁).
- * ⚠️ **강 번호를 넣지 않는다** — 「초등 3강」 같은 연속 번호 표기는 빼기로 했다(2026-08-15).
+ * 회차 라벨 — 「12회차 · 월 · 천국 비밀 비유」 형태 (툴팁).
+ * ⚠️ **강 번호도 단계 이름도 넣지 않는다** — 연속 번호는 2026-08-15, 단계 이름은
+ * 2026-08-21 리드 지시로 뺐다(학원법). 툴팁은 색을 못 쓰므로 **과수 제목만** 낸다.
  */
 export function sessionLabelOf(s: SessionInfo): string {
-  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.level} ${s.lessonTitle}`.trim();
+  return `${s.sessionNo}회차 · ${s.weekdayLabel} · ${s.lessonTitle}`.trim();
 }
 
-/** 좁은 칸의 진도 표기 — 「초 천국 비밀 비유」·「고 계5장」 (단계 한 글자 + 과수 제목) */
+/**
+ * 좁은 칸의 진도 표기 — 「천국 비밀 비유」·「계5장」.
+ * ⚠️ 지금은 `shortLessonLabel`과 같은 값이다 (2026-08-21 — 단계 글자를 빼면서 겹쳤다).
+ * 부르는 자리가 여럿이라 이름은 남겨 둔다.
+ */
 export function sessionKeywordLabel(s: SessionInfo): string {
-  return `${shortLessonLabel(s)}${s.lessonKeyword ? ` ${s.lessonKeyword}` : ""}`;
+  return shortLessonLabel(s);
 }
 
 /** 짧은 강 제목 — 표 머리처럼 좁은 자리용 */

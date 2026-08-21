@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "../components/TransitionLink";
-import { Clock, Palette, Star, StickyNote, Trash2, UserPlus, X } from "lucide-react";
+import { Clock, History, Palette, PencilLine, Star, StickyNote, Trash2, UserPlus, X } from "lucide-react";
+import { Portal } from "../components/Portal";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel } from "../lib/permissions";
 import { pageLabelOf } from "../shell/nav";
-import { FAVORITE_LABELS, ROLE_LABELS, type FavoriteTarget } from "../lib/types";
+import { FAVORITE_LABELS, ROLE_LABELS, type FavoriteTarget, type PersonalMemo } from "../lib/types";
 import { SERIES } from "../content/series-content";
 import { WeekScheduler } from "../components/WeekScheduler";
 import { ThemeChoice } from "../shell/ThemeToggle";
@@ -269,18 +270,21 @@ export function MyPage() {
 const MEMO_DRAFT_KEY = "zion_ark_memo_draft";
 
 /**
- * 개인 메모장 (2026-08-18 리드 지시) — 계정당 한 장, 본인만 본다.
+ * 개인 메모장 (2026-08-18 리드 지시) — 본인만 본다.
  * 내보내기가 없어 반출 경로도 없다(개인 일정과 달리 캘린더로 안 나간다).
  *
  * ⚠️ **저장은 단추를 눌러야 된다** (2026-08-21 리드 지시 — 종전 자동 저장을 대체한다).
  * 대신 **안 누르고 떠나도 글은 남는다** — 적는 동안 초안을 따로 담아 두고 다시 오면
  * 되살린다. 저장 단추의 약점(안 누르고 떠나 잃는 것)을 그것으로 막는다.
+ *
+ * ⚠️ **메모는 쌓인다** (2026-08-21 리드 지시 — 종전 「계정당 한 장 덮어쓰기」를 대체한다).
+ * 저장하면 새 메모가 되고 적던 칸은 비워진다. 지난 메모는 아래 「메모 기록 보기」에서
+ * 열어 고치거나 지운다.
  */
 function PersonalMemoPad() {
   const session = useSession();
-  const { personalMemos, savePersonalMemo } = useStore();
-  const saved = personalMemos.find((m) => m.userName === session.name);
-  const savedText = saved?.text ?? "";
+  const { personalMemos, addPersonalMemo } = useStore();
+  const mine = personalMemos.filter((m) => m.userName === session.name);
   const [text, setText] = useState(() => {
     try {
       const draft = JSON.parse(localStorage.getItem(MEMO_DRAFT_KEY) ?? "null");
@@ -290,10 +294,11 @@ function PersonalMemoPad() {
     } catch {
       /* 담긴 값이 깨졌으면 없는 셈 친다 */
     }
-    return savedText;
+    return "";
   });
   const [justSaved, setJustSaved] = useState(false);
-  const dirty = text !== savedText;
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const dirty = text.trim().length > 0;
 
   // 아직 저장하지 않은 글만 담아 둔다 — 저장하면 지워 「저장 안 된 글」이 남지 않게 한다
   useEffect(() => {
@@ -319,7 +324,7 @@ function PersonalMemoPad() {
         </div>
         <span className="text-[11px] text-ink-soft">
           나만 봅니다
-          {saved && ` · 마지막 저장 ${saved.updatedAt.slice(5, 16).replace("T", " ")}`}
+          {mine[0] && ` · 마지막 저장 ${mine[0].updatedAt.slice(5, 16).replace("T", " ")}`}
         </span>
       </div>
       <textarea
@@ -338,14 +343,15 @@ function PersonalMemoPad() {
           {dirty
             ? "아직 저장하지 않았습니다. 다른 화면에 갔다 와도 적은 글은 남습니다."
             : justSaved
-              ? "저장했습니다."
+              ? "저장했습니다. 지난 메모는 아래 기록에서 봅니다."
               : ""}
         </span>
         <button
           type="button"
           disabled={!dirty}
           onClick={() => {
-            savePersonalMemo(session.name, text);
+            addPersonalMemo(session.name, text.trim());
+            setText("");
             setJustSaved(true);
           }}
           className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
@@ -353,6 +359,163 @@ function PersonalMemoPad() {
           저장
         </button>
       </div>
+
+      {/* 메모 기록 보기 (2026-08-21 리드 지시) — 지난 메모를 팝업으로 펼쳐 고치고 지운다 */}
+      <div className="mt-2 border-t border-zion-100 pt-2">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
+        >
+          <History size={14} /> 메모 기록 보기
+          <span className="rounded-full bg-zion-100 px-1.5 py-0.5 text-[10.5px] text-zion-700">
+            {mine.length}
+          </span>
+        </button>
+      </div>
+
+      {historyOpen && <MemoHistory memos={mine} onClose={() => setHistoryOpen(false)} />}
     </Card>
+  );
+}
+
+/**
+ * 메모 기록 팝업 — 저장해 둔 메모를 최신순으로 펼쳐 보고 고치거나 지운다.
+ *
+ * ⚠️ **`Portal`로 감싼다.** `main`이 `view-transition-name` 때문에 쌓임 맥락을 만들어,
+ * 그 안에서 뜨는 `fixed`는 헤더에 눌린다 — 숫자를 올려도 안 고쳐진다(2026-08-13에 겪었다).
+ * ⚠️ 지우기는 되돌릴 수 없어 **한 번 더 묻는다** — 본인만 보는 글이라 복구할 곳이 없다.
+ */
+function MemoHistory({ memos, onClose }: { memos: PersonalMemo[]; onClose: () => void }) {
+  const { updatePersonalMemo, removePersonalMemo } = useStore();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [askDelete, setAskDelete] = useState<string | null>(null);
+
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/40 p-4">
+        {/* 바깥을 누르면 닫힌다 — 안쪽 클릭은 막는다 */}
+        <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="메모 기록"
+          className="relative flex max-h-[80vh] w-full max-w-lg flex-col rounded-card bg-white shadow-xl"
+        >
+          <div className="flex items-center justify-between border-b border-zion-100 px-4 py-3">
+            <div className="text-[14px] font-bold text-zion-900">메모 기록 {memos.length}건</div>
+            <button
+              onClick={onClose}
+              aria-label="닫기"
+              className="rounded p-1 text-ink-soft transition hover:bg-zion-100"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
+            {memos.length === 0 ? (
+              <p className="py-10 text-center text-[13px] text-ink-soft">
+                저장한 메모가 없습니다. 위 칸에 적고 저장을 누르면 여기에 쌓입니다.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {memos.map((m) => (
+                  <li key={m.id} className="rounded-lg border border-zion-100 px-3 py-2">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-ink-soft">
+                        {m.updatedAt.slice(0, 16).replace("T", " ")}
+                      </span>
+                      <span className="ml-auto flex items-center gap-1">
+                        {editingId === m.id ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                const t = draft.trim();
+                                if (t) updatePersonalMemo(m.id, t);
+                                setEditingId(null);
+                              }}
+                              disabled={draft.trim().length === 0}
+                              className="rounded-lg bg-zion-800 px-2.5 py-1 text-[11.5px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
+                            >
+                              저장
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="rounded-lg px-2 py-1 text-[11.5px] text-ink-soft transition hover:bg-zion-100"
+                            >
+                              그만두기
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setEditingId(m.id);
+                                setDraft(m.text);
+                                setAskDelete(null);
+                              }}
+                              aria-label="이 메모 고치기"
+                              className="rounded p-1 text-ink-soft transition hover:bg-zion-100"
+                            >
+                              <PencilLine size={13} />
+                            </button>
+                            <button
+                              onClick={() => setAskDelete(askDelete === m.id ? null : m.id)}
+                              aria-label="이 메모 지우기"
+                              className="rounded p-1 text-ink-soft transition hover:bg-zion-100"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+
+                    {editingId === m.id ? (
+                      <textarea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        rows={3}
+                        aria-label="메모 고치기"
+                        className="w-full resize-y rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[13px] leading-relaxed outline-none focus:border-zion-500"
+                      />
+                    ) : (
+                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink">
+                        {m.text}
+                      </p>
+                    )}
+
+                    {askDelete === m.id && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-zion-50 px-2.5 py-1.5">
+                        <span className="text-[11.5px] text-ink">
+                          지우면 되돌릴 수 없습니다. 지울까요?
+                        </span>
+                        <button
+                          onClick={() => {
+                            removePersonalMemo(m.id);
+                            setAskDelete(null);
+                          }}
+                          className="ml-auto rounded-lg bg-red-600 px-2.5 py-1 text-[11.5px] font-semibold text-white transition hover:opacity-90"
+                        >
+                          지우기
+                        </button>
+                        <button
+                          onClick={() => setAskDelete(null)}
+                          className="rounded-lg px-2 py-1 text-[11.5px] text-ink-soft transition hover:bg-zion-100"
+                        >
+                          그만두기
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </Portal>
   );
 }
