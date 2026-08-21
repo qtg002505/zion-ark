@@ -331,6 +331,28 @@ export const MATERIAL_LIKE_SHORT: Record<MaterialLikeKind, string> = {
 };
 
 /**
+ * 강의 특징 — **본 사람들이 붙이는 태그다** (2026-08-21 리드 지시).
+ *
+ * ⛔ **올린 사람이 스스로 정하지 못한다.** 「나는 유머형입니다」는 자기 소개일 뿐이라,
+ * 자료를 본 사람이 눌러 쌓이는 표로만 붙는다. 그래서 등록 폼에는 이 칸이 없다.
+ * 갈래별 좋아요(`MaterialLikeKind`)와 같은 계약이다 — **1인 1표 토글**이고 여럿을 함께 고른다.
+ *
+ * ⚠️ 사람을 평가하는 표가 아니라 **이 강의가 어떻게 느껴졌는지**를 모으는 표다.
+ * 그래서 화면에도 「이 강의는」으로 묻고, 순위를 매기거나 강사끼리 견주지 않는다
+ * (전도사별 달성률 순위를 뺀 것과 같은 판단이다).
+ */
+export type TeachingStyleTag = "humor" | "logic" | "emotion" | "awareness";
+
+export const TEACHING_STYLE_TAGS: TeachingStyleTag[] = ["humor", "logic", "emotion", "awareness"];
+
+export const TEACHING_STYLE_LABELS: Record<TeachingStyleTag, string> = {
+  humor: "유머형",
+  logic: "논리형",
+  emotion: "감성형",
+  awareness: "인식 개선에 도움",
+};
+
+/**
  * 개강 갈래 (2026-08-18 리드 확인) — **자장부 개강과 청년 개강으로 나뉜다.**
  * 「자장부」는 자문·장년·부녀를 묶은 말이다(`FELLOWSHIP_TERMS`의 셋).
  * ⚠️ 수강생 소속(`Fellowship`)과는 다른 축이다 — 이건 **자료가 어느 개강에 쓰이는가**다.
@@ -404,8 +426,18 @@ export interface LibraryMaterial {
   createdByTribe?: string;
   /** 개강 갈래 — 자장부(자문·장년·부녀) 개강과 청년 개강으로 나뉜다 (리드 확인) */
   openingTrack?: OpeningTrack;
-  /** 해시태그 — 강사 이름 · 수강생 성향처럼 자유롭게 붙인다. `#` 없이 낱말만 담는다 */
+  /**
+   * 해시태그 — 강사 이름 · **강의 당시 수강생 구성**처럼 자유롭게 붙인다. `#` 없이 낱말만 담는다.
+   * 수강생 구성(「무신앙인 다수」·「종교 반감 많음」)을 함께 적어 두면 평가의 맥락이 선다
+   * (2026-08-21 리드 지시) — 등록 폼이 그 예를 안내한다.
+   */
   tags?: string[];
+  /**
+   * 강의 특징 — **본 사람들이 붙인 표** (2026-08-21 리드 지시. `TeachingStyleTag` 주석 참고).
+   * 갈래마다 1인 1표이고 여럿을 함께 고를 수 있다. 올린 사람이 스스로 정하지 못한다.
+   * ⚠️ 전방 추가 — 옛 자료에는 없고, 없는 자료는 그 축으로 거를 때 빠진다.
+   */
+  styleBy?: Partial<Record<TeachingStyleTag, string[]>>;
   createdBy: string;
   createdByRole: RoleCode;
   createdAt: string;

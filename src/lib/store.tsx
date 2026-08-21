@@ -6,6 +6,7 @@ import type {
   BoardReply,
   ClassWeekdayPeriod,
   MaterialLikeKind,
+  TeachingStyleTag,
   PersonalMemo,
   CohortMeetingNote,
   SiteVisit,
@@ -504,6 +505,11 @@ interface StoreValue {
    * `helpfulBy`를 갈래들의 합집합으로 함께 갱신한다.
    */
   toggleMaterialLike: (id: string, userName: string, kind: MaterialLikeKind) => void;
+  /**
+   * 강의 특징 토글 (2026-08-21 리드 지시) — **본 사람이 붙인다.** 올린 사람이 스스로
+   * 정하지 못하므로 등록 폼에는 없고 상세 화면에서만 누른다. 갈래마다 1인 1표.
+   */
+  toggleMaterialStyle: (id: string, userName: string, tag: TeachingStyleTag) => void;
   /**
    * 자료 조회수 — 게시판 표의 조회순·인기 산정 근거. 상세를 **여는 클릭에서만** 올린다.
    * ⚠️ **계정당 1회**다 (2026-08-15 리드 지시) — 누가 봤는지는 자료의 `viewedBy`에 남는다.
@@ -1134,6 +1140,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               for (const n of likes[k] ?? []) union.add(n);
             }
             return { ...m, likesBy: likes, helpfulBy: [...union], updatedAt: nowIso() };
+          }),
+        );
+      },
+      /**
+       * 강의 특징 토글 (2026-08-21) — 본 사람이 붙이는 표다. 갈래마다 1인 1표.
+       * ⚠️ **`helpfulBy`에 넣지 않는다** — 추천(도움됨)과 다른 축이다. 「논리형이다」는
+       * 추천이 아니라 성격 표시라, 합치면 추천순 정렬이 뜻을 잃는다.
+       * ⚠️ `updatedAt`도 건드리지 않는다 — 최신순 정렬이 남의 투표로 흔들리면 안 된다.
+       */
+      toggleMaterialStyle: (id, userName, tag) => {
+        persistMaterials(
+          materials.map((m) => {
+            if (m.id !== id) return m;
+            const styles = { ...(m.styleBy ?? {}) };
+            const list = styles[tag] ?? [];
+            styles[tag] = list.includes(userName)
+              ? list.filter((n) => n !== userName)
+              : [...list, userName];
+            return { ...m, styleBy: styles };
           }),
         );
       },

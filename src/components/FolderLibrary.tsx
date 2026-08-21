@@ -22,11 +22,14 @@ import {
   MATERIAL_LEVELS,
   MATERIAL_LIKE_KINDS,
   MATERIAL_LIKE_LABELS,
+  TEACHING_STYLE_LABELS,
+  TEACHING_STYLE_TAGS,
   ROLE_LABELS,
   folderLabel,
   type LibraryCategory,
   type LibraryMaterial,
   type MaterialLevel,
+  type TeachingStyleTag,
   type MaterialScope,
 } from "../lib/types";
 /* 단계 표기·색 — 가벼운 표만 든 파일에서 가져온다 (`curriculum-mock` 아님) */
@@ -152,6 +155,7 @@ export function FolderLibrary({
     logValidMaterialView,
     toggleTribeEndorsement,
     toggleMaterialLike,
+    toggleMaterialStyle,
     authorFollows,
     toggleAuthorFollow,
   } = useStore();
@@ -163,6 +167,8 @@ export function FolderLibrary({
    */
   const [tribeFilter, setTribeFilter] = useState<string>("all");
   const [trackFilter, setTrackFilter] = useState<string>("all");
+  /** 강의 특징 (2026-08-21) — 본 사람들이 붙인 태그로 거른다 */
+  const [styleFilter, setStyleFilter] = useState<string>("all");
   const [tagFilter, setTagFilter] = useState("");
   const [sort, setSort] = useState<MaterialSortKey>("recent");
   /** 팔로우한 작성자 자료만 보기 (2026-08-15 리드 제안) */
@@ -287,6 +293,12 @@ export function FolderLibrary({
       */
       .filter((m) => tribeFilter === "all" || m.createdByTribe === tribeFilter)
       .filter((m) => trackFilter === "all" || m.openingTrack === trackFilter)
+      /* 강의 특징 (2026-08-21) — **한 사람이라도 눌렀으면** 그 특징으로 잡힌다 */
+      .filter(
+        (m) =>
+          styleFilter === "all" ||
+          (m.styleBy?.[styleFilter as TeachingStyleTag] ?? []).length > 0,
+      )
       .filter((m) => !tagFilter || (m.tags ?? []).some((t) => looseIncludes(t, tagFilter)))
       /*
         띄어쓰기를 무시하고 찾는다 (2026-08-13 리드 지시 — 모든 검색에 같은 규칙).
@@ -338,7 +350,7 @@ export function FolderLibrary({
       default:
         return filtered.sort(pin(recent));
     }
-  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, followedOnly, myFollows, tribeFilter, trackFilter, tagFilter]);
+  }, [materials, folder, scopeKey, scopeAll, categoryFilter, levelFilter, inGyobungi, session.tribe, session.scopeType, query, sort, favCount, materialViews, followedOnly, myFollows, tribeFilter, trackFilter, styleFilter, tagFilter]);
 
   /**
    * 상세 열기 — 조회수는 **여는 행위에서만** 오른다 (목록 렌더에서 부르지 않는다).
@@ -466,23 +478,42 @@ export function FolderLibrary({
           ))}
         </select>
 
+        {/*
+          강의 특징으로 거르기 (2026-08-21 리드 지시) — **본 사람들이 붙인 태그**가 기준이다.
+          아무도 안 누른 자료는 이 축에서 빠진다 — 「전체」에서는 그대로 보인다.
+        */}
+        <select
+          value={styleFilter}
+          onChange={(e) => setStyleFilter(e.target.value)}
+          aria-label="강의 특징으로 거르기"
+          className="rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-zion-500"
+        >
+          <option value="all">특징 전체</option>
+          {TEACHING_STYLE_TAGS.map((t) => (
+            <option key={t} value={t}>
+              {TEACHING_STYLE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+
         <div className="flex items-center gap-1.5 rounded-lg border border-zion-200 bg-white px-2.5 py-1.5">
           <Hash size={12} className="shrink-0 text-ink-soft" />
           <input
             value={tagFilter}
             onChange={(e) => setTagFilter(e.target.value)}
-            placeholder="태그 (예: 김이끎, 무신앙)"
+            placeholder="태그 (예: 김이끎, 무신앙인 다수)"
             aria-label="해시태그로 거르기"
-            className="w-40 bg-transparent text-[12px] outline-none"
+            className="w-44 bg-transparent text-[12px] outline-none"
           />
         </div>
 
-        {(tribeFilter !== "all" || trackFilter !== "all" || tagFilter) && (
+        {(tribeFilter !== "all" || trackFilter !== "all" || styleFilter !== "all" || tagFilter) && (
           <button
             type="button"
             onClick={() => {
               setTribeFilter("all");
               setTrackFilter("all");
+              setStyleFilter("all");
               setTagFilter("");
             }}
             className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
@@ -700,6 +731,49 @@ export function FolderLibrary({
                     }
                   >
                     <ThumbsUp size={12} /> {MATERIAL_LIKE_LABELS[kind]} {voters.length}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/*
+            **강의 특징** (2026-08-21 리드 지시 — 「강사 특징은 본인이 직접 정하지 않고
+            사용자 평가를 바탕으로 태그가 형성되도록」).
+            ⛔ 등록 폼에는 이 칸이 없다. 본 사람이 여기서 눌러야만 붙는다.
+            ⚠️ 추천(위 갈래별 좋아요)과 **합치지 않는다** — 「논리형이다」는 추천이 아니라
+            성격 표시라, 합치면 추천순 정렬이 뜻을 잃는다.
+          */}
+          <div className="mt-2 rounded-xl bg-zion-50 px-3 py-2.5">
+            <div className="mb-2 text-[12px] text-ink-soft">
+              이 강의는 어떻게 느껴졌는지 골라 주세요 — 여럿 골라도 됩니다.{" "}
+              <strong className="text-ink">올린 사람이 스스로 붙이지 못하고</strong>, 본 사람들이
+              누른 것만 쌓입니다.
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {TEACHING_STYLE_TAGS.map((tag) => {
+                const voters = selected.styleBy?.[tag] ?? [];
+                const on = voters.includes(session.name);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      toggleMaterialStyle(selected.id, session.name, tag);
+                      const styles = { ...(selected.styleBy ?? {}) };
+                      styles[tag] = on
+                        ? voters.filter((n) => n !== session.name)
+                        : [...voters, session.name];
+                      setSelected({ ...selected, styleBy: styles });
+                    }}
+                    aria-pressed={on}
+                    className={
+                      "rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition " +
+                      (on
+                        ? "border-zion-700 bg-zion-700 text-white"
+                        : "border-zion-200 bg-white text-zion-700 hover:bg-zion-50")
+                    }
+                  >
+                    {TEACHING_STYLE_LABELS[tag]} {voters.length}
                   </button>
                 );
               })}
@@ -1010,11 +1084,19 @@ function MaterialForm({
           </div>
 
           <label className="mb-1 block text-[12px] font-semibold text-ink">제목</label>
+          {/*
+            제목 규칙 (2026-08-21 리드 지시) — **현장에서 쓴 제목을 그대로 두고**, 괄호에
+            무슨 과목인지나 자료 성격을 덧붙인다. 사이트가 제목을 다듬지 않는다.
+          */}
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mb-3 w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
+            placeholder="현장에서 쓴 제목 그대로 (과목이나 자료 성격은 괄호에)"
+            className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
           />
+          <p className="mb-3 mt-1 text-[11px] leading-relaxed text-ink-soft">
+            예) 하늘의 지도를 펴다 (계 7장) · 왜 지금인가 (오픈 특강)
+          </p>
 
           <label className="mb-1 block text-[12px] font-semibold text-ink">본문 (텍스트)</label>
           <textarea
@@ -1081,11 +1163,19 @@ function MaterialForm({
               <input
                 value={tagText}
                 onChange={(e) => setTagText(e.target.value)}
-                placeholder="쉼표로 나눕니다 (예: 김이끎, 무신앙)"
+                placeholder="쉼표로 나눕니다 (예: 김이끎, 무신앙인 다수)"
                 className="w-full rounded-lg border border-zion-100 px-3 py-2 text-[13px] outline-none focus:border-zion-500"
               />
+              {/*
+                수강생 구성을 함께 적게 안내한다 (2026-08-21 리드 지시) — 평가의 맥락이
+                되기 때문이다. 「무신앙인이 많았다」를 알아야 반응을 제대로 읽는다.
+                ⚠️ 강의 특징(유머형·논리형…)은 **여기 적지 않는다** — 본 사람들이 붙인다.
+              */}
               <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
-                강사 이름이나 수강생 성향처럼 나중에 찾을 말을 답니다.
+                강사 이름과 <strong className="text-ink">강의 당시 수강생 구성</strong>을 답니다.
+                예) 무신앙인 다수, 종교 반감 많음
+                <br />
+                유머형·논리형 같은 강의 특징은 적지 않습니다. 자료를 본 사람들이 붙입니다.
               </p>
             </div>
           </div>
