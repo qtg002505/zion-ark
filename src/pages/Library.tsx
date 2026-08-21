@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { Download } from "lucide-react";
 import {
   ARCHIVE_FOLDERS,
+  MEDIA_FOLDERS,
   LIBRARY_CATEGORY_LABELS,
   LIBRARY_FOLDERS,
   type LibraryCategory,
@@ -33,6 +34,8 @@ export function Library() {
   // 종전 링크(?tab=… · ?section=…)도 계속 동작하게 둔다 — 북마크가 죽지 않게
   const category = categoryOf(params.get("tab"));
   const isArchive = folder !== null && ARCHIVE_FOLDERS.includes(folder);
+  /* 활용 미디어 (2026-08-21) — 현장 송출용. 아카이브(장기 보관)와 안내 문구가 다르다 */
+  const isMedia = folder !== null && MEDIA_FOLDERS.includes(folder);
 
   return (
     <FolderLibrary
@@ -41,9 +44,11 @@ export function Library() {
       desc={
         isArchive
           ? "장기 보관 자료입니다. 파일을 내려받아 확인합니다."
-          : category
-            ? "분류로 모아 본 자료입니다. 폴더에 매이지 않고 전부에서 고릅니다."
-            : "폴더는 왼쪽 메뉴에서 고릅니다. 강의·보강 자료는 각 도우미 안에서 엽니다."
+          : isMedia
+            ? "센터 현장에서 바로 쓰는 자료입니다. 내려받아 강의·예배에서 송출합니다."
+            : category
+              ? "분류로 모아 본 자료입니다. 폴더에 매이지 않고 전부에서 고릅니다."
+              : "폴더는 왼쪽 메뉴에서 고릅니다. 강의·보강 자료는 각 도우미 안에서 엽니다."
       }
       folders={LIBRARY_FOLDERS}
       folder={folder}
@@ -56,7 +61,9 @@ export function Library() {
       emptyNote={
         isArchive
           ? "아직 올라온 파일이 없습니다. 원본이 등록되면 여기서 내려받습니다."
-          : undefined
+          : isMedia
+            ? "아직 올라온 자료가 없습니다. 이미지·영상·음원 원본이 취합되면 여기서 내려받습니다."
+            : undefined
       }
     >
       {isArchive && (

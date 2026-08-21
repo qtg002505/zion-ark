@@ -207,17 +207,33 @@ export const EVANGELIST_ALL_FOLDERS = [...EVANGELIST_MAKEUP_FOLDERS, ...EVANGELI
 export const ARCHIVE_FOLDERS = ["실상 뮤지컬 영상", "계시록 삽화"];
 
 /**
+ * 활용 미디어 폴더 (2026-08-21 리드 지시).
+ *
+ * - **활용 이미지 · 활용 영상** — 강의용 사진·영상은 과목별로 나누지 않고 **이 둘로 통합**한다
+ *   (리드: 「초·중·고 과목별로 나누기보다 활용 이미지와 활용 영상으로 통합 분류」).
+ *   계시록 삽화(아카이브)는 그대로 두고, 일반 강의 이미지·성경 관련 AI 생성 이미지처럼
+ *   **현장에서 바로 쓰는 것**이 여기 온다
+ * - **음원 (S-POP·찬송가·예배)** — 센터 현장에서 송출할 음원.
+ *   셸의 배경 음악(S-POP 6곡)과 다른 자리다 — 그쪽은 사이트 안 재생, 여기는 **내려받아 송출**
+ * - **홍보·교육 영상** — 실상 뮤지컬 영상(아카이브 장기 보관)과 달리 현장 송출용 모음
+ *
+ * ⚠️ 파일 원본은 R2가 붙어야 올라간다 — 지금은 폴더 자리와 외부 링크만(아카이브와 같은 취급).
+ */
+export const MEDIA_FOLDERS = ["활용 이미지", "활용 영상", "음원 (S-POP·찬송가·예배)", "홍보·교육 영상"];
+
+/**
  * **최상위 폴더 전부 — 폴더 정의는 여기 한 곳뿐이고 내비는 여기서 읽어 만든다.**
  *
  * 2026-08-13 구획(`LibrarySection`)이 폐지되면서 `Record<구획, 폴더[]>`에서 **한 줄기 배열**로
  * 폈다. 폴더가 어느 화면에 걸리는지는 내비(`src/shell/nav.ts`)가 정한다 —
- * 밭갈이·예배설교는 강의 도우미, 보강 폴더는 분반·보강 도우미, 아카이브는 자료실.
+ * 밭갈이·예배설교는 강의 도우미, 보강 폴더는 분반·보강 도우미, 아카이브·활용 미디어는 자료실.
  * 폴더 이름의 뜻은 `src/content/glossary.ts`에 있다 — 정의는 받았지만 문자열로 둔다.
  */
 export const LIBRARY_FOLDERS: string[] = [
   ...INSTRUCTOR_EARLY_FOLDERS,
   ...EVANGELIST_ALL_FOLDERS,
   ...ARCHIVE_FOLDERS,
+  ...MEDIA_FOLDERS,
 ];
 
 export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {

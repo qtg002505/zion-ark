@@ -1,6 +1,7 @@
 import type { RoleCode, Session } from "../lib/types";
 import {
   ARCHIVE_FOLDERS,
+  MEDIA_FOLDERS,
   EVANGELIST_CONTENT_FOLDERS,
   EVANGELIST_MAKEUP_FOLDERS,
   INSTRUCTOR_BATGARI_FOLDERS,
@@ -439,6 +440,16 @@ const NAV_GROUPS: NavGroup[] = [
         label: "아카이브",
         icon: FolderClosed,
         items: folderItems("/library", ARCHIVE_FOLDERS),
+      },
+      {
+        /**
+         * 활용 미디어 (2026-08-21 리드 지시) — 현장에서 바로 쓰는 이미지·영상·음원.
+         * 과목별로 나누지 않고 「활용 이미지 · 활용 영상」으로 통합한다(리드 확정).
+         * 아카이브(장기 보관)와 다른 축이다 — 여기는 **센터 현장 송출용**이다.
+         */
+        label: "활용 미디어",
+        icon: Clapperboard,
+        items: folderItems("/library", MEDIA_FOLDERS),
       },
       {
         /**

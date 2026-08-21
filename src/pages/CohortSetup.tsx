@@ -126,6 +126,19 @@ export function CohortSetup() {
           </p>
         )}
 
+        {/*
+          종료 기수 데이터의 보관·이관 (2026-08-21 리드 회의록) — **설계 대기라 안내만 한다.**
+          방향은 「완전 삭제보다 권한별 보관 · 종합 데이터는 지정 관리자(신학서무·신학부장)에게
+          이관 · 일반 강사·전도사는 필요한 범위만」이다. 확정되면 `permissions.ts`에 넣는다
+          (`docs/decisions/OPEN_QUESTIONS.md` §F).
+        */}
+        {closed && (
+          <p className="mt-3 rounded-lg bg-zion-50 px-3 py-2 text-[11.5px] leading-relaxed text-ink-soft">
+            종료된 기수의 데이터 보관 기간과 열람 권한은 정해지는 대로 적용됩니다. 지금은 담당
+            범위 안에서 조회와 내려받기만 됩니다.
+          </p>
+        )}
+
         <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
           시범 기수입니다. 사람 이름은 모두 가상이며 실제 기수 자료가 아닙니다.
         </p>

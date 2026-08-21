@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type FormEvent } from "react";
 import { SegmentedTabs } from "../components/SegmentedTabs";
 import { useParams } from "react-router-dom";
 // 화면 전환 효과가 조용히 빠지지 않게 여기서 가져온다 (CLAUDE.md 화면 규칙)
@@ -21,6 +21,7 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { studentScopeLabel, canEditCohortRecord } from "../lib/permissions";
 import { STUDENTS, COHORT, COHORT_KEY } from "../content/cohort-mock";
+import type { Student } from "../lib/types";
 import { LEVEL_NAME, LEVEL_TONE } from "../content/curriculum-mock";
 import {
   STUDENT_PROFILES,
@@ -57,7 +58,10 @@ import {
   「여기서도 쓰나」 하고 다음 사람이 찾게 된다.
 */
 import { gradeOf, GRADE_LABELS, type Grade } from "../lib/student-grade";
-import { maskAddress, maskPhone } from "../lib/privacy";
+import { maskAddress, maskPhone, redactForAI } from "../lib/privacy";
+/* AI 성장 추천 (2026-08-21) — 계산은 이 파일 한 곳이다. 수강생 관리 도우미 탭과 같은 셈 */
+import { strengthsOf, cautionsOf } from "../lib/growth-analysis";
+import { PromptBox } from "../components/PromptBox";
 import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
 /* 지파 보충 항목을 표준 뒤에 이어 붙인다 (2026-08-21) — 합치는 규칙은 그 파일 한 곳이다 */
@@ -1185,11 +1189,22 @@ export function StudentDetailPage({
       </div>
 
       {/*
-        「AI 성장 분석 상세」는 2026-08-18 리드 지시로 **여기서 뺐다** — 같은 내용이
-        수강생 관리 도우미의 **「AI 성장 추천」 탭**으로 옮겨졌다 (`StudentsDashboard`).
-        한 사람을 열어야 보이던 것을 기수 전체 순서로 볼 수 있게 한 것이 그 탭의 뜻이다.
-        ⚠️ 계산은 `lib/growth-analysis.ts` 한 곳이다 — 화면을 옮기며 복제하지 않았다.
+        AI 성장 추천 (2026-08-21 리드 지시 — 「수강생 상세 화면에 AI 성장 추천 탭을 배치」).
+        2026-08-18에 뺐던 자리에 **더 넓은 몫으로** 돌아왔다: 종전 강점·주의 목록에 더해
+        종합 분석(외부 AI) 준비 상태와 비식별 프롬프트까지 담는다. 기수 전체를 줄 세워 보는
+        수강생 관리 도우미의 「AI 성장 추천」 탭은 그대로다 — 용도가 다르다(한 명 vs 전체).
+        ⚠️ 계산은 `lib/growth-analysis.ts` 한 곳 그대로다 — 복제하지 않았다.
       */}
+      <GrowthAiCard
+        student={student}
+        counselCount={combinedFeedback.filter((f) => f.kind === "counsel").length}
+        fellowship={fellowship}
+        bloodType={bloodType}
+        religion={religion}
+        faithYears={faithYears}
+        mbti={mbti}
+        enneagramType={enneagramType}
+      />
 
       <p className="mt-4 text-[11px] leading-relaxed text-ink-soft">
         시범 목업 데이터(가상 인물)입니다. 원문 개인정보는 담당 범위 밖으로 반출되지 않으며, 이
@@ -2476,5 +2491,153 @@ function FeedbackItem({
         {entry.by} · {entry.date} ({weekdayOf(entry.date)})
       </p>
     </li>
+  );
+}
+
+/**
+ * AI 성장 추천 카드 (2026-08-21 리드 지시 — 「AI 성장 추천 탭 배치 · 종합 분석으로 발전 ·
+ * 텔레봇 등 수집 데이터와 연동 대비」).
+ *
+ * ## 무엇이고 무엇이 아닌가
+ *
+ * - **사이트가 셈한 것**(강점·주의)은 출결과 실제 기록에서 그대로 뽑은 문장이다
+ *   (`lib/growth-analysis.ts` 한 곳 — 수강생 관리 도우미 탭과 같은 계산). 새 판정이 아니다.
+ * - **종합 분석은 외부 AI 몫이다** (2026-08-10 하이브리드 확정 그대로). 여기서는
+ *   ① 어떤 정보가 입력돼 있고 무엇이 빠졌는지 보여 주고 ② 비식별 프롬프트를 만들어
+ *   복사까지만 한다. 사이트가 분석 문장을 짓지 않는다(불변식 4·5).
+ * - 리드가 말한 **핵심 감정·회복 탄력성은 아직 담을 자리가 없다** — 텔레봇 등 수집 채널이
+ *   붙으면 필드를 더한다. 지금은 「수집 대기」로 표시해 자리를 알린다.
+ *
+ * ## 비식별 규칙 (불변식 4 — 외부 AI 반출 셋)
+ *
+ * - 이름·연락처·생년월일·분반은 프롬프트에 넣지 않는다. 소속은 지파·교회·기수까지.
+ * - ⚠️ **나이도 넣지 않는다.** 리드가 종합 분석 입력으로 나이를 꼽았지만 확정 반출 목록과
+ *   충돌한다 — 지금은 교제 구분(청년회·장년회…)으로 대신하고, 나이 반출 여부는 리드
+ *   확인 대기다(HANDOFF에 올려 두었다).
+ * - 만든 프롬프트도 `redactForAI()`를 한 번 더 거친다 — 기록 문장에 이름이 섞였을 수 있다.
+ */
+function GrowthAiCard({
+  student,
+  counselCount,
+  fellowship,
+  bloodType,
+  religion,
+  faithYears,
+  mbti,
+  enneagramType,
+}: {
+  student: Student;
+  counselCount: number;
+  fellowship: string;
+  bloodType?: string;
+  religion?: string;
+  faithYears?: number;
+  mbti?: string;
+  enneagramType?: number;
+}) {
+  const strengths = strengthsOf(student, counselCount);
+  const cautions = cautionsOf(student);
+
+  /** 종합 분석 입력 현황 — 값이 없으면 「기록 없음」, 수집 채널이 없으면 「수집 대기」 */
+  const inputs: { label: string; value: string | null; pending?: boolean }[] = [
+    { label: "교제 구분", value: fellowship },
+    { label: "혈액형", value: bloodType ?? null },
+    { label: "MBTI", value: mbti ?? null },
+    { label: "에니어그램", value: enneagramType ? `${enneagramType}유형` : null },
+    { label: "종교 배경", value: religion ? `${religion}${faithYears ? ` · 신앙 ${faithYears}년` : ""}` : null },
+    { label: "핵심 감정", value: null, pending: true },
+    { label: "회복 탄력성", value: null, pending: true },
+  ];
+
+  const prompt = useMemo(() => {
+    const filled = inputs.filter((i) => i.value);
+    const missing = inputs.filter((i) => !i.value);
+    const lines = [
+      "당신은 신천지 센터 강사·전도사를 돕는 상담 참고 도우미입니다.",
+      `아래는 비식별화된 수강생 정보입니다 (${COHORT.tribe}지파 ${COHORT.church} ${COHORT.cohort}).`,
+      ...filled.map((i) => `- ${i.label}: ${i.value}`),
+      `- 출석률: ${student.attendanceRate}%`,
+      `- 강점(출결·기록에서 셈): ${strengths.join(" / ")}`,
+      `- 주의(관찰 신호): ${cautions.join(" / ")}`,
+      missing.length > 0
+        ? `기록이 없는 항목(${missing.map((i) => i.label).join("·")})은 단정하지 말고, 입력된 정보만으로 가능한 성향 범주를 제시해 주세요.`
+        : "",
+      "다음 네 가지 실무 조언을 부탁합니다:",
+      "1) 출석 의지 향상 방법 2) 상담 접근법 3) 멘토링 방식 4) 오픈 시점의 예상 반응",
+      "확정 판정이 아닌 참고 의견으로, 각 조언의 근거를 함께 적어 주세요.",
+    ].filter(Boolean);
+    // 기록 문장에 이름이 섞였을 수 있다 — 반출 직전에 한 번 더 거른다
+    return redactForAI(lines.join("\n")).text;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student.key, student.attendanceRate, fellowship, bloodType, mbti, enneagramType, religion, faithYears, counselCount]);
+
+  return (
+    <Card className="mt-4">
+      <SectionTitle bar>AI 성장 추천</SectionTitle>
+
+      <div className="mt-2 grid grid-cols-2 gap-4 max-md:grid-cols-1">
+        <div>
+          <div className="mb-1 text-[12px] font-semibold text-emerald-600">강점</div>
+          <ul className="space-y-1 text-[13px] leading-relaxed text-ink">
+            {strengths.map((s) => (
+              <li key={s} className="flex gap-1.5">
+                <span className="shrink-0 text-emerald-600">·</span> {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="mb-1 text-[12px] font-semibold text-amber-600">주의 포인트</div>
+          <ul className="space-y-1 text-[13px] leading-relaxed text-ink">
+            {cautions.map((s) => (
+              <li key={s} className="flex gap-1.5">
+                <span className="shrink-0 text-amber-600">·</span> {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-zion-100 pt-3">
+        <div className="mb-1.5 text-[12px] font-semibold text-ink">종합 분석에 쓸 정보</div>
+        <p className="mb-2 text-[11.5px] leading-relaxed text-ink-soft">
+          입력된 정보만으로도 분석을 요청할 수 있습니다. 빠진 항목은 프롬프트가 「가능한 성향
+          범주를 제시해 달라」고 함께 요청합니다.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {inputs.map((i) => (
+            <span
+              key={i.label}
+              className={
+                "rounded-lg px-2 py-1 text-[11.5px] font-medium " +
+                (i.value
+                  ? "bg-zion-100 text-zion-800"
+                  : i.pending
+                    ? "border border-dashed border-zion-300 text-ink-soft"
+                    : "bg-zion-50 text-ink-soft")
+              }
+            >
+              {i.label}
+              {i.value ? ` · ${i.value}` : i.pending ? " · 수집 대기" : " · 기록 없음"}
+            </span>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">
+          핵심 감정·회복 탄력성은 텔레그램 봇 등 수집 채널이 붙으면 이 자리에 들어옵니다.
+        </p>
+      </div>
+
+      <div className="mt-3">
+        <PromptBox prompt={prompt} linkNote="성장 추천 GPT 주소는 수령 후 연결됩니다" />
+      </div>
+
+      <p className="mt-2.5 rounded-lg bg-gold-100/60 px-3 py-2 text-[11.5px] leading-relaxed text-ink">
+        <span className="font-bold">유의</span> 동의가 확인된 수강생의 기록만 보냅니다. 동의
+        여부를 모르면 보내지 않습니다.
+        <br />
+        프롬프트에는 이름·연락처·생년월일·나이·분반이 들어가지 않으며, 소속은 지파·교회·기수까지만
+        담깁니다. AI 답변은 확정 판정이 아니라 참고 의견입니다.
+      </p>
+    </Card>
   );
 }
