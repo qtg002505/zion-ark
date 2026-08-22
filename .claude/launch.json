@@ -13,6 +13,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "preview", "--outDir", "preview", "--port", "4173"],
       "port": 4173
+    },
+    {
+      "name": "center-flow-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "pnpm@11.9.0", "--dir", "C:/Users/user/Desktop/zion-ark-integration/apps/web", "dev", "--port", "5199", "--strictPort"],
+      "port": 5199
     }
   ]
 }

@@ -84,9 +84,48 @@
 요약: **코드 품질 주장은 이 PC에서 재현되는 범위 안에서 사실이었다.** 남은 미검증은
 DB 계층(pgTAP)과 실연결 E2E 둘이고, 둘 다 Docker/실서버가 있어야 한다.
 
-## 7. 다음 단계 (§3 답이 온 뒤)
+## 7. 진행 기록 — 권장 1단계 착수 (2026-08-22 · 리드 「진행」 승인)
 
-1. 어휘 매핑표 완성 → 이 문서에 붙인다
-2. 작업 위치 확정(저쪽 제안: 우리 화면 자산을 저쪽 `apps/web`에 이식) 후 어댑터 계층부터
-   저쪽 권장 순서로: 셸/토큰 → D1 목록 → 상세(D2~D4 지연 로딩) → 텔레그램 패널
+§G와 **충돌하지 않는 앞 단계만** 진행했다. 작업 사본은
+`C:\Users\user\Desktop\zion-ark-integration`, 브랜치 **`feature/zion-ark-ui-shell`**
+(push 완료 — 이 계정에 push 권한이 있었다).
+
+- **디자인 토큰 이식** (`apps/web/src/styles/tokens.css` — 커밋 `6d374f4`):
+  프로토타입 `src/index.css` 팔레트를 그대로 옮겼다. 변수 이름(--ark-*/--cf-*)은
+  저쪽 클래스가 참조하므로 두고 **값만** 갈았다 — 네이비 주색 + 금색 포인트 + ink 글자.
+  app.css의 하드코딩 시안색 4곳을 새 토큰으로 변수화해 다음 색 변경도 한 파일로 끝난다.
+  로그인 화면 렌더 실측: 배경 `oklch(0.16 0.05 265)`(zion-950) · 버튼/포인트
+  `oklch(0.78 0.145 82)`(gold-500) — 적용 확인.
+- **Windows 테스트 픽스**: `vite-environment-config.test.ts`의 경로 구분자 비교를 양쪽
+  정규화로 고쳤다(같은 커밋에 포함 — 스테이징 실수로 스타일 커밋에 묶였다).
+  이후 **web 160/160 전부 통과** · typecheck · lint 통과.
+- 컴포넌트·라우트·DTO·인가 흐름은 **건드리지 않았다** (가이드 1단계 그대로).
+- 로컬 확인용: scj `.claude/launch.json`에 `center-flow-web`(5199) 항목을 더했다.
+  워크트리 루트 `.env.local`(git 제외)에 **형식만 갖춘 가짜 Supabase 값**을 넣어 로그인
+  화면만 띄웠다 — 실서버 연결이 아니다.
+
+## 8. 어휘 매핑표 초안 (이식 시 어댑터가 쓸 대응 — G-5 답에 따라 갱신)
+
+| 우리(프로토타입) | Center Flow | 비고 |
+| --- | --- | --- |
+| 역할 `instructor` | `role_code=instructor` + `assignment_role=instructor` | 시스템 역할 × 담당 배정 **교집합** 모델 |
+| 역할 `evangelist` | `role_code=evangelist` + `assignment_role=evangelist` | 저쪽은 특정 수강생 담당도 가능(우리는 기수 전체) |
+| `headquarters/tribe/church_admin` | `role_code=admin` + `organizations` 계층 스코프 | 총회/지파/교회는 조직 트리로 표현 |
+| `content_admin` · `security_auditor` | **대응 없음** | G-5 — 만들지, admin으로 눌러 쓸지 리드 결정 |
+| (없음 — 인교섬 무계정) | `role_code=helper` (수강생 지정 담당) | **충돌** — G-5 |
+| 기수 키 `지파\|교회\|기수` | `cohorts.id`(UUID) + 조직 경로 | 어댑터가 UUID↔표시명 변환 |
+| 수강생 키 `교회\|기수\|분반\|이름` | `students.id`(UUID), 이름은 **D2 등급** | D1 목록은 마스킹 이름만 |
+| 출결 `present`(대면) | `present_live` | |
+| 출결 `absent` | `absent` | |
+| 출결 `makeupDone`(추후완료) | `makeup_completed` | |
+| 출결 `unknown`(미입력) | `not_recorded` | |
+| 출결 `makeupPending`(금주보강) | **대응 없음** (`scheduled`는 회차 상태) | 보강 예정을 어디 담을지 — G-2와 함께 결정 |
+| 과정 표기 `LEVEL_NAME`(주제 이름) | 대응 개념 없음 (stage는 별도) | 이식 화면에도 **학원법 표기 규칙 적용** 필수 |
+| 사이드바 메뉴 이름 | AppShell의 옛 이름(「강사 도우미」 등 8/13 이전) | 다음 단계에서 우리 2026-08-21 nav.ts 기준으로 |
+
+## 9. 다음 단계 (§3 답이 온 뒤)
+
+1. 작업 위치 확정(저쪽 제안: 우리 화면 자산을 저쪽 `apps/web`에 이식) 후 어댑터 계층부터
+   저쪽 권장 순서로: D1 수강생 목록 → 상세(D2~D4 지연 로딩) → 텔레그램 패널
+2. AppShell 메뉴·문구를 우리 현행 nav 기준으로 (테스트 함께 갱신)
 3. 텔레그램 실기동(봇 토큰·웹훅 등록)은 서버 배포 뒤 마지막

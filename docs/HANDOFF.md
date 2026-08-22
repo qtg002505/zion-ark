@@ -23,9 +23,12 @@
 
 **리드 답을 기다리는 것**
 - **Center Flow(텔레그램 백엔드) 통합** — 리드가 준 `onesage925/zion-ark-integration`을
-  2026-08-22에 분석했다. 텔레그램 봇이 아니라 **Supabase+Fastify 백엔드 전체**이고 우리
-  화면을 입히는 통합이다. 분석·결정 목록은 `docs/decisions/CENTER_FLOW_INTEGRATION.md`,
-  결정 대기 7건은 `OPEN_QUESTIONS.md` §G — **답이 오기 전 이식 착수 금지**
+  2026-08-22에 분석했고, 리드 「진행」 승인으로 **§G와 충돌하지 않는 1단계(디자인 토큰
+  이식)까지 마쳤다**: 작업 사본 `C:\Users\user\Desktop\zion-ark-integration`, 브랜치
+  `feature/zion-ark-ui-shell` push 완료, web 테스트 160/160. 분석·매핑표·진행 기록은
+  `docs/decisions/CENTER_FLOW_INTEGRATION.md`, 결정 대기 7건은 `OPEN_QUESTIONS.md` §G —
+  **§G 답이 오기 전에는 충돌 영역(출결 쓰기·AI 분석·helper·메뉴 재편)에 착수 금지.**
+  로컬 확인은 launch.json의 `center-flow-web`(5199)
 - **나이의 AI 반출 여부** — 리드가 종합 분석 입력으로 나이를 꼽았는데(회의록 6번)
   확정 반출 목록은 「나이 제외」다. 지금은 교제 구분(청년회·장년회)으로 대신한다
 - **보안·데이터 관리 설계** (회의록 9번) — 기수 종료 후 보관·이관·열람 권한, 외부 AI
