@@ -77,7 +77,7 @@ function TodayCard() {
  * 메인 — **홈페이지 노릇을 하는 첫 화면** (2026-08-13 리드 지시로 신설).
  *
  * - **여기(`/`)** — 어디로 갈지 고르는 자리. 카테고리가 주인공이다
- * - **전체 현황(`/overview`)** — 점검자용 수치 요약. 등급×분반 교차표·일정이 있다
+ * - 수치 요약은 **기수 요약(`/cohort`)의 분류 대시보드**에 있다 (전체 현황은 2026-08-22 폐지)
  *
  * **2026-08-13 리드 지시 — 유한킴벌리(yuhan-kimberly.co.kr) 짜임새로 바꿨다.**
  * 사진이 화면을 채우고, 그 위에 큰 문구와 **카테고리 격자**가 얹힌다.
@@ -102,9 +102,9 @@ export function Main() {
   const summary = scheduleSummary(sched.startsOn, sched.endsOn, sched.weekdayPeriods);
   const progress = progressPct(sched.startsOn, sched.endsOn, todayYmd());
 
-  /** 홈·전체 현황을 뺀 나머지가 카테고리다 */
+  /** 홈을 뺀 나머지가 카테고리다 (전체 현황은 2026-08-22에 폐지 — nav에서 이미 빠졌다) */
   const categories = useMemo(
-    () => visibleNavGroups(session).filter((g) => g.to !== "/" && g.to !== "/overview"),
+    () => visibleNavGroups(session).filter((g) => g.to !== "/"),
     [session],
   );
 
@@ -306,7 +306,11 @@ export function Main() {
         </div>
       )}
 
-      {/* 역할에 맞는 다음 자리 — 종전 착지 분기(관리직 요약 / 실무직 기수현황)를 안내로 바꿨다 */}
+      {/*
+        역할에 맞는 다음 자리 — 종전 착지 분기(관리직 요약 / 실무직 기수현황)를 안내로 바꿨다.
+        전체 현황 폐지(2026-08-22) 뒤에는 **둘 다 기수 요약**으로 간다 — 분류 대시보드가
+        그리로 옮겨 갔다. 문구만 역할별로 남긴다.
+      */}
       <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
         <Card>
           <div className="text-[14px] font-bold text-zion-900">
@@ -314,15 +318,15 @@ export function Main() {
           </div>
           <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
             {isFieldStaff(session)
-              ? "출결·주간 흐름·분반별 현황이 기수 현황에 모여 있습니다."
-              : "등급×분반 명단과 기수 일정은 전체 현황에서 봅니다."}
+              ? "분류 대시보드·출석 현황·주간 흐름이 기수 요약에 모여 있습니다."
+              : "등급×분반 명단과 상태 묶음판은 기수 요약 상단의 분류 대시보드에서 봅니다."}
           </p>
           <Link
             viewTransition
             to={landingPath(session)}
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-zion-800 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zion-700"
           >
-            {isFieldStaff(session) ? "기수 현황" : "전체 현황"} <ArrowRight size={14} />
+            기수 요약 <ArrowRight size={14} />
           </Link>
         </Card>
 

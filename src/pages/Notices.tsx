@@ -169,7 +169,8 @@ function NoticeForm({
           {kind === "notice_hq" && (
             <label className="mb-4 flex items-center gap-2 text-[13px] text-ink">
               <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-              전체 현황 상단에 고정
+              {/* 고정 공지가 실제로 뜨는 곳은 메인이다 (전체 현황은 2026-08-22 폐지) */}
+              메인 화면 상단에 고정
             </label>
           )}
 

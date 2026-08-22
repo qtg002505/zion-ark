@@ -15,7 +15,6 @@ import { LEVEL_NAME, LEVEL_TONE } from "../content/level-labels";
 import { COHORT_TABS } from "../pages/CohortStatus";
 import {
   Home,
-  LayoutDashboard,
   Users,
   GraduationCap,
   BookOpen,
@@ -150,12 +149,11 @@ function folderItems(basePath: string, folders: string[]): NavItem[] {
 const NAV_GROUPS: NavGroup[] = [
   /**
    * 홈(메인) — **카테고리를 펼쳐 보는 첫 화면** (2026-08-13 리드 지시로 분리).
-   * 종전에는 「홈 · 전체 현황」 하나였는데, 리드가 「홈페이지 노릇을 하는 메인을 따로」
-   * 달라고 해서 갈랐다. `/`가 메인, `/overview`가 점검자용 요약이다.
-   * 둘 다 카테고리 어디에도 넣지 않는다 (지시문 §1).
+   * 카테고리 어디에도 넣지 않는다 (지시문 §1).
+   * 「전체 현황」(/overview)은 2026-08-22 리드 지시로 없앴다 — 분류 대시보드는 기수 요약
+   * 상단으로 옮겼고 경로는 /cohort로 넘긴다(App.tsx). 옛 기록 라벨은 PAGE_LABEL_FALLBACKS.
    */
   { label: "홈", icon: Home, to: "/" },
-  { label: "전체 현황", icon: LayoutDashboard, to: "/overview" },
 
   /**
    * 1. 기수 현황 — 한 기수를 깊게 파고드는 자리. 조직별 운영 영역.
@@ -586,6 +584,8 @@ const PAGE_LABELS: Map<string, string> = (() => {
 
 /** 메뉴에 없는 경로의 이름 — 상세·검색처럼 딥링크로만 가는 화면들 */
 const PAGE_LABEL_FALLBACKS: [RegExp, string][] = [
+  /* 없앤 화면의 옛 기록 (2026-08-22 전체 현황 폐지) — 지난 열람 기록이 코드 경로로 안 보이게 */
+  [/^\/overview/, "기수 요약"],
   [/^\/students\//, "수강생 관리 도우미 · 수강생 상세"],
   [/^\/library\?q=/, "자료실 · 검색"],
   [/^\/library\?open=/, "자료실 · 자료 상세"],

@@ -16,7 +16,7 @@ import {
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canEditCohortRecord } from "../lib/permissions";
-import { COHORT, COHORT_KEY, RUNNING_COHORT, STUDENTS } from "../content/cohort-mock";
+import { COHORT, COHORT_KEY, RUNNING_COHORT, STUDENTS, week4Attendees } from "../content/cohort-mock";
 import { DIVISIONS, DIVISION_TONE, DIVISION_TONE_FALLBACK } from "../content/cohort-mock";
 import { Portal } from "../components/Portal";
 import {
@@ -74,11 +74,21 @@ function attendedThatWeek(mark: string): boolean {
   return mark === "present" || mark === "makeupDone";
 }
 
-/** N주 전 주간 출석률(%) — (i) 기준 팝업의 「지난주 · 지지난주 대비」가 쓴다 */
+/**
+ * 현 출석률의 분모 — **개강 4주차 출석자** (2026-08-22 리드 지시로 본출률·종강률 집계와
+ * 기준을 통일했다). ⚠️ 기수 스코프 화면이라 `STUDENTS` 전역이 곧 이 기수 전원이다 —
+ * 분반 필터와 무관하게 기수 단위로 센다. 대리 기준의 사유는 `week4Attendees` 주석.
+ */
+const RATE_BASE_STUDENTS = week4Attendees(STUDENTS);
+
+/**
+ * N주 전 주간 출석률(%) — 「현 출석률」 타일과 (i) 기준 팝업의 「지지난주 대비」가 쓴다.
+ * 지난주 값(weeksAgo 1)이 곧 화면의 「현 출석률」이다 — 이번 주는 아직 다 안 지나 못 센다.
+ */
 function weekRate(weeksAgo: number): number | null {
   let attended = 0;
   let counted = 0;
-  for (const s of STUDENTS) {
+  for (const s of RATE_BASE_STUDENTS) {
     for (const w of s.recentWeeks) {
       if (w.weeksAgo !== weeksAgo) continue;
       counted += 1;
@@ -90,13 +100,11 @@ function weekRate(weeksAgo: number): number | null {
 
 export function ClassifyDashboard({
   onOpenStudent,
-  cumRate,
   progress,
   currentWeekNo,
   currentLessonNode,
 }: {
   onOpenStudent: (key: string) => void;
-  cumRate: number;
   progress: number;
   currentWeekNo: number;
   /** 현재 진도 표기 — 색 바탕 + 과수 제목 (학원법 규칙은 호출부가 지킨 조각을 넘긴다) */
@@ -240,13 +248,36 @@ export function ClassifyDashboard({
   const [addQuery, setAddQuery] = useState("");
   const addAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  const kpis: { label: string; value: string; sub: string; icon: LucideIcon; tone: string }[] = [
+  /*
+   * KPI 이름 둘 (2026-08-22 리드 지시):
+   * - 「누적 출석률」 → **「현 출석률」** — 지난주 주간 출석률로 갈았다(누적은 옛 결석이
+   *   계속 끌어내려 지금 상태를 못 보여 준다). 분모는 개강 4주차 출석자(`weekRate` 주석)
+   * - 「기수 진행률」 → **「현진도」** — 지금 과수 제목(색 바탕)에 진행률 %를 병기한다
+   */
+  const kpis: { label: string; value: React.ReactNode; sub: string; icon: LucideIcon; tone: string }[] = [
     { label: "총등록", value: `${total}명`, sub: COHORT.cohort, icon: Users, tone: "bg-zion-100 text-zion-700" },
     { label: "수강 유지", value: `${gradeAB}명`, sub: "A·B 등급", icon: UsersRound, tone: "bg-emerald-50 text-emerald-600" },
     { label: "위기", value: `${byGrade("D").length}명`, sub: "D 등급", icon: HeartPulse, tone: "bg-gold-100 text-gold-700" },
     { label: "중단", value: `${byGrade("E").length}명`, sub: "E 등급", icon: UserX, tone: "bg-red-50 text-red-600" },
-    { label: "누적 출석률", value: `${cumRate}%`, sub: "8개월 과정 기준", icon: TrendingUp, tone: "bg-zion-100 text-zion-700" },
-    { label: "기수 진행률", value: `${progress}%`, sub: `${currentWeekNo}주차`, icon: GraduationCap, tone: "bg-gold-100 text-gold-700" },
+    {
+      label: "현 출석률",
+      value: lastWeekRate === null ? "—" : `${lastWeekRate}%`,
+      sub: "지난주 기준",
+      icon: TrendingUp,
+      tone: "bg-zion-100 text-zion-700",
+    },
+    {
+      label: "현진도",
+      value: (
+        <span className="inline-flex items-center gap-1">
+          {currentLessonNode}
+          <span>{progress}%</span>
+        </span>
+      ),
+      sub: `${currentWeekNo}주차`,
+      icon: GraduationCap,
+      tone: "bg-gold-100 text-gold-700",
+    },
   ];
 
   return (
@@ -287,22 +318,23 @@ export function ClassifyDashboard({
                 </p>
                 <p>
                   <span className="font-semibold text-zion-700">기수 일정</span> — 개강{" "}
-                  {RUNNING_COHORT.startsOn} · 종강 예정 {RUNNING_COHORT.endsOn}. 수업 요일 수정은
-                  아래 기수 일정 칸에서 합니다.
+                  {RUNNING_COHORT.startsOn} · 종강 예정 {RUNNING_COHORT.endsOn}. 일정과 수업 요일
+                  수정은 기수 세팅에서 합니다.
                 </p>
                 <p>
-                  <span className="font-semibold text-zion-700">기수 진행률</span> — {progress}% ·{" "}
+                  <span className="font-semibold text-zion-700">현진도</span> — 진행률 {progress}% ·{" "}
                   {currentWeekNo}주차 · 현재 {currentLessonNode}
                 </p>
                 <p>
-                  <span className="font-semibold text-zion-700">출석률(지난주 기준)</span> —{" "}
+                  <span className="font-semibold text-zion-700">현 출석률</span> — 지난주{" "}
                   {lastWeekRate === null ? "집계 전" : `${lastWeekRate}%`}
                   {rateDelta !== null && (
                     <span className={rateDelta < 0 ? "text-red-600" : "text-emerald-600"}>
                       {" "}({rateDelta >= 0 ? "+" : ""}{rateDelta}%)
                     </span>
                   )}{" "}
-                  — 지지난주 대비 등락
+                  — 지지난주 대비 등락. 분모는 개강 4주차에 출석 기록이 있는 수강생입니다
+                  (등록 시점 자료가 붙기 전까지의 대리 기준)
                 </p>
                 <p>
                   <span className="font-semibold text-zion-700">등급별 인원</span> —{" "}
@@ -507,8 +539,14 @@ export function ClassifyDashboard({
                   onDragLeave={() => setOverZone((z) => (z === group.label ? null : z))}
                   onDrop={(e) => dropToState(e, group.label)}
                   className={
+                    /* 드롭 하이라이트 — 분류표 셀과 같은 삼분기 (2026-08-22에 잘못 이어붙은
+                       아이콘 컴포넌트를 걷어내고 복원했다) */
                     "rounded-xl border px-2.5 py-2 transition " +
-                    X
+                    (overZone === group.label
+                      ? "border-zion-400 bg-zion-100"
+                      : dragKey !== null
+                        ? "border-zion-200 bg-zion-50/60"
+                        : "border-zion-100 bg-white")
                   }
                 >
                   <div className="flex items-center gap-1.5">

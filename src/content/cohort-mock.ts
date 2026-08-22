@@ -361,6 +361,21 @@ export function studentWeekHistory(st: Student, weekCount: number): WeeklyAttend
 }
 
 /**
+ * 개강 4주차에 출석 기록이 있는 수강생 (2026-08-22 리드 지시 — 「4주차 이후 등록 대상자」
+ * 기준으로 출석률·종강률 집계를 통일).
+ *
+ * ⚠️ **등록 시점 데이터가 아직 없어 「개강 4주차 출석자」를 대리 기준으로 쓴다** —
+ * 등록일은 기수 세팅의 수강생 양식(열 「등록일」)에만 있고 저장하지 않는다.
+ * 실연동 시 등록일 기준으로 이 함수만 갈아 끼운다(교체 경계).
+ */
+export function week4Attendees(students: Student[]): Student[] {
+  return students.filter((st) => {
+    const w = studentWeekHistory(st, DONE_WEEKS).find((x) => x.weeksAgo === DONE_WEEKS - 4);
+    return w != null && (w.mark === "present" || w.mark === "makeupDone");
+  });
+}
+
+/**
  * 지파 내·전국 기수 비교 — 우수 기수 필터 (2026-08-06 회의 확정).
  * ⚠️ 담당 범위 밖 지파 데이터는 **기수명과 출석률 집계까지만** 담는다.
  * 개인정보는 어떤 형태로도 넣지 않는다 (불변식 2 — 집계·통계만 반출).
@@ -450,8 +465,8 @@ export interface FunnelMetric {
 
 export const COHORT_FUNNEL: FunnelMetric[] = [
   { label: "신카수", value: "31명" },
-  { label: "인섬교 면접수", value: "27명" },
-  { label: "수강생 면접수", value: "23명" },
+  /* 「인섬교 면접수」·「수강생 면접수」는 2026-08-22 리드 지시로 뺐다 — 활용도 낮은
+     엑셀 대체 항목. 시범 값 배열이라 저장값 마이그레이션은 없다. 되살릴 때는 git 이력 */
   { label: "개강 1주차 출석", value: "20명", sub: "출석률 87%" },
   { label: "개강 4주차 출석", value: "18명", sub: "출석률 78%" },
   { label: "등록", value: "17명", sub: "등록률 74% (신카 대비)" },
@@ -459,7 +474,8 @@ export const COHORT_FUNNEL: FunnelMetric[] = [
   { label: `${LEVEL_NAME["초등"]} 시작 출석수`, value: "17명" },
   { label: `${LEVEL_NAME["중등"]} 시작 출석수`, value: "15명" },
   { label: `${LEVEL_NAME["고등"]} 시작 출석수`, value: "―", sub: "아직 진입 전" },
-  { label: "예상 종강률", value: "47%", sub: "유지 8명 / 17명 기준" },
+  /* 분모 기준 통일 (2026-08-22 리드 지시) — 개강 4주차 출석자를 기준으로 센다 */
+  { label: "예상 종강률", value: "47%", sub: "유지 8명 / 17명 (개강 4주차 출석 기준)" },
 ];
 
 /**

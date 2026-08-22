@@ -26,7 +26,6 @@ import { Main } from "./pages/Main";
  * `preview` 모드가 청크를 도로 하나로 합친다. 단일 HTML은 외부 파일을 받아 올 수 없어
  * 갈라 둔 채로 묶으면 **화면이 아예 안 뜬다**.
  */
-const Overview = lazy(() => import("./pages/Overview").then((m) => ({ default: m.Overview })));
 const CohortStatus = lazy(() => import("./pages/CohortStatus").then((m) => ({ default: m.CohortStatus })));
 const StudentsDashboard = lazy(() =>
   import("./pages/StudentsDashboard").then((m) => ({ default: m.StudentsDashboard })),
@@ -73,7 +72,12 @@ function Routed() {
           그 안내는 메인 화면 안의 「내 기수부터 보기」 카드가 대신한다.
         */}
         <Route path="/" element={<Main />} />
-        <Route path="/overview" element={<Overview />} />
+        {/*
+          「전체 현황」은 2026-08-22 리드 지시로 없앴다 — 분류 대시보드는 기수 요약 상단으로,
+          일정 편집은 기수 세팅으로 옮겼다. 경로는 지우지 않고 넘긴다(/care·/signals와 같은 처리).
+          화면은 git 이력의 `pages/Overview.tsx`에 있다.
+        */}
+        <Route path="/overview" element={<Navigate to="/cohort" replace />} />
         <Route path="/cohort" element={<CohortStatus />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
         {/* 기수 세팅 · 지난 기수 (2026-08-21 리드 지시) */}

@@ -34,9 +34,14 @@ import {
   effectiveSchedule,
   mondayOfWeek,
   offsetInWeek,
+  progressPct,
   scheduleSummary,
+  weekNoOf,
   type ClassWeekdayPeriodList,
 } from "../lib/cohort-calendar";
+/* 분류 대시보드 (2026-08-22 전체 현황 폐지) — 기수 요약 상단으로 옮겨 왔다 */
+import { ClassifyDashboard } from "./OverviewClassify";
+import { StudentDetailModal } from "../components/StudentDetailModal";
 import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
 import { LineChart } from "../components/LineChart";
 import { CohortNow } from "./CohortNow";
@@ -87,6 +92,11 @@ export const COHORT_TABS: { id: Tab; label: string }[] = [
 const TABS = COHORT_TABS;
 const TAB_IDS: Tab[] = COHORT_TABS.map((t) => t.id);
 
+function todayYmd(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 
 /**
  * 기수 현황 — 한 기수를 파고드는 자리.
@@ -102,7 +112,11 @@ export function CohortStatus() {
    * 수업 요일 구간 — 화면에서 고친 값이 있으면 그것, 없으면 기본(월·화·목).
    * 출석 격자의 칸·회차 번호가 전부 이 값을 따른다 (2026-08-14 리드 지시).
    */
-  const { weekdayPeriods, startsOn } = effectiveSchedule(SCHEDULE, scheduleOverrides, cohortKeyOf(session));
+  const { weekdayPeriods, startsOn, endsOn } = effectiveSchedule(
+    SCHEDULE,
+    scheduleOverrides,
+    cohortKeyOf(session),
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   /**
    * 지금 탭은 **주소가 정본**이다 (2026-08-15 리드 수정 지시).
@@ -198,6 +212,27 @@ export function CohortStatus() {
   /** 실제 횟수 — 퍼센트 옆에 「몇 번 중 몇 번인지」를 함께 내기 위한 값 (2026-08-18) */
   const totals = useMemo(() => cohortTotals(students), [students]);
 
+  /*
+   * 분류 대시보드의 파생 계산 (2026-08-22 전체 현황 폐지로 Overview에서 옮겨 왔다).
+   * 진도 칸 규칙 그대로 — **바탕색이 단계를 알리고 글자는 과수 제목**(2026-08-21 학원법).
+   */
+  const schedSummary = scheduleSummary(startsOn, endsOn, weekdayPeriods);
+  const progress = progressPct(startsOn, endsOn, todayYmd());
+  const currentWeekNo = Math.min(schedSummary.weeks, Math.max(1, weekNoOf(startsOn, todayYmd())));
+  const currentLesson = useMemo(() => {
+    const sessionNo = sessionsThroughWeek(currentWeekNo, weekdayPeriods);
+    return lessonOfSession(Math.max(1, sessionNo));
+  }, [currentWeekNo, weekdayPeriods]);
+  const currentLessonNode = currentLesson.undecided ? (
+    <span className="text-ink-soft">미정</span>
+  ) : (
+    <span className={"rounded px-1 py-0.5 text-[11px] font-bold " + LEVEL_TONE[currentLesson.level]}>
+      {currentLesson.keyword}
+    </span>
+  );
+  /** 분류표·상태판에서 이름을 누르면 상세 팝업 — 수강생 현황과 같은 방식 */
+  const [modalKey, setModalKey] = useState<string | null>(null);
+
   return (
     <div>
       <PageHeader
@@ -231,6 +266,17 @@ export function CohortStatus() {
       {tab === "summary" && (
         <>
           {/*
+            수강생 분류 대시보드 (2026-08-22 리드 지시 — 전체 현황을 없애고 그 핵심을
+            기수 요약 상단에 병합했다). 등급별 분류표 · 상태 묶음판 · KPI 줄 · (i) 산출 기준.
+          */}
+          <ClassifyDashboard
+            onOpenStudent={setModalKey}
+            progress={progress}
+            currentWeekNo={currentWeekNo}
+            currentLessonNode={currentLessonNode}
+          />
+
+          {/*
             기수 요약 퍼널 (2026-08-13 리드 지시) — 신카부터 예상 종강까지의 흐름.
             접어 둘 수 있다(리드 요청 「접어놓기 기능」) — <details>라 상태 저장 없이 접힌다.
 
@@ -240,7 +286,7 @@ export function CohortStatus() {
             새 카드는 등록 수강생 출결을 썼기에 **같은 이름 아래 다른 숫자**가 두 번 보였다.
             되살릴 때는 git 이력에서 `CheckpointCard`를 꺼낸다(커밋 2fec452).
           */}
-          <Card>
+          <Card className="mt-5">
             <details open>
               <summary className="flex cursor-pointer list-none items-center gap-2 text-[14px] font-bold text-zion-900 [&::-webkit-details-marker]:hidden">
                 <ChevronDown size={15} className="shrink-0 text-zion-600 transition-transform [details:not([open])>summary>&]:-rotate-90" />
@@ -404,6 +450,8 @@ export function CohortStatus() {
           })}
         </div>
       )}
+
+      {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
     </div>
   );
 }

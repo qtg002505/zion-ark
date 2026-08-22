@@ -760,7 +760,7 @@ export function StudentDetailPage({
           */}
           <div className="mt-3 border-t border-zion-100 pt-2.5">
             <div className="mb-1.5 text-[11px] font-semibold text-ink-soft">
-              상태 묶음 — 전체 현황의 분류 대시보드와 같은 기록입니다
+              상태 묶음 — 기수 요약의 분류 대시보드와 같은 기록입니다
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               {STATE_GROUPS.map((group) => {
