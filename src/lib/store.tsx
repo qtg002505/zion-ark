@@ -35,6 +35,7 @@ import type {
   PlanEntryKind,
   RoleCode,
   ScheduleOverride,
+  StudentStateMark,
   CohortChange,
   ChecklistExtra,
   TipReport,
@@ -92,6 +93,7 @@ const CHECKLIST_KEY = "zion_ark_checklist_progress";
 const SCHEDULE_KEY = "zion_ark_schedule_overrides";
 /** 기수 세팅 (2026-08-21) — 편성 변동 · 지파 보충 체크 항목. 실연동 시 D1 테이블로 교체 */
 const COHORT_CHANGE_KEY = "zion_ark_cohort_changes";
+const STATE_MARK_KEY = "zion_ark_student_state_marks";
 const CHECKLIST_EXTRA_KEY = "zion_ark_checklist_extras";
 const MATERIAL_VIEW_KEY = "zion_ark_material_views";
 /** 작성자 팔로우 · 특강 (2026-08-15 리드 지시) — 실연동 시 D1 테이블로 교체 */
@@ -454,6 +456,13 @@ interface StoreValue {
   weekNotes: WeekNote[];
   /** 기수 일정 수정 (2026-08-13) — 읽는 쪽은 `effectiveSchedule()`로 병합한다 */
   scheduleOverrides: ScheduleOverride[];
+  /**
+   * 수강생 상태 묶음 표시 (2026-08-22 리드 지시) — 분류 대시보드의 상태판.
+   * 한 사람이 여러 묶음에 들어갈 수 있어 (수강생, 묶음) 쌍 단위다. 같은 쌍은 중복 저장 안 한다.
+   */
+  studentStateMarks: StudentStateMark[];
+  addStudentStateMark: (input: Omit<StudentStateMark, "id" | "createdAt">) => void;
+  removeStudentStateMark: (id: string) => void;
   /** 기수 편성 변동 (2026-08-21) — 전도사 변경 · 유급 이동 · 합반 */
   cohortChanges: CohortChange[];
   /** 지파가 덧붙인 단계 향상 세부 항목 (2026-08-21) — 표준 뒤에 붙는다 */
@@ -854,6 +863,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [cohortChanges, setCohortChanges] = useState<CohortChange[]>(() =>
     loadPlain<CohortChange>(COHORT_CHANGE_KEY),
   );
+  const [studentStateMarks, setStudentStateMarks] = useState<StudentStateMark[]>(() =>
+    loadPlain<StudentStateMark>(STATE_MARK_KEY),
+  );
   const [checklistExtras, setChecklistExtras] = useState<ChecklistExtra[]>(() =>
     loadPlain<ChecklistExtra>(CHECKLIST_EXTRA_KEY),
   );
@@ -957,6 +969,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScheduleOverrides(next);
   }, []);
 
+  const persistStudentStateMarks = useCallback((next: StudentStateMark[]) => {
+    localStorage.setItem(STATE_MARK_KEY, JSON.stringify(next));
+    setStudentStateMarks(next);
+  }, []);
+
   const persistCohortChanges = useCallback((next: CohortChange[]) => {
     localStorage.setItem(COHORT_CHANGE_KEY, JSON.stringify(next));
     setCohortChanges(next);
@@ -1050,6 +1067,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plans,
       weekNotes,
       scheduleOverrides,
+      studentStateMarks,
       cohortChanges,
       checklistExtras,
       counselCases,
@@ -1298,6 +1316,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           },
           ...rest,
         ]);
+      },
+      addStudentStateMark: (input) => {
+        // 같은 (수강생, 묶음) 쌍은 한 번만 — 끌어다 놓기를 반복해도 겹치지 않는다
+        const dup = studentStateMarks.some(
+          (m) =>
+            m.cohortKey === input.cohortKey &&
+            m.label === input.label &&
+            m.studentKey === input.studentKey,
+        );
+        if (dup) return;
+        persistStudentStateMarks([{ id: uid(), ...input, createdAt: nowIso() }, ...studentStateMarks]);
+      },
+      removeStudentStateMark: (id) => {
+        persistStudentStateMarks(studentStateMarks.filter((m) => m.id !== id));
       },
       addCohortChange: (input) => {
         persistCohortChanges([{ id: uid(), ...input, createdAt: nowIso() }, ...cohortChanges]);
@@ -1723,6 +1755,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       plans,
       weekNotes,
       scheduleOverrides,
+      studentStateMarks,
       cohortChanges,
       checklistExtras,
       counselCases,

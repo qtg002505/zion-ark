@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "../components/TransitionLink";
-import { CalendarDays, Megaphone, PencilLine } from "lucide-react";
+import { CalendarDays, ChevronDown, Megaphone, PencilLine } from "lucide-react";
 import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canEditCohortRecord, cohortKeyOf, isFieldStaff, studentScopeLabel } from "../lib/permissions";
-import { STUDENTS, COHORT, COHORT_KEY, DIVISIONS, SCHEDULE } from "../content/cohort-mock";
+import { STUDENTS, COHORT, COHORT_KEY, SCHEDULE } from "../content/cohort-mock";
 import {
   CLASS_WEEKDAYS,
   LATE_CLASS_WEEKDAYS,
@@ -14,22 +14,15 @@ import {
   normalizeWeekdayPeriods,
   progressPct,
   scheduleSummary,
+  weekNoOf,
   type ClassWeekdayPeriodList,
 } from "../lib/cohort-calendar";
 import { readAll } from "../lib/attendance-signals";
-import { DRAG_SCROLL_CLASS, useDragScroll } from "../lib/drag-scroll";
-import {
-  GRADES,
-  GRADE_LABELS,
-  GRADE_RANGE,
-  GRADE_TONE,
-  effectiveGrade,
-  isOverridden,
-} from "../lib/student-grade";
-import { STUDENT_PROFILES } from "../content/student-profiles";
 import { StudentDetailModal } from "../components/StudentDetailModal";
 import { AnchoredPopover } from "../components/AnchoredPopover";
-import { PageHeader, Card, StatTile } from "./common";
+import { PageHeader, Card } from "./common";
+import { ClassifyDashboard } from "./OverviewClassify";
+import { lessonOfSession, sessionsThroughWeek, LEVEL_TONE } from "../content/curriculum-mock";
 
 function todayYmd(): string {
   const d = new Date();
@@ -53,7 +46,7 @@ function todayYmd(): string {
 export function Overview() {
   const session = useSession();
   const store = useStore();
-  const { entries, studentStatusOverrides, scheduleOverrides, setSchedule } = store;
+  const { entries, scheduleOverrides, setSchedule } = store;
 
   const students = STUDENTS;
   const total = students.length;
@@ -82,43 +75,27 @@ export function Overview() {
   const [editError, setEditError] = useState<string | null>(null);
   const anchorRef = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  /** 교차표에서 이름을 누르면 상세 팝업 (수강생 현황과 같은 방식) */
+  /** 분류표·상태판에서 이름을 누르면 상세 팝업 (수강생 현황과 같은 방식) */
   const [modalKey, setModalKey] = useState<string | null>(null);
-  /** 교차표를 붙잡고 끌어서 넘긴다 (2026-08-14) — 문턱이 있어 이름 클릭은 그대로 산다 */
-  const dragMatrix = useDragScroll<HTMLDivElement>();
+  /** 기수 일정 카드 — 접어 둔다 (2026-08-22 리드 지시). 열림은 세션 안에서만 유지 */
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   /**
-   * 명단 한 줄 — 등급·오픈 여부를 한 자리에 모은다 (2026-08-10 리드 지시).
-   * **등급은 사람이 바꾼 값이 먼저다.** 안 바꿨으면 출결로 자동 판정한다.
-   * **오픈 여부**는 유월 축(오픈/비오픈)만 본다 — `신앙전환`은 유월로는 이미 오픈이다.
+   * 현재 주차와 진도 — (i) 기준 팝업과 대시보드 머리가 쓴다.
+   * 진도 칸 규칙 그대로: **바탕색이 단계를 알리고 글자는 과수 제목**(2026-08-21 학원법).
    */
-  const roster = useMemo(() => {
-    const byKey = new Map(studentStatusOverrides.map((o) => [o.studentKey, o]));
-    return students.map((s) => {
-      const ov = byKey.get(s.key);
-      const profile = STUDENT_PROFILES[s.key];
-      const faith = ov?.faithType ?? profile?.faithType ?? "비오픈";
-      return {
-        student: s,
-        grade: effectiveGrade(s, ov?.grade),
-        manual: isOverridden(s, ov?.grade),
-        opened: faith !== "비오픈",
-      };
-    });
-  }, [students, studentStatusOverrides]);
-
-  const openedCount = roster.filter((r) => r.opened).length;
-  const gradeCounts = GRADES.map((g) => ({ g, n: roster.filter((r) => r.grade === g).length }));
-
-  /** 등급(세로) × 분반(가로) — 셀에 그 자리에 해당하는 이름들 (2026-08-13 리드 지시) */
-  const matrix = useMemo(() => {
-    const m = new Map<string, typeof roster>();
-    for (const r of roster) {
-      const key = `${r.grade}|${r.student.division}`;
-      m.set(key, [...(m.get(key) ?? []), r]);
-    }
-    return m;
-  }, [roster]);
+  const currentWeekNo = Math.min(summary.weeks, Math.max(1, weekNoOf(sched.startsOn, todayYmd())));
+  const currentLesson = useMemo(() => {
+    const sessionNo = sessionsThroughWeek(currentWeekNo, sched.weekdayPeriods);
+    return lessonOfSession(Math.max(1, sessionNo));
+  }, [currentWeekNo, sched.weekdayPeriods]);
+  const currentLessonNode = currentLesson.undecided ? (
+    <span className="text-ink-soft">미정</span>
+  ) : (
+    <span className={"rounded px-1 py-0.5 text-[11px] font-bold " + LEVEL_TONE[currentLesson.level]}>
+      {currentLesson.keyword}
+    </span>
+  );
 
   function openEdit(field: "startsOn" | "endsOn") {
     setEditField(field);
@@ -162,18 +139,29 @@ export function Overview() {
         </div>
       )}
 
-      {/* 요약 네모 — 전부 남색으로 통일 + 진행률 추가 (2026-08-13 리드 지시) */}
-      <div className="grid grid-cols-5 gap-3 max-lg:grid-cols-3 max-md:grid-cols-2">
-        <StatTile label="수강생" value={`${total}명`} sub={COHORT.cohort} accent />
-        <StatTile label="누적 출석률" value={`${cumRate}%`} sub={`${summary.months}개월 과정 기준`} accent />
-        <StatTile label="수강 유지" value={`${activeCount}명`} sub="정상 출석 그룹" accent />
-        <StatTile label="위기·중단" value={`${riskCount}명`} sub="출석률 50% 미만" accent />
-        <StatTile label="기수 진행률" value={`${progress}%`} sub="개강일부터 오늘까지 기간 기준" accent />
-      </div>
+      {/*
+        수강생 분류 대시보드 (2026-08-22 리드 지시) — 이 파트가 **화면의 최상단**이다.
+        종전의 남색 요약 타일 5개는 이 대시보드의 KPI 줄이 대신한다(같은 수치가 안에 있다).
+      */}
+      <ClassifyDashboard
+        onOpenStudent={setModalKey}
+        cumRate={cumRate}
+        progress={progress}
+        currentWeekNo={currentWeekNo}
+        currentLessonNode={currentLessonNode}
+      />
 
-      {/* 일정 — 점검자가 기수 진행 상황을 가늠하는 기준 (8/6 확정 · 8/13 편집 가능) */}
+      {/*
+        일정 — 점검자가 기수 진행 상황을 가늠하는 기준 (8/6 확정 · 8/13 편집 가능).
+        **접어 둔다** (2026-08-22 리드 지시 — 「기수일정은 접어두기 효과로」). 머리 줄에
+        총 기간 요약이 남아 있어 접힌 채로도 한 줄 정보는 보인다.
+      */}
       <Card className="mt-5">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setScheduleOpen((v) => !v)}
+          aria-expanded={scheduleOpen}
+          className="flex w-full flex-wrap items-center gap-2 text-left"
+        >
           <CalendarDays size={16} className="text-zion-600" />
           <h2 className="text-[14px] font-bold text-zion-900">기수 일정</h2>
           <span className="text-[12px] text-ink-soft">
@@ -183,7 +171,13 @@ export function Overview() {
           <span className="ml-auto rounded-lg bg-zion-100 px-2.5 py-1 text-[12px] font-semibold text-zion-800">
             총 {summary.months}개월 · {summary.weeks}주 · 수업 {summary.sessions}회
           </span>
-        </div>
+          <ChevronDown
+            size={15}
+            className={"shrink-0 text-zion-400 transition-transform " + (scheduleOpen ? "rotate-180" : "")}
+          />
+        </button>
+        {scheduleOpen && (
+        <div className="mt-3">
         <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
           {(
             [
@@ -283,118 +277,8 @@ export function Overview() {
             </div>
           </AnchoredPopover>
         )}
-      </Card>
-
-      {/* 등급 × 분반 교차표 (2026-08-13 리드 지시 — 종전 세로 명단을 교체) */}
-      <Card className="mt-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-[14px] font-bold text-zion-900">등급별 명단</h2>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
-              세로가 등급, 가로가 분반입니다. <strong className="text-ink">이름을 누르면</strong> 상세
-              현황이 열립니다. <strong className="text-ink">노란 이름이 오픈된 분</strong>입니다 — 모두{" "}
-              {openedCount}명. 등급은 누적 출석률로 자동 매겨지고, 담당 사명자가 바꾸면 그 값이
-              우선합니다(이름 뒤 *).
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {gradeCounts.map(({ g, n }) => (
-              <span
-                key={g}
-                className={"rounded-lg border px-2 py-1 text-[11px] font-bold " + GRADE_TONE[g]}
-                title={`${GRADE_LABELS[g]} — 자동 기준 ${GRADE_RANGE[g]}`}
-              >
-                {g} {GRADE_LABELS[g]} {n}
-              </span>
-            ))}
-          </div>
         </div>
-
-        {/* 좁은 화면에서는 표만 가로로 넘긴다 — 붙잡고 끌어도 넘어간다 (2026-08-14) */}
-        <div
-          ref={dragMatrix.ref}
-          onPointerDown={dragMatrix.onPointerDown}
-          className={"-mx-1 overflow-x-auto px-1 " + DRAG_SCROLL_CLASS}
-        >
-          <table className="w-full min-w-[560px] text-[13px]">
-            <thead>
-              <tr className="border-b border-zion-100 text-left text-[12px] text-ink-soft">
-                <th className="w-24 pb-2 font-medium">등급</th>
-                {DIVISIONS.map((d) => (
-                  <th key={d} className="pb-2 font-medium">
-                    {d}
-                  </th>
-                ))}
-                <th className="w-12 pb-2 text-right font-medium">계</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GRADES.map((g) => {
-                const rowTotal = gradeCounts.find((c) => c.g === g)?.n ?? 0;
-                return (
-                  <tr key={g} className="border-b border-zion-100 align-top last:border-0">
-                    <td className="py-2 pr-2">
-                      <span className={"rounded border px-1.5 py-0.5 text-[11px] font-bold " + GRADE_TONE[g]}>
-                        {g} {GRADE_LABELS[g]}
-                      </span>
-                    </td>
-                    {DIVISIONS.map((d) => {
-                      const cell = matrix.get(`${g}|${d}`) ?? [];
-                      return (
-                        <td key={d} className="py-2 pr-2">
-                          {cell.length === 0 ? (
-                            <span className="text-[11px] text-ink-soft">—</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {cell.map((r) => (
-                                <button
-                                  key={r.student.key}
-                                  onClick={() => setModalKey(r.student.key)}
-                                  title={
-                                    `${r.student.name} — 누적 ${r.student.attendanceRate}%` +
-                                    (r.opened ? " · 오픈" : "") +
-                                    (r.manual ? " · 직접 지정 등급" : "")
-                                  }
-                                  className={
-                                    "rounded px-1.5 py-0.5 text-[12px] font-medium transition " +
-                                    (r.opened
-                                      ? "bg-gold-100/70 text-gold-700 hover:bg-gold-100"
-                                      : "text-ink hover:bg-zion-50 hover:text-zion-700")
-                                  }
-                                >
-                                  {r.student.name}
-                                  {r.manual && "*"}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 text-right text-[12px] font-semibold text-zion-800">{rowTotal}</td>
-                  </tr>
-                );
-              })}
-              <tr className="border-t-2 border-zion-200">
-                <td className="py-2 pr-2 text-[12px] font-semibold text-ink-soft">계</td>
-                {DIVISIONS.map((d) => (
-                  <td key={d} className="py-2 pr-2 text-[12px] font-semibold text-zion-800">
-                    {roster.filter((r) => r.student.division === d).length}명
-                  </td>
-                ))}
-                <td className="py-2 text-right text-[12px] font-bold text-zion-900">{total}명</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-          출석률 등 상세 수치는 이름을 눌러 팝업에서 보거나{" "}
-          <Link viewTransition to="/students-dashboard" className="text-zion-700 underline">
-            수강생 현황
-          </Link>
-          에서 봅니다. 등급 변경도 그곳에서 합니다.
-        </p>
+        )}
       </Card>
 
       {/* 점검자가 지금 손대야 할 곳 */}
