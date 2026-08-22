@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-08-22 (4) — 테스트 로그인 하네스 (리드 「테스트로 로그인 하고 싶어」)
+
+실 Supabase가 없어 로그인이 안 되던 것을 **모의 하네스**로 풀었다
+(`apps/web/dev-mock/server.ts` · 커밋 `dca8b9e` — 상세는 `CENTER_FLOW_INTEGRATION.md` §9-1).
+계정 test@zion-ark.local / zion-ark-test. **전 fixture를 저쪽 스키마로 기동 시 검증**하게
+만들어 모양 실수 둘(D2 `updatedAt` 누락 · 세션 `scheduledAt` 오기)을 기동 단계에서 잡았다.
+로그인 → 대시보드 → 수강생 목록(라이트 카드) → 상세 D2 지연 로딩 → 텔레그램 패널까지
+브라우저 실측. 겪은 것: ① `npx tsx`가 Windows에서 bin을 못 찾아 **api 워크스페이스의
+tsx로 실행** ② shared가 dist 미빌드라 resolve 실패 — **한 번 빌드가 선행**
+③ 문서에 백틱 든 삽입을 bash로 했다가 명령 치환으로 비었다 — **또 밟았다. Edit로만 한다**
+
+---
+
 ## 2026-08-22 (3) — Center Flow UI 이식 마무리 (리드 「다른 것들 모두」)
 
 §G 결정 없이 할 수 있는 UI 이식을 전부 끝냈다 — 같은 브랜치에 커밋 둘(`5d8ad53`·`f88ee49`).

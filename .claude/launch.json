@@ -19,6 +19,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "pnpm@11.9.0", "--dir", "C:/Users/user/Desktop/zion-ark-integration/apps/web", "dev", "--port", "5199", "--strictPort"],
       "port": 5199
+    },
+    {
+      "name": "center-flow-mock",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "pnpm@11.9.0", "--dir", "C:/Users/user/Desktop/zion-ark-integration/apps/api", "exec", "tsx", "C:/Users/user/Desktop/zion-ark-integration/apps/web/dev-mock/server.ts"],
+      "port": 3000
     }
   ]
 }
