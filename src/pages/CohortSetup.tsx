@@ -144,7 +144,7 @@ export function CohortSetup() {
         </p>
       </Card>
 
-      <SetupForms cohortId={cohortId} cohortKey={cohortKey} canEdit={canEdit} closed={closed} />
+      <SetupForms cohortId={cohortId} closed={closed} />
       <ChecklistExtras cohortKey={cohortKey} canEdit={canEdit} />
       <CohortChanges cohortKey={cohortKey} canEdit={canEdit} />
 
@@ -212,14 +212,10 @@ function CohortFacts({ cohortId }: { cohortId: string }) {
  */
 function SetupForms({
   cohortId,
-  cohortKey,
-  canEdit,
   closed,
 }: {
   /** 파일 이름에 쓰는 짧은 이름 — 전체 키에는 `|`가 있어 파일명으로 못 쓴다 */
   cohortId: string;
-  cohortKey: string;
-  canEdit: boolean;
   closed: boolean;
 }) {
   const [preview, setPreview] = useState<{ title: string; rows: string[][] } | null>(null);
@@ -278,10 +274,12 @@ function SetupForms({
       <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
         <div className="rounded-lg border border-zion-100 p-3">
           <div className="text-[13px] font-semibold text-zion-900">진도표</div>
+          {/* 올리기(자동 반영)는 2026-08-22 리드 지시로 뺐다 — 서식이 어긋나면 잘못 들어가서다.
+              양식을 기준 삼아 월간·주간 계획 달력에 직접 적는다 */}
           <p className="mb-2 mt-0.5 text-[11.5px] leading-relaxed text-ink-soft">
-            날짜·구분·회차·내용. 올리면 월간·주간 계획 달력에 그대로 들어갑니다.
+            날짜·구분·회차·내용. 이 양식을 기준으로 월간·주간 계획 달력에 직접 적습니다.
           </p>
-          <ProgressUpload cohortKey={cohortKey} readOnly={!canEdit} />
+          <ProgressUpload />
         </div>
 
         <div className="rounded-lg border border-zion-100 p-3">

@@ -26,7 +26,7 @@ import { STUDENT_PROFILES } from "../content/student-profiles";
 import { effectiveSchedule, newcomerEndOf } from "../lib/cohort-calendar";
 import { HOLIDAYS_2026 } from "../content/holidays-kr-2026";
 import { SCJ_SEASONS } from "../content/scj-seasons";
-/* 진도표 업로드는 기수 세팅과 **같은 부품**을 쓴다 (2026-08-21) — 복제하면 양식이 갈라진다 */
+/* 진도표 양식 내려받기 — 기수 세팅과 같은 부품 (2026-08-21). 올리기는 2026-08-22에 뺐다 */
 import { ProgressUpload } from "../components/ProgressUpload";
 import { buildXlsx, downloadBlob } from "../lib/xlsx";
 import { COHORT_LIST, RUNNING_COHORT } from "../content/cohort-mock";
@@ -44,7 +44,9 @@ const KIND_TONE: Record<PlanEntryKind, string> = {
   makeup: "bg-gold-100 text-gold-700 border border-gold-500/50",
   /* 상담·심방 (2026-08-17 리드 지시) — 상태색 계열로 갈라 한눈에 구분된다 */
   counsel: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  visit: "bg-red-50 text-red-600 border border-red-200",
+  /* 심방은 주황 (2026-08-22 리드 지시 — 종전 red가 공휴일 표시와 같은 조합이라 헷갈렸다).
+     D등급과 같은 검증 조합이고 다크 팔레트도 index.css에 이미 뒤집혀 있다 */
+  visit: "bg-orange-50 text-orange-700 border border-orange-200",
   event: "bg-zion-100 text-zion-800 border border-zion-300",
   note: "bg-white text-ink-soft border border-zion-200",
 };
@@ -250,7 +252,7 @@ export function WeeklyPlanPage() {
         }
         action={
           canEdit ? (
-            <ProgressUpload cohortKey={cohortKey} />
+            <ProgressUpload />
           ) : (
             <span className="flex items-center gap-1 text-[11px] text-ink-soft">
               <Lock size={12} />{" "}
