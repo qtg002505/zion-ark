@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ShieldAlert } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { ROLE_LABELS, type RoleCode } from "../lib/types";
 import { DIVISIONS } from "../content/cohort-mock";
@@ -33,16 +34,34 @@ export function Login() {
   const [role, setRole] = useState<RoleCode>("instructor");
   const [division, setDivision] = useState(DIVISIONS[0]);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * 로그인 대기 2.5초 (2026-08-22 리드 지시) — 들어가기 전에 유출 경고 문구를 읽게 한다.
+   * 지연은 이 화면에만 둔다 — auth.tsx는 세션 발급 지점을 좁게 유지한다(그 파일 머리 규칙).
+   * 타이머는 ref에 담아 화면이 내려가면 지운다(연타·이탈 대비).
+   */
+  const [pending, setPending] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (pending) return;
     const trimmed = name.trim();
     if (trimmed.length < 2) {
       setError("이름을 두 글자 이상 입력해 주세요.");
       return;
     }
-    login(trimmed, role, role === "evangelist" ? division : null);
-    navigate("/", { replace: true });
+    setError(null);
+    setPending(true);
+    timerRef.current = window.setTimeout(() => {
+      login(trimmed, role, role === "evangelist" ? division : null);
+      navigate("/", { replace: true });
+    }, 2500);
   }
 
   return (
@@ -112,11 +131,30 @@ export function Login() {
 
           {error && <p className="mb-3 text-[12px] text-red-600">{error}</p>}
 
+          {/* 대기 중 경각심 문구 (2026-08-22 리드 지시) — 상담 화면 법적 주의 카드와 같은 어투 */}
+          {pending && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3"
+            >
+              <div className="mb-1 flex items-center gap-1.5 text-[13px] font-bold text-red-700">
+                <ShieldAlert size={14} /> 유출 주의
+              </div>
+              <p className="text-[12px] leading-relaxed text-ink">
+                이 사이트의 수강생 정보와 교육 자료는 내부 자료입니다.{" "}
+                <strong>외부로 유출하면 법적 제재를 받을 수 있습니다.</strong> 담당 범위 밖으로
+                내보내지 않습니다.
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full rounded-lg bg-zion-800 py-2.5 text-[14px] font-semibold text-white transition hover:bg-zion-700"
+            disabled={pending}
+            className="w-full rounded-lg bg-zion-800 py-2.5 text-[14px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-default disabled:opacity-80"
           >
-            로그인
+            {pending ? "확인 중…" : "로그인"}
           </button>
 
           <p className="mt-4 text-center text-[11px] text-ink-soft">
