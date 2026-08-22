@@ -9,7 +9,6 @@ import {
   ChevronRight,
   History,
   Lock,
-  NotebookPen,
   PencilLine,
   Plus,
   Star,
@@ -636,9 +635,11 @@ export function WeeklyPlanPage() {
         />
       )}
 
-      {/* 기수 회의록 (2026-08-18 리드 지시) — 회의 내용을 달력과 같은 화면에서 남긴다 */}
-      <MeetingNotes cohortKey={cohortKey} canEdit={canEdit} />
-
+      {/*
+        「기수 회의록」은 2026-08-22 리드 피드백 5로 **영구 제외**했다 — UI만 뺐고
+        store(`meetingNotes`)·타입·저장값은 남긴다(불변식 10). 되살릴 때는 git 이력에서
+        `MeetingNotes` 컴포넌트를 꺼낸다.
+      */}
       {/* 종전 주차별 글 — 달력으로 옮긴 뒤에도 남겨 둔다 */}
       <LegacyWeeklyNotes cohortKey={cohortKey} plans={plans} canEdit={canEdit} />
 
@@ -646,130 +647,6 @@ export function WeeklyPlanPage() {
         수강생의 이름이나 개인적인 사정은 적지 않습니다 — 진행 계획만 남깁니다.
         파일 원본 보관은 2차(스토리지)에서 지원되고, 지금은 올린 파일에서 읽은 일정만 반영됩니다.
       </p>
-    </div>
-  );
-}
-
-/**
- * 기수 회의록 (2026-08-18 리드 지시) — 인교섬 회의·사명자 회의 내용을 남기는 자리.
- * 주간계획과 같은 권한이다: 해당 기수의 강사·전도사만 쓰고, 열람은 담당 범위 안에서 누구나.
- * ⚠️ 기수 공유 기록이라 수강생 개인정보를 적지 않는다 — `scanPII`가 걸리면 저장을 막는다
- * (상담 사례와 같은 강제. 안내만으로는 회의록처럼 긴 글에서 놓친다).
- */
-function MeetingNotes({ cohortKey, canEdit }: { cohortKey: string; canEdit: boolean }) {
-  const session = useSession();
-  const { meetingNotes, addMeetingNote, deleteMeetingNote } = useStore();
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${`${n.getMonth() + 1}`.padStart(2, "0")}-${`${n.getDate()}`.padStart(2, "0")}`;
-  });
-  const [body, setBody] = useState("");
-
-  const notes = meetingNotes
-    .filter((n) => n.cohortKey === cohortKey)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const warnings = useMemo(() => scanPII(body), [body]);
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (body.trim().length < 5 || warnings.length > 0) return;
-    addMeetingNote({
-      cohortKey,
-      date,
-      body: body.trim(),
-      createdBy: session.name,
-      createdByRole: session.roleCode,
-    });
-    setBody("");
-    setOpen(false);
-  }
-
-  return (
-    <div className="mt-5 rounded-xl border border-zion-100 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[14px] font-bold text-zion-900">
-          <NotebookPen size={15} className="text-zion-600" /> 기수 회의록
-          {notes.length > 0 && <span className="text-[12px] font-normal text-ink-soft">{notes.length}건</span>}
-        </div>
-        {canEdit && (
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-lg border border-zion-200 px-2.5 py-1.5 text-[12px] font-semibold text-zion-700 transition hover:bg-zion-50"
-          >
-            {open ? "취소" : "+ 회의록 남기기"}
-          </button>
-        )}
-      </div>
-
-      {open && canEdit && (
-        <form onSubmit={submit} className="mt-3 space-y-2 rounded-lg bg-zion-50 p-3">
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
-              회의 날짜
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                aria-label="회의 날짜"
-                className="rounded-lg border border-zion-200 bg-white px-2 py-1 text-[12px] outline-none focus:border-zion-500"
-              />
-            </label>
-          </div>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={4}
-            placeholder="예) 인교섬 회의 — 이번 주 보강 인원 배정, 다음 주 특강 준비 분담"
-            aria-label="회의 내용"
-            className="w-full resize-y rounded-lg border border-zion-200 bg-white px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-zion-500"
-          />
-          {warnings.length > 0 && (
-            <p className="rounded-lg bg-gold-100/60 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-ink">
-              <strong className="font-bold">지워 주세요:</strong> {warnings.join(" · ")} — 회의록은
-              기수 공유 기록입니다.
-            </p>
-          )}
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={body.trim().length < 5 || warnings.length > 0}
-              className="rounded-lg bg-zion-800 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-zion-700 disabled:cursor-not-allowed disabled:bg-zion-300"
-            >
-              저장
-            </button>
-          </div>
-        </form>
-      )}
-
-      {notes.length === 0 ? (
-        <p className="mt-3 text-[12px] text-ink-soft">
-          아직 회의록이 없습니다.{canEdit && " 「회의록 남기기」로 남깁니다."}
-        </p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {notes.map((n) => (
-            <li key={n.id} className="group rounded-lg border border-zion-100 p-3">
-              <div className="flex items-center gap-2 text-[11px] text-ink-soft">
-                <strong className="text-[12px] text-zion-800">{n.date}</strong>
-                <span>
-                  {n.createdBy} ({ROLE_LABELS[n.createdByRole]})
-                </span>
-                {canEdit && (
-                  <button
-                    onClick={() => deleteMeetingNote(n.id)}
-                    aria-label={`${n.date} 회의록 지우기`}
-                    className="ml-auto rounded p-1 text-ink-soft opacity-0 transition group-hover:opacity-100 hover:text-red-600"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-              <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{n.body}</p>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

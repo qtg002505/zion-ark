@@ -27,6 +27,10 @@ import { Main } from "./pages/Main";
  * 갈라 둔 채로 묶으면 **화면이 아예 안 뜬다**.
  */
 const CohortStatus = lazy(() => import("./pages/CohortStatus").then((m) => ({ default: m.CohortStatus })));
+/* 출석 현황 — 기수 현황에서 분리된 독립 화면 (2026-08-22 리드 피드백 5). 격자+주간 흐름+비교 */
+const CohortAttendance = lazy(() =>
+  import("./pages/CohortAttendance").then((m) => ({ default: m.CohortAttendance })),
+);
 const StudentsDashboard = lazy(() =>
   import("./pages/StudentsDashboard").then((m) => ({ default: m.StudentsDashboard })),
 );
@@ -79,6 +83,8 @@ function Routed() {
         */}
         <Route path="/overview" element={<Navigate to="/cohort" replace />} />
         <Route path="/cohort" element={<CohortStatus />} />
+        {/* 옛 /cohort?tab=attendance|trend|compare는 CohortStatus가 이리로 넘긴다 */}
+        <Route path="/attendance" element={<CohortAttendance />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
         {/* 기수 세팅 · 지난 기수 (2026-08-21 리드 지시) */}
         <Route path="/cohort-setup" element={<CohortSetup />} />

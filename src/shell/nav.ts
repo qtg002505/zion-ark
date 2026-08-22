@@ -12,7 +12,12 @@ import {
 import { MISSION_CENTER_VIEW_ROLES, SITE_USAGE_VIEW_ROLES } from "../lib/permissions";
 /* 단계 표기·색 — 셸이 지므로 **가벼운 표만 든 파일**에서 가져온다 (`curriculum-mock` 아님) */
 import { LEVEL_NAME, LEVEL_TONE } from "../content/level-labels";
-import { COHORT_TABS } from "../pages/CohortStatus";
+/*
+  ⚠️ 종전의 `COHORT_TABS` import(pages/CohortStatus)는 2026-08-22에 끊었다 —
+  셸이 2,000줄짜리 화면 파일을 정적으로 끌어 **모든 화면이 함께 지는** 간선이었다
+  (셸에 무거운 것 금지 규칙). 기수 요약 항목은 아래에 직접 적는다 — 탭이 둘뿐이라
+  두 곳이 어긋날 면적도 줄었다(화면 쪽 정본 주석 참고).
+*/
 import {
   Home,
   Users,
@@ -156,28 +161,29 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "홈", icon: Home, to: "/" },
 
   /**
-   * 1. 기수 현황 — 한 기수를 깊게 파고드는 자리. 조직별 운영 영역.
+   * 1. 기수 요약 · 1-1. 출석 현황 (2026-08-22 리드 피드백 5 — 종전 「기수 현황」 한 묶음을
+   * **둘로 갈라 일렬 배치**했다. 자리는 종전 그대로다 — 카테고리 순서 규칙 준수).
    *
-   * **화면의 다섯 탭이 사이드바에서도 펼쳐진다** (2026-08-15 리드 지시 —
-   * 「왼쪽 대카테고리를 보는 곳에서 펼쳐지게, 우측 큰 창에서는 지난번처럼 가로 열로」).
-   * ⚠️ 이름·순서는 `CohortStatus`의 `COHORT_TABS`가 정본이다 — 여기서 읽어 만든다.
-   * 자료실 폴더를 `LIBRARY_FOLDERS` 한 곳에서 읽는 것과 같은 원칙이다(두 곳에 적지 않는다).
+   * - 기수 요약(/cohort): 분류 대시보드 + 요약 + 「지금 우리 기수는?」(?tab=now)
+   * - 출석 현황(/attendance): 출석 격자 + 주간 흐름 + 비교를 **한 화면**에 병합
+   * ⚠️ 항목 주소는 화면의 탭 파생(`?tab=`)과 짝이다 — 한쪽만 고치면 어긋난다
+   * (종전 COHORT_TABS 파생은 셸 무게 때문에 끊었다 — 위 import 자리 주석).
    */
   {
-    label: "기수 현황",
+    label: "기수 요약",
     icon: Gauge,
     subGroups: [
       {
-        label: "기수 현황",
+        label: "기수 요약",
         icon: GraduationCap,
-        items: COHORT_TABS.map((t) => ({
-          to: t.id === "summary" ? "/cohort" : `/cohort?tab=${t.id}`,
-          label: t.label,
-          icon: GraduationCap,
-        })),
+        items: [
+          { to: "/cohort", label: "기수 요약", icon: GraduationCap },
+          { to: "/cohort?tab=now", label: "지금 우리 기수는?", icon: GraduationCap },
+        ],
       },
     ],
   },
+  { label: "출석 현황", icon: ClipboardList, to: "/attendance" },
 
   /**
    * 1-2. 월간·주간 계획 — **독립 대주제** (2026-08-18 리드 지시).
