@@ -720,6 +720,30 @@ export interface CohortOpsNote {
 }
 
 /**
+ * 성향 분석의 분석 축 (2026-08-22 리드 지시 — 「특정 지파의 기호에 맞게 일부 항목 제외」).
+ * 지파 단위 설정이라 (지파, 끈 축 목록) 한 쌍이 한 줄이다. **끈 것만 저장한다** —
+ * 새 축이 생겨도 기본이 켬이라 마이그레이션이 필요 없다.
+ * ⚠️ 누가 이 설정을 만질 수 있는지(지파 신학부장 제한 여부)는 리드 확인 대기 —
+ * 프로토타입에서는 로그인 전체가 만진다.
+ */
+export type TendencyAxis = "mbti" | "enneagram" | "shape" | "saju";
+
+export const TENDENCY_AXIS_LABELS: Record<TendencyAxis, string> = {
+  mbti: "MBTI",
+  enneagram: "에니어그램",
+  shape: "도형",
+  saju: "오행 (사주)",
+};
+
+export interface TendencyAxisSetting {
+  tribe: string;
+  /** 끈 축 목록 — 비면 전부 켬 */
+  off: TendencyAxis[];
+  updatedBy: string;
+  updatedAt: string;
+}
+
+/**
  * 수강생 상태 묶음 표시 (2026-08-22 리드 지시 — 운영 스프레드시트 「1페이지」의 우측 판들을
  * 화면으로 옮긴 것. 「수강생들을 다양한 상태로 한눈에」).
  *

@@ -42,6 +42,8 @@ import type {
   WeekNote,
   WeekOpsRow,
   CohortOpsNote,
+  TendencyAxis,
+  TendencyAxisSetting,
   WeeklyPlan,
   WorkspaceEntry,
   WorkspaceKind,
@@ -111,6 +113,8 @@ const MEETING_NOTE_KEY = "zion_ark_meeting_notes";
    화면이 합친다. 여기에는 사람이 고쳐 쓴 줄만 쌓인다 */
 const WEEK_OPS_KEY = "zion_ark_week_ops_rows";
 const OPS_NOTE_KEY = "zion_ark_ops_notes";
+/* 성향 분석의 축 제외 설정 (2026-08-22) — 지파당 한 줄, 끈 축만 담는다 */
+const TENDENCY_AXES_KEY = "zion_ark_tendency_axes";
 /** 방문 기록 보관 한도 — 열람 기록(ACTIVITY_LIMIT)과 같은 방식으로 건수로만 막는다 */
 const SITE_VISIT_LIMIT = 2000;
 
@@ -675,6 +679,9 @@ interface StoreValue {
   setWeekOpsRow: (input: Omit<WeekOpsRow, "updatedAt">) => void;
   opsNotes: CohortOpsNote[];
   setOpsNote: (input: Omit<CohortOpsNote, "updatedAt">) => void;
+  /** 성향 분석 축 제외 (2026-08-22 리드 지시) — 지파당 한 줄, 끈 축만 저장 */
+  tendencyAxisSettings: TendencyAxisSetting[];
+  setTendencyAxesOff: (tribe: string, off: TendencyAxis[], updatedBy: string) => void;
   /**
    * 건의·의견 게시판 (2026-08-14 FB-09) — 저장만 한다. 비밀글 열람 판정은
    * `permissions.ts`의 `canReadSecretPost`가 하고, 실연동 시 서버가 응답에서 거른다.
@@ -958,6 +965,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [opsNotes, setOpsNotes] = useState<CohortOpsNote[]>(() =>
     loadPlain<CohortOpsNote>(OPS_NOTE_KEY),
+  );
+  const [tendencyAxisSettings, setTendencyAxisSettings] = useState<TendencyAxisSetting[]>(() =>
+    loadPlain<TendencyAxisSetting>(TENDENCY_AXES_KEY),
   );
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
@@ -1461,6 +1471,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(OPS_NOTE_KEY, JSON.stringify(next));
         setOpsNotes(next);
       },
+      tendencyAxisSettings,
+      setTendencyAxesOff: (tribe, off, updatedBy) => {
+        const next = [
+          ...tendencyAxisSettings.filter((t) => t.tribe !== tribe),
+          { tribe, off, updatedBy, updatedAt: nowIso() },
+        ];
+        localStorage.setItem(TENDENCY_AXES_KEY, JSON.stringify(next));
+        setTendencyAxisSettings(next);
+      },
       deletePersonalEvent: (id) => {
         persistPersonal(personalEvents.filter((e) => e.id !== id));
       },
@@ -1828,6 +1847,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       meetingNotes,
       weekOpsRows,
       opsNotes,
+      tendencyAxisSettings,
       persistPlanEntries,
       persistLessonResources,
       persistReactions,
