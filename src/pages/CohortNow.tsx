@@ -36,7 +36,12 @@ const LEVELS: CourseLevel[] = ["초등", "중등", "고등"];
  */
 export function CohortNow({ students }: { students: typeof STUDENTS }) {
   const { checklistProgress, checklistExtras } = useStore();
-  const [level, setLevel] = useState<CourseLevel>("초등");
+  /*
+   * 과정을 **고르기 전에는 평가 항목을 내지 않는다** (2026-08-22 리드 지시 — 「단계별 선택
+   * 시에만 노출되도록 간소화」). 종전에는 첫 과정이 기본으로 골라져 있어 진입 즉시 강점·약점이
+   * 전부 펼쳐졌다. SegmentedTabs는 value가 어느 항목과도 안 맞으면 전부 꺼진 채 그려진다.
+   */
+  const [level, setLevel] = useState<CourseLevel | null>(null);
   const [openGroup, setOpenGroup] = useState<number | null>(null);
   const [modalKey, setModalKey] = useState<string | null>(null);
 
@@ -60,12 +65,12 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
     수강생 상세의 성장 지표와 같은 기준표를 본다).
   */
   const standard = useMemo(
-    () => checklistWithExtras(level, COHORT_KEY, checklistExtras),
+    () => (level ? checklistWithExtras(level, COHORT_KEY, checklistExtras) : null),
     [level, checklistExtras],
   );
 
   const stats = useMemo(
-    () => cohortChecklistStats(students, level, progress, standard),
+    () => (level && standard ? cohortChecklistStats(students, level, progress, standard) : []),
     [students, level, progress, standard],
   );
 
@@ -81,7 +86,7 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
     return Math.round(rated.reduce((a, s) => a + (s.pct ?? 0), 0) / rated.length);
   }, [stats]);
 
-  const goal = CHECKLIST_STANDARDS[level].goal;
+  const goal = level ? CHECKLIST_STANDARDS[level].goal : undefined;
 
   return (
     <div>
@@ -90,8 +95,8 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
           <div className="min-w-0">
             <div className="text-[14px] font-bold text-zion-900">지금 우리 기수는?</div>
             <p className="mt-0.5 text-[12px] leading-relaxed text-ink-soft">
-              <strong>단계 기준표</strong> 항목별로 우리 기수의 강점·약점을 봅니다. 항목을 누르면{" "}
-              <strong>누가 잘 되고 누가 처지는지</strong>까지 보입니다.
+              과정을 고르면 그 <strong>단계 기준표</strong> 항목별로 우리 기수의 강점·약점이
+              나옵니다. 항목을 누르면 <strong>누가 잘 되고 누가 처지는지</strong>까지 보입니다.
               {goal && <> 이 단계의 목표는 「{goal}」입니다.</>}
             </p>
           </div>
@@ -102,7 +107,7 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
           <SegmentedTabs
             label="단계"
             size="sm"
-            value={level}
+            value={level ?? ("" as CourseLevel)}
             onChange={(l) => {
               setLevel(l);
               setOpenGroup(null);
@@ -115,29 +120,41 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
           />
         </div>
 
-        {/* 한눈 요약 — 숫자 셋이면 상태가 읽힌다 */}
-        <div className="mt-4 grid grid-cols-4 gap-2 max-md:grid-cols-2">
-          {(
-            [
-              ["기수 평균", overall === null ? "—" : `${overall}%`, "매겨진 항목들의 평균"],
-              ["강점", `${strong.length}항목`, `${STRONG_MIN}% 이상`],
-              ["약점", `${weak.length}항목`, `${WEAK_MAX}% 미만`],
-              ["아직 안 봄", `${unrated.length}항목`, "점수를 매긴 사람이 없음"],
-            ] as const
-          ).map(([label, value, sub]) => (
-            <div key={label} className="rounded-lg bg-zion-50 px-3 py-2.5">
-              <div className="text-[11px] text-ink-soft">{label}</div>
-              <div className="mt-0.5 text-[17px] font-bold text-zion-900">{value}</div>
-              <div className="mt-0.5 text-[10px] text-ink-soft">{sub}</div>
-            </div>
-          ))}
-        </div>
+        {/* 한눈 요약 — 숫자 셋이면 상태가 읽힌다. 과정을 골라야 나온다 */}
+        {level && (
+          <div className="mt-4 grid grid-cols-4 gap-2 max-md:grid-cols-2">
+            {(
+              [
+                ["기수 평균", overall === null ? "—" : `${overall}%`, "매겨진 항목들의 평균"],
+                ["강점", `${strong.length}항목`, `${STRONG_MIN}% 이상`],
+                ["약점", `${weak.length}항목`, `${WEAK_MAX}% 미만`],
+                ["아직 안 봄", `${unrated.length}항목`, "점수를 매긴 사람이 없음"],
+              ] as const
+            ).map(([label, value, sub]) => (
+              <div key={label} className="rounded-lg bg-zion-50 px-3 py-2.5">
+                <div className="text-[11px] text-ink-soft">{label}</div>
+                <div className="mt-0.5 text-[17px] font-bold text-zion-900">{value}</div>
+                <div className="mt-0.5 text-[10px] text-ink-soft">{sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      {level === null && (
+        <Card className="mt-4">
+          <p className="py-10 text-center text-[13px] leading-relaxed text-ink-soft">
+            아직 과정을 고르지 않았습니다. 위의 단계에서 과정을 고르면 강점·약점 평가 항목이
+            나옵니다.
+          </p>
+        </Card>
+      )}
 
       {/*
         「수강생 × 항목 한눈에」 격자는 2026-08-18에 만들었다가 **같은 날 리드 지시로 뺐다.**
         되살릴 때는 git 이력에서 `ScoreGrid`를 꺼낸다 (커밋 445bd1b).
       */}
+      {level && (
       <div className="mt-4 grid grid-cols-2 gap-4 max-lg:grid-cols-1">
         <GroupList
           title="강점"
@@ -162,6 +179,7 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
           tone="weak"
         />
       </div>
+      )}
 
       {(mid.length > 0 || unrated.length > 0) && (
         <Card className="mt-4">
@@ -180,14 +198,16 @@ export function CohortNow({ students }: { students: typeof STUDENTS }) {
         </Card>
       )}
 
-      <div className="mt-3 space-y-1 text-[11px] leading-relaxed text-ink-soft">
-        <p>
-          점수는 담당 강사·전도사가 수강생 상세에서 매긴 <strong>단계 항목 점수(0~5)의 평균</strong>
-          입니다. 사람의 신앙·인격을 판정하는 값이 아니며, 아무도 안 매긴 항목은 약점이 아니라
-          「아직 안 봄」으로 둡니다.
-        </p>
-        <p>지금 점수는 시범 값이며, 담당자가 실제로 매긴 점수가 우선합니다.</p>
-      </div>
+      {level && (
+        <div className="mt-3 space-y-1 text-[11px] leading-relaxed text-ink-soft">
+          <p>
+            점수는 담당 강사·전도사가 수강생 상세에서 매긴 <strong>단계 항목 점수(0~5)의 평균</strong>
+            입니다. 사람의 신앙·인격을 판정하는 값이 아니며, 아무도 안 매긴 항목은 약점이 아니라
+            「아직 안 봄」으로 둡니다.
+          </p>
+          <p>지금 점수는 시범 값이며, 담당자가 실제로 매긴 점수가 우선합니다.</p>
+        </div>
+      )}
 
       {modalKey && <StudentDetailModal studentKey={modalKey} onClose={() => setModalKey(null)} />}
     </div>
