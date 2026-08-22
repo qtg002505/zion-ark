@@ -31,6 +31,10 @@ const CohortStatus = lazy(() => import("./pages/CohortStatus").then((m) => ({ de
 const CohortAttendance = lazy(() =>
   import("./pages/CohortAttendance").then((m) => ({ default: m.CohortAttendance })),
 );
+/* 지금 우리 기수는? — 2026-08-23 리드 지시로 탭에서 독립한 화면 */
+const CohortNowPage = lazy(() =>
+  import("./pages/CohortNow").then((m) => ({ default: m.CohortNowPage })),
+);
 const StudentsDashboard = lazy(() =>
   import("./pages/StudentsDashboard").then((m) => ({ default: m.StudentsDashboard })),
 );
@@ -85,6 +89,8 @@ function Routed() {
         <Route path="/cohort" element={<CohortStatus />} />
         {/* 옛 /cohort?tab=attendance|trend|compare는 CohortStatus가 이리로 넘긴다 */}
         <Route path="/attendance" element={<CohortAttendance />} />
+        {/* 옛 /cohort?tab=now도 CohortStatus가 이리로 넘긴다 (2026-08-23 독립) */}
+        <Route path="/cohort-now" element={<CohortNowPage />} />
         <Route path="/plan" element={<WeeklyPlanPage />} />
         {/* 기수 세팅 · 지난 기수 (2026-08-21 리드 지시) */}
         <Route path="/cohort-setup" element={<CohortSetup />} />

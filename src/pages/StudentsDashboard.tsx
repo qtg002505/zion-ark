@@ -18,7 +18,6 @@ import {
   ENROLLMENT_STATUS_DEFAULT,
   fellowshipOf,
   type FaithType,
-  type Fellowship,
 } from "../content/student-profiles";
 import {
   gradeOf,
@@ -30,9 +29,10 @@ import {
   GRADE_ICON_BG,
   type Grade,
 } from "../lib/student-grade";
-import { enneagramGuides } from "../content/enneagram-guides";
 import type { LibraryMaterial, Student } from "../lib/types";
 import { StudentDetailModal } from "../components/StudentDetailModal";
+/* 복합 분석 — 2026-08-23에 공용 부품으로 뽑았다. 기수 요약(접이식)과 같은 한 벌을 쓴다 */
+import { AnalysisSection } from "../components/CompositeAnalysis";
 import { PageHeader, Card, EnrollmentStatusBadge } from "./common";
 
 const GRADE_ORDER: Grade[] = ["A", "B", "D", "E"];
@@ -435,7 +435,7 @@ export function StudentsDashboard() {
         </Card>
       </div>
 
-      {/* 하단: 복합 분석 */}
+      {/* 하단: 복합 분석 — 2026-08-23에 공용 부품으로 뽑았다(기수 요약과 한 벌) */}
       <AnalysisSection rows={filtered} divisionFilter={divisionFilter} />
         </>
       )}
@@ -767,116 +767,4 @@ function GradeBadge({ grade }: { grade: Grade }) {
   );
 }
 
-type Row = {
-  student: Student;
-  profile: (typeof STUDENT_PROFILES)[string];
-  grade: Grade;
-  fellowship: Fellowship;
-  yuwol: "오픈" | "비오픈";
-};
-
-function AnalysisSection({ rows, divisionFilter }: { rows: Row[]; divisionFilter: string }) {
-  const total = rows.length;
-  const scopeLabel =
-    divisionFilter === "all"
-      ? "전체 분반"
-      : `${divisionFilter} · ${DIVISION_EVANGELISTS[divisionFilter] ?? ""}`;
-
-  const ageRows = distribution(rows.map((r) => `${Math.floor(r.profile.age / 10) * 10}대`));
-  const registrationRows = fixedDistribution(
-    rows.map((r) => r.profile.registrationType),
-    ["신규", "재수강", "재입교"],
-  );
-  const faithRows = distribution(rows.map((r) => FAITH_STATUS_LABELS[r.profile.faithStatus]));
-  const yuwolRows = distribution(rows.map((r) => r.yuwol));
-  const mbtiRows = distribution(rows.map((r) => r.profile.mbti));
-  const enneaRows = distribution(rows.map((r) => `${r.profile.enneagramType}유형`)).sort(
-    (a, b) => Number(a.label[0]) - Number(b.label[0]),
-  );
-  const shapeRows = distribution(rows.map((r) => r.profile.shapeType));
-  const sajuRows = distribution(rows.map((r) => `${r.profile.sajuElement}(오행)`));
-
-  return (
-    <div className="mt-5">
-      <div className="mb-3 text-[14px] font-bold text-zion-900">
-        복합 분석 — {scopeLabel} ({total}명 기준)
-      </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <MiniBreakdown title="연령대" rows={ageRows} total={total} />
-        <MiniBreakdown title="등록구분" rows={registrationRows} total={total} />
-        <MiniBreakdown title="신앙유형" rows={faithRows} total={total} />
-        <MiniBreakdown title="유월" rows={yuwolRows} total={total} />
-        <MiniBreakdown title="MBTI" rows={mbtiRows} total={total} />
-        <MiniBreakdown
-          title="에니어그램"
-          rows={enneaRows}
-          total={total}
-          hint={enneagramGuides.map((g) => `${g.typeNo}유형 ${g.title}`).join(" · ")}
-        />
-        <MiniBreakdown title="도형 성향" rows={shapeRows} total={total} />
-        <MiniBreakdown title="사주(오행)" rows={sajuRows} total={total} />
-      </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-        성향 값(MBTI·에니어그램·도형·사주)은 시범 데이터이며, 상담·강의 참고용일 뿐 확정 판정 근거로
-        쓰지 않습니다(불변식 4). 에니어그램 유형별 설명은 「성향 참고」 화면에서 볼 수 있습니다.
-      </p>
-    </div>
-  );
-}
-
-function distribution(items: string[]): { label: string; count: number }[] {
-  const map = new Map<string, number>();
-  items.forEach((v) => map.set(v, (map.get(v) ?? 0) + 1));
-  return [...map.entries()]
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
-}
-
-/** count 0인 항목도 정해진 순서 그대로 보여준다 (예: 등록구분 — 재입교가 0명이어도 목록엔 남는다) */
-function fixedDistribution(items: string[], order: string[]): { label: string; count: number }[] {
-  const map = new Map<string, number>();
-  items.forEach((v) => map.set(v, (map.get(v) ?? 0) + 1));
-  return order.map((label) => ({ label, count: map.get(label) ?? 0 }));
-}
-
-function MiniBreakdown({
-  title,
-  rows,
-  total,
-  hint,
-}: {
-  title: string;
-  rows: { label: string; count: number }[];
-  total: number;
-  hint?: string;
-}) {
-  return (
-    <Card>
-      <div className="mb-2.5 text-[12.5px] font-bold text-zion-900" title={hint}>
-        {title}
-      </div>
-      {rows.length === 0 ? (
-        <p className="text-[11px] text-ink-soft">데이터 없음</p>
-      ) : (
-        <div className="space-y-1.5">
-          {rows.map((r) => (
-            <div key={r.label}>
-              <div className="mb-0.5 flex justify-between text-[10.5px]">
-                <span className="text-ink-soft">{r.label}</span>
-                <span className="font-semibold text-zion-800">
-                  {r.count}명 · {total ? Math.round((r.count / total) * 100) : 0}%
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zion-100">
-                <div
-                  className="h-full rounded-full bg-zion-700"
-                  style={{ width: `${total ? (r.count / total) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
+/* 종전 Row 타입과 복합 분석 몸통은 components/CompositeAnalysis로 나갔다 (2026-08-23) */

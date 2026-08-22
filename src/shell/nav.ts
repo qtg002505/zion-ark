@@ -161,28 +161,17 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "홈", icon: Home, to: "/" },
 
   /**
-   * 1. 기수 요약 · 1-1. 출석 현황 (2026-08-22 리드 피드백 5 — 종전 「기수 현황」 한 묶음을
-   * **둘로 갈라 일렬 배치**했다. 자리는 종전 그대로다 — 카테고리 순서 규칙 준수).
+   * 1~3. 기수 요약 · 지금 우리 기수는? · 출석 현황 (2026-08-23 리드 지시 —
+   * 「기수 요약과 지금 우리 기수는 카테고리 완전 외부로 독립」. 2026-08-22의 둘 가르기에
+   * 이어 셋 다 **하위 묶음 없는 독립 대주제**가 됐다. 자리는 종전 「기수 현황」 그대로다).
    *
-   * - 기수 요약(/cohort): 분류 대시보드 + 요약 + 「지금 우리 기수는?」(?tab=now)
+   * - 기수 요약(/cohort): 분류 대시보드 + 요약 지표 + 복합 분석(접이식)
+   * - 지금 우리 기수는?(/cohort-now): 단계 기준표를 기수 단위로 뒤집어 본다
    * - 출석 현황(/attendance): 출석 격자 + 주간 흐름 + 비교를 **한 화면**에 병합
-   * ⚠️ 항목 주소는 화면의 탭 파생(`?tab=`)과 짝이다 — 한쪽만 고치면 어긋난다
-   * (종전 COHORT_TABS 파생은 셸 무게 때문에 끊었다 — 위 import 자리 주석).
+   * 옛 `/cohort?tab=…` 주소는 CohortStatus가 새 경로로 넘긴다.
    */
-  {
-    label: "기수 요약",
-    icon: Gauge,
-    subGroups: [
-      {
-        label: "기수 요약",
-        icon: GraduationCap,
-        items: [
-          { to: "/cohort", label: "기수 요약", icon: GraduationCap },
-          { to: "/cohort?tab=now", label: "지금 우리 기수는?", icon: GraduationCap },
-        ],
-      },
-    ],
-  },
+  { label: "기수 요약", icon: Gauge, to: "/cohort" },
+  { label: "지금 우리 기수는?", icon: GraduationCap, to: "/cohort-now" },
   { label: "출석 현황", icon: ClipboardList, to: "/attendance" },
 
   /**

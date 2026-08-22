@@ -1,8 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { SegmentedTabs } from "../components/SegmentedTabs";
 import { ChevronDown, TriangleAlert, Trophy } from "lucide-react";
+import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
-import { COHORT_KEY, STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
+import { studentScopeLabel, visibleDivisions } from "../lib/permissions";
+import { COHORT, COHORT_KEY, DIVISIONS, STUDENTS, demoChecklistProgress } from "../content/cohort-mock";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
 /* 지파 보충 항목을 표준 뒤에 이어 붙인다 (2026-08-21) — 합치는 규칙은 그 파일 한 곳이다 */
 import { checklistWithExtras, standardQuestionCount } from "../lib/checklist";
@@ -17,9 +19,30 @@ import {
   type GroupStat,
 } from "../lib/cohort-strength";
 import { StudentDetailModal } from "../components/StudentDetailModal";
-import { Card } from "./common";
+import { PageHeader, Card } from "./common";
 
 const LEVELS: CourseLevel[] = ["초등", "중등", "고등"];
+
+/**
+ * 독립 화면 래퍼 (2026-08-23 리드 지시 — 「기수 요약과 지금 우리 기수는 카테고리 완전 외부로
+ * 독립」). 종전에는 기수 현황의 탭이었다 — 옛 주소 `/cohort?tab=now`는 CohortStatus가
+ * `/cohort-now`로 넘긴다. 몸통(`CohortNow`)은 그대로다.
+ */
+export function CohortNowPage() {
+  const session = useSession();
+  const divisions = visibleDivisions(session, DIVISIONS);
+  const students = STUDENTS.filter((s) => divisions.includes(s.division));
+  return (
+    <div>
+      <PageHeader
+        crumb="지금 우리 기수는?"
+        title="지금 우리 기수는?"
+        desc={`${COHORT.tribe} 지파 · ${COHORT.church} · ${COHORT.cohort} — 조회 범위 ${studentScopeLabel(session)} (시범 목업 데이터)`}
+      />
+      <CohortNow students={students} />
+    </div>
+  );
+}
 
 /**
  * 「지금 우리 기수는?」 (2026-08-15 리드 지시로 신설).
