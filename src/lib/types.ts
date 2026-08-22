@@ -670,6 +670,56 @@ export interface PlanEntry {
 }
 
 /**
+ * 주차별 진행 현황 한 줄 (2026-08-22 리드 시안 — 운영 시트의 주차 판을 월간·주간 계획
+ * 왼쪽에 옮긴 것). 달력 항목(`PlanEntry`)이 **날짜**에 붙는 것과 달리 이것은 **개강 N주**에
+ * 붙는 운영 기록이다 — 주차 라벨 문자열(「6월 2주」)이 아니라 **주차 번호**로 잇는다.
+ * 라벨은 표기 규칙이 바뀔 수 있지만 개강 기준 주차 번호는 안 바뀌기 때문이다.
+ *
+ * 권한은 주간계획과 같다 — **해당 기수의 강사·전도사만** 고친다(`canEditCohortRecord`).
+ * ⚠️ 기수 공유 기록이라 수강생 이름·개인 사정을 적지 않는다 — 화면이 `scanPII`로 저장을 막는다.
+ * 씨앗 값(시범 값)은 `content/week-ops-mock.ts`가 갖고 화면이 합친다 — 저장된 줄이 이긴다.
+ */
+export interface WeekOpsRow {
+  cohortKey: string;
+  /** 개강 N주 — 1부터 (`weekNoOf`와 같은 셈) */
+  weekNo: number;
+  /** 기수 운영 */
+  operation: string;
+  /** 목표 (국/위) */
+  goal: string;
+  /** 영목표 — 있는 주만 적는다 */
+  spiritGoal: string;
+  /** 핵심 활동 — 원 시트 표기는 「핵심 액션」, 화면 문구 규칙(외래어 명명 회피)에 따라 활동으로 쓴다 */
+  keyAction: string;
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+}
+
+/**
+ * 운영 분석판(월간·주간 계획 하단)의 **사람이 적는 칸 넷** — 성과 지표는 출결·계획에서
+ * 계산하는 값이라 여기 없다. 기수당 칸 하나씩이고 한 줄이 항목 하나다.
+ */
+export type OpsNoteField = "checkpoint" | "priority" | "risk" | "memo";
+
+export const OPS_NOTE_LABELS: Record<OpsNoteField, string> = {
+  checkpoint: "핵심 체크포인트",
+  priority: "우선순위",
+  risk: "주의사항",
+  memo: "메모 · 특이사항",
+};
+
+export interface CohortOpsNote {
+  cohortKey: string;
+  field: OpsNoteField;
+  /** 한 줄이 항목 하나 — 화면이 줄 단위로 점을 찍어 낸다 */
+  lines: string[];
+  updatedBy: string;
+  updatedByRole: RoleCode;
+  updatedAt: string;
+}
+
+/**
  * 수강생 상태 묶음 표시 (2026-08-22 리드 지시 — 운영 스프레드시트 「1페이지」의 우측 판들을
  * 화면으로 옮긴 것. 「수강생들을 다양한 상태로 한눈에」).
  *

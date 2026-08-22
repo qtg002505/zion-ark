@@ -32,6 +32,8 @@ import { buildXlsx, downloadBlob } from "../lib/xlsx";
 import { COHORT_LIST, RUNNING_COHORT } from "../content/cohort-mock";
 import { AnchoredPopover } from "../components/AnchoredPopover";
 import { MonthYearPicker } from "../components/MonthYearPicker";
+/* 주차별 진행 현황 · 운영 분석판 (2026-08-22 리드 시안) — 이 라우트에서만 쓰는 조각이다 */
+import { WeekOpsBoard, OpsAnalysisBoard } from "./WeeklyPlanOps";
 import { PageHeader, Card } from "./common";
 
 /** 종전 주차별 글 — 달력으로 옮긴 뒤에도 이미 적어 둔 것은 남겨 함께 본다 */
@@ -393,12 +395,13 @@ export function WeeklyPlanPage() {
       </div>
 
       {/*
-        왼쪽 달력 · 오른쪽 중요 일정 (2026-08-10 리드 지시 — 월간 플래너 구성).
-        기수 전체가 지키는 날을 달력에서 찾지 않고 옆에서 바로 보게 한다.
-        좁은 화면에서는 1단으로 쌓인다 — 7열 달력과 목록을 나란히 두면 둘 다 뭉갠다.
+        왼쪽 주차별 진행 현황 · 오른쪽 달력 (2026-08-22 리드 시안 — 종전 「달력 + 중요 일정」
+        2단을 이 구성이 대체한다. 중요 일정은 달력 아래로 내렸다).
+        좁은 화면에서는 달력이 먼저 쌓인다 — 일정을 넣는 주 도구라 35주 판 아래로 밀지 않는다
+        (DOM은 달력이 앞이고 xl에서 order로 좌우를 바꾼다).
       */}
-      <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-1">
-      <div className="col-span-3 max-lg:col-span-1">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+      <div className="min-w-0 xl:order-2 xl:col-span-3">
       {view === "month" ? (
       /* 달력 — 좁은 화면에서는 가로로 넘긴다. 7열을 억지로 줄이면 글자가 뭉갠다 */
       <div className="-mx-1 overflow-x-auto px-1">
@@ -576,15 +579,34 @@ export function WeeklyPlanPage() {
       </div>
       )}
 
+        {/* 중요 일정 — 별을 켠 것만 모인다. 달력 아래에 둔다 (왼쪽은 주차 판이 쓴다) */}
+        <div className="mt-4">
+          <ImportantList
+            entries={planEntries.filter((e) => e.cohortKey === cohortKey && e.important)}
+            canEdit={canEdit}
+            onPick={(d, el) => setPicked({ date: d, anchor: el })}
+          />
+        </div>
       </div>
 
-        {/* 오른쪽: 중요 일정 — 별을 켠 것만 모인다 */}
-        <ImportantList
-          entries={planEntries.filter((e) => e.cohortKey === cohortKey && e.important)}
-          canEdit={canEdit}
-          onPick={(d, el) => setPicked({ date: d, anchor: el })}
-        />
+        {/* 왼쪽: 주차별 진행 현황 — 개강 N주 단위의 운영 기록 (2026-08-22 리드 시안) */}
+        <div className="min-w-0 xl:order-1 xl:col-span-2">
+          <WeekOpsBoard
+            cohortKey={cohortKey}
+            startsOn={sched.startsOn}
+            endsOn={sched.endsOn}
+            canEdit={canEdit}
+          />
+        </div>
       </div>
+
+      {/* 하단: 운영 분석 — 체크포인트·우선순위·주의사항·성과 지표·메모 (2026-08-22 리드 시안) */}
+      <OpsAnalysisBoard
+        cohortKey={cohortKey}
+        canEdit={canEdit}
+        startsOn={sched.startsOn}
+        endsOn={sched.endsOn}
+      />
 
       {monthPickAnchor && (
         <MonthYearPicker

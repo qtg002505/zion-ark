@@ -40,6 +40,8 @@ import type {
   ChecklistExtra,
   TipReport,
   WeekNote,
+  WeekOpsRow,
+  CohortOpsNote,
   WeeklyPlan,
   WorkspaceEntry,
   WorkspaceKind,
@@ -105,6 +107,10 @@ const SITE_VISIT_KEY = "zion_ark_site_visits";
 /** 개인 메모장 · 기수 회의록 (2026-08-18) — 실연동 시 D1 테이블로 교체 */
 const PERSONAL_MEMO_KEY = "zion_ark_personal_memos";
 const MEETING_NOTE_KEY = "zion_ark_meeting_notes";
+/* 주차별 진행 현황 · 운영 분석판 (2026-08-22) — 씨앗 값은 content/week-ops-mock이 갖고
+   화면이 합친다. 여기에는 사람이 고쳐 쓴 줄만 쌓인다 */
+const WEEK_OPS_KEY = "zion_ark_week_ops_rows";
+const OPS_NOTE_KEY = "zion_ark_ops_notes";
 /** 방문 기록 보관 한도 — 열람 기록(ACTIVITY_LIMIT)과 같은 방식으로 건수로만 막는다 */
 const SITE_VISIT_LIMIT = 2000;
 
@@ -661,6 +667,15 @@ interface StoreValue {
   updateMeetingNote: (id: string, body: string) => void;
   deleteMeetingNote: (id: string) => void;
   /**
+   * 주차별 진행 현황 · 운영 분석판 (2026-08-22 리드 시안) — 주간계획과 같은 권한
+   * (해당 기수의 강사·전도사만 고친다. 대조는 화면이 한다).
+   * (기수, 주차)·(기수, 칸) 하나당 한 줄 — 덮어쓰기(upsert)만 있고 삭제는 빈 값 저장으로 갈음한다.
+   */
+  weekOpsRows: WeekOpsRow[];
+  setWeekOpsRow: (input: Omit<WeekOpsRow, "updatedAt">) => void;
+  opsNotes: CohortOpsNote[];
+  setOpsNote: (input: Omit<CohortOpsNote, "updatedAt">) => void;
+  /**
    * 건의·의견 게시판 (2026-08-14 FB-09) — 저장만 한다. 비밀글 열람 판정은
    * `permissions.ts`의 `canReadSecretPost`가 하고, 실연동 시 서버가 응답에서 거른다.
    * ⚠️ `createdByTribe`는 **비밀글을 그 지파 신학부장이 보게 하는 기준**이다(2026-08-15) —
@@ -937,6 +952,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [meetingNotes, setMeetingNotes] = useState<CohortMeetingNote[]>(() =>
     loadPlain<CohortMeetingNote>(MEETING_NOTE_KEY),
+  );
+  const [weekOpsRows, setWeekOpsRows] = useState<WeekOpsRow[]>(() =>
+    loadPlain<WeekOpsRow>(WEEK_OPS_KEY),
+  );
+  const [opsNotes, setOpsNotes] = useState<CohortOpsNote[]>(() =>
+    loadPlain<CohortOpsNote>(OPS_NOTE_KEY),
   );
 
   const persistMaterials = useCallback((next: LibraryMaterial[]) => {
@@ -1420,6 +1441,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(MEETING_NOTE_KEY, JSON.stringify(next));
         setMeetingNotes(next);
       },
+      weekOpsRows,
+      setWeekOpsRow: (input) => {
+        const next = [
+          ...weekOpsRows.filter(
+            (r) => !(r.cohortKey === input.cohortKey && r.weekNo === input.weekNo),
+          ),
+          { ...input, updatedAt: nowIso() },
+        ];
+        localStorage.setItem(WEEK_OPS_KEY, JSON.stringify(next));
+        setWeekOpsRows(next);
+      },
+      opsNotes,
+      setOpsNote: (input) => {
+        const next = [
+          ...opsNotes.filter((n) => !(n.cohortKey === input.cohortKey && n.field === input.field)),
+          { ...input, updatedAt: nowIso() },
+        ];
+        localStorage.setItem(OPS_NOTE_KEY, JSON.stringify(next));
+        setOpsNotes(next);
+      },
       deletePersonalEvent: (id) => {
         persistPersonal(personalEvents.filter((e) => e.id !== id));
       },
@@ -1785,6 +1826,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       siteVisits,
       personalMemos,
       meetingNotes,
+      weekOpsRows,
+      opsNotes,
       persistPlanEntries,
       persistLessonResources,
       persistReactions,
