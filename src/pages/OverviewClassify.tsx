@@ -1,20 +1,15 @@
 import { useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  Briefcase,
-  Ear,
   GraduationCap,
   HeartPulse,
   HeartHandshake,
   Info,
   Lock,
   Plus,
-  Star,
   TrendingUp,
-  Unlock,
   UserX,
   Users,
   UsersRound,
-  Wrench,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -22,7 +17,8 @@ import { useSession } from "../lib/auth";
 import { useStore } from "../lib/store";
 import { canEditCohortRecord } from "../lib/permissions";
 import { COHORT, COHORT_KEY, RUNNING_COHORT, STUDENTS } from "../content/cohort-mock";
-import { DIVISIONS } from "../content/cohort-mock";
+import { DIVISIONS, DIVISION_TONE, DIVISION_TONE_FALLBACK } from "../content/cohort-mock";
+import { Portal } from "../components/Portal";
 import {
   DIVISION_EVANGELISTS,
   STUDENT_PROFILES,
@@ -37,6 +33,9 @@ import {
   type Grade,
 } from "../lib/student-grade";
 import { AnchoredPopover } from "../components/AnchoredPopover";
+/* 상태 묶음 정의는 한 곳(`content/student-states.ts`) — 상세의 체크 패널과 같은 목록을 읽는다 */
+import { STATE_GROUPS } from "../content/student-states";
+import { looseIncludes } from "../lib/text-match";
 import { Card } from "./common";
 
 /**
@@ -61,23 +60,6 @@ import { Card } from "./common";
  *   상태판의 「추가」 단추로 같은 일을 한다. 등급 변경은 수강생 현황에서도 종전대로 된다
  */
 
-/**
- * 상태 묶음 — 리드 스프레드시트 원문 그대로. **표시 순서도 시안 순서다.**
- * ⚠️ 이름을 다듬지 않는다. 색·아이콘은 시안의 느낌을 팔레트 안에서 잡은 것이다
- * (다크 되돌리기 목록에 있는 옅은 면 계열만 쓴다).
- */
-const STATE_GROUPS: { label: string; icon: LucideIcon; head: string; chip: string }[] = [
-  { label: "병리적 우울 (기질)", icon: HeartPulse, head: "text-red-600", chip: "bg-red-50 text-red-600 border-red-200" },
-  { label: "수업 포인트 전혀 못잡음 (기질)", icon: TrendingUp, head: "text-zion-700", chip: "bg-zion-100 text-zion-800 border-zion-300" },
-  { label: "행함부담", icon: Briefcase, head: "text-amber-600", chip: "bg-gold-100 text-gold-700 border-gold-300" },
-  { label: "종교반감/무신론자", icon: UserX, head: "text-level-high", chip: "bg-level-high-soft text-level-high border-zion-300" },
-  { label: "이성교제자", icon: HeartHandshake, head: "text-emerald-600", chip: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  { label: "기능자", icon: Wrench, head: "text-zion-700", chip: "bg-zion-100 text-zion-800 border-zion-300" },
-  { label: "잎사귀 오픈", icon: Ear, head: "text-level-el", chip: "bg-level-el-soft text-level-el border-zion-300" },
-  { label: "유급 챙길인원", icon: GraduationCap, head: "text-gold-700", chip: "bg-gold-100 text-gold-700 border-gold-300" },
-  { label: "입막음 풀림", icon: Unlock, head: "text-red-600", chip: "bg-red-50 text-red-600 border-red-200" },
-  { label: "사명자 양성", icon: Star, head: "text-gold-700", chip: "bg-gold-100 text-gold-700 border-gold-300" },
-];
 
 interface RosterRow {
   student: (typeof STUDENTS)[number];
@@ -189,6 +171,18 @@ export function ClassifyDashboard({
     setDragKey(null);
     setOverZone(null);
   }
+  /**
+   * 분반이 바뀌는 이동은 **확인을 받은 뒤에** 적용한다 (2026-08-22 리드 지시 —
+   * 「분반이 이동되는 게 맞습니까? 확인을 눌러서」). 등급만 바뀌는 이동은 바로 적용한다.
+   */
+  const [pendingMove, setPendingMove] = useState<{
+    key: string;
+    name: string;
+    from: string;
+    to: string;
+    grade?: Grade;
+  } | null>(null);
+
   function dropToCell(e: DragEvent, grade: Grade, division: string) {
     e.preventDefault();
     endDrag();
@@ -196,11 +190,28 @@ export function ClassifyDashboard({
     const key = e.dataTransfer.getData("text/plain");
     const row = roster.find((r) => r.student.key === key);
     if (!row) return;
-    const patch: { grade?: Grade; division?: string } = {};
-    if (row.grade !== grade) patch.grade = grade;
-    if (row.division !== division) patch.division = division;
-    if (Object.keys(patch).length === 0) return;
-    setStudentStatus(key, patch, session.name, session.roleCode);
+    const gradeChanged = row.grade !== grade;
+    const divisionChanged = row.division !== division;
+    if (!gradeChanged && !divisionChanged) return;
+    if (divisionChanged) {
+      setPendingMove({
+        key,
+        name: row.student.name,
+        from: row.division,
+        to: division,
+        grade: gradeChanged ? grade : undefined,
+      });
+      return;
+    }
+    setStudentStatus(key, { grade }, session.name, session.roleCode);
+  }
+
+  function confirmPendingMove() {
+    if (!pendingMove) return;
+    const patch: { grade?: Grade; division: string } = { division: pendingMove.to };
+    if (pendingMove.grade) patch.grade = pendingMove.grade;
+    setStudentStatus(pendingMove.key, patch, session.name, session.roleCode);
+    setPendingMove(null);
   }
   function dropToState(e: DragEvent, label: string) {
     e.preventDefault();
@@ -224,8 +235,9 @@ export function ClassifyDashboard({
   const rateDelta =
     lastWeekRate !== null && prevWeekRate !== null ? lastWeekRate - prevWeekRate : null;
 
-  /* ── 상태판 「추가」 팝오버 (터치·좁은 화면 경로) ── */
+  /* ── 상태판 「추가」 팝오버 (터치·좁은 화면 경로) — 이름을 쳐서 걸러 넣는다 ── */
   const [addFor, setAddFor] = useState<string | null>(null);
+  const [addQuery, setAddQuery] = useState("");
   const addAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const kpis: { label: string; value: string; sub: string; icon: LucideIcon; tone: string }[] = [
@@ -370,14 +382,16 @@ export function ClassifyDashboard({
                 <tr>
                   <th className="border border-t-0 border-zion-100 bg-zion-50/60 px-2 py-1" />
                   {DIVISIONS.map((d) => (
+                    /* 열머리도 그 분반 색 — 칩과 같은 색이라 어느 열이 누구인지 곁눈에 잡힌다 */
                     <th
                       key={d}
-                      className="border border-l-0 border-t-0 border-zion-100 bg-zion-50/60 px-2 py-1 text-center"
+                      className={
+                        "border border-l-0 border-t-0 border-zion-100 px-2 py-1 text-center " +
+                        (DIVISION_TONE[d] ?? DIVISION_TONE_FALLBACK)
+                      }
                     >
-                      <div className="text-[12px] font-bold text-zion-800">
-                        {DIVISION_EVANGELISTS[d] ?? d}
-                      </div>
-                      <div className="text-[10px] font-normal text-ink-soft">{d}</div>
+                      <div className="text-[12px] font-bold">{DIVISION_EVANGELISTS[d] ?? d}</div>
+                      <div className="text-[10px] font-normal opacity-80">{d}</div>
                     </th>
                   ))}
                 </tr>
@@ -405,7 +419,7 @@ export function ClassifyDashboard({
                             onDrop={(e) => dropToCell(e, g, d)}
                             className={
                               "border border-l-0 border-t-0 border-zion-100 px-1.5 py-1.5 align-top transition " +
-                              (overZone === zone ? "bg-zion-100" : "bg-white")
+                              (overZone === zone ? "bg-zion-100" : dragKey !== null ? "bg-zion-50/60" : "bg-white")
                             }
                           >
                             <div className="flex min-h-[30px] flex-wrap content-start gap-1">
@@ -423,16 +437,25 @@ export function ClassifyDashboard({
                                     (canEdit ? " · 끌어서 옮길 수 있습니다" : "")
                                   }
                                   className={
-                                    "rounded-md border px-1.5 py-0.5 text-[12px] font-medium transition " +
+                                    /*
+                                      칩 배경은 **분반 색**이다 (2026-08-22 리드 지시).
+                                      오픈 표기는 배경 대신 이름 옆 금색 점으로 옮겼다 —
+                                      두 뜻이 한 배경을 다투지 않게.
+                                    */
+                                    "rounded-md border px-1.5 py-0.5 text-[12px] font-medium transition hover:brightness-95 " +
                                     (canEdit ? "cursor-grab active:cursor-grabbing " : "") +
                                     (dragKey === r.student.key ? "opacity-40 " : "") +
-                                    (r.opened
-                                      ? "border-gold-300 bg-gold-100/70 text-gold-700 hover:bg-gold-100"
-                                      : "border-zion-100 bg-zion-50/70 text-ink hover:border-zion-300 hover:text-zion-700")
+                                    (DIVISION_TONE[r.division] ?? DIVISION_TONE_FALLBACK)
                                   }
                                 >
                                   {r.student.name}
                                   {r.manual && "*"}
+                                  {r.opened && (
+                                    <span
+                                      className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-gold-500 align-middle"
+                                      title="오픈"
+                                    />
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -485,9 +508,7 @@ export function ClassifyDashboard({
                   onDrop={(e) => dropToState(e, group.label)}
                   className={
                     "rounded-xl border px-2.5 py-2 transition " +
-                    (overZone === group.label
-                      ? "border-zion-500 bg-zion-100"
-                      : "border-zion-100 bg-white")
+                    X
                   }
                 >
                   <div className="flex items-center gap-1.5">
@@ -496,15 +517,19 @@ export function ClassifyDashboard({
                       {group.label}
                     </span>
                     {canEdit && (
+                      /* 「기입」 경로 (2026-08-22 리드 지시) — 끌기 없이도 이름을 쳐서 넣는다 */
                       <button
                         ref={(el) => {
                           addAnchors.current[group.label] = el;
                         }}
-                        onClick={() => setAddFor(addFor === group.label ? null : group.label)}
+                        onClick={() => {
+                          setAddQuery("");
+                          setAddFor(addFor === group.label ? null : group.label);
+                        }}
                         aria-label={`${group.label} 묶음에 수강생 추가`}
-                        className="shrink-0 rounded p-0.5 text-ink-soft transition hover:bg-zion-100 hover:text-zion-700"
+                        className="flex shrink-0 items-center gap-0.5 rounded border border-zion-200 px-1 py-0.5 text-[10px] font-semibold text-zion-700 transition hover:bg-zion-100"
                       >
-                        <Plus size={12} />
+                        <Plus size={10} /> 추가
                       </button>
                     )}
                   </div>
@@ -512,19 +537,34 @@ export function ClassifyDashboard({
                     {inGroup.length === 0 ? (
                       <span className="text-[10.5px] text-ink-soft">—</span>
                     ) : (
-                      inGroup.map((m) => {
+                      /*
+                        같은 분반끼리 뭉쳐 보인다 (2026-08-22 리드 지시) — 분반순으로 정렬하고
+                        칩 색도 **그 수강생의 분반 색 그대로**다. 묶음 색은 판 머리가 맡는다.
+                      */
+                      [...inGroup]
+                        .sort((a, b) => {
+                          const da = roster.find((r) => r.student.key === a.studentKey)?.division ?? "";
+                          const db = roster.find((r) => r.student.key === b.studentKey)?.division ?? "";
+                          return (
+                            da.localeCompare(db, "ko") ||
+                            (nameOf(a.studentKey) ?? "").localeCompare(nameOf(b.studentKey) ?? "", "ko")
+                          );
+                        })
+                        .map((m) => {
                         const name = nameOf(m.studentKey);
                         if (name === null) return null;
+                        const division = roster.find((r) => r.student.key === m.studentKey)?.division;
                         return (
                           <span
                             key={m.id}
                             draggable={canEdit}
                             onDragStart={(e) => onDragStart(e, m.studentKey)}
                             onDragEnd={endDrag}
+                            title={division}
                             className={
                               "inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 text-[11.5px] font-medium " +
                               (canEdit ? "cursor-grab active:cursor-grabbing " : "") +
-                              group.chip
+                              ((division && DIVISION_TONE[division]) ?? DIVISION_TONE_FALLBACK)
                             }
                           >
                             <button onClick={() => onOpenStudent(m.studentKey)} className="hover:underline">
@@ -552,8 +592,18 @@ export function ClassifyDashboard({
                       onClose={() => setAddFor(null)}
                     >
                       <div className="max-h-64 overflow-y-auto p-2">
+                        {/* 이름 기입 — 띄어쓰기 무시 규칙 그대로 (`looseIncludes`) */}
+                        <input
+                          autoFocus
+                          value={addQuery}
+                          onChange={(e) => setAddQuery(e.target.value)}
+                          placeholder="이름으로 찾기"
+                          aria-label="추가할 수강생 이름 찾기"
+                          className="mb-1.5 w-full rounded-lg border border-zion-200 bg-white px-2.5 py-1.5 text-[12.5px] outline-none focus:border-zion-500"
+                        />
                         {roster
                           .filter((r) => !memberKeys.has(r.student.key))
+                          .filter((r) => !addQuery || looseIncludes(r.student.name, addQuery))
                           .map((r) => (
                             <button
                               key={r.student.key}
@@ -596,6 +646,55 @@ export function ClassifyDashboard({
         상태 묶음은 담당자가 직접 놓는 관찰 표시이며 이 화면 밖으로 나가지 않습니다. 목업
         데이터의 인물은 전원 가상입니다.
       </p>
+
+      {/*
+        분반 이동 확인창 (2026-08-22 리드 지시). `main`의 쌓임 맥락 때문에 Portal로 띄운다.
+        등급만 바뀌는 이동은 이 창을 거치지 않는다 — 분반이 바뀔 때만 묻는다.
+      */}
+      {pendingMove && (
+        <Portal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zion-950/40 p-4">
+            <div className="absolute inset-0" onClick={() => setPendingMove(null)} aria-hidden="true" />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="분반 이동 확인"
+              className="relative w-full max-w-sm rounded-card bg-white p-5 shadow-xl"
+            >
+              <p className="text-[14px] font-bold text-zion-900">분반이 이동되는 게 맞습니까?</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink">
+                <strong>{pendingMove.name}</strong> 님을{" "}
+                <span className={"rounded px-1 py-0.5 text-[12px] font-semibold " + (DIVISION_TONE[pendingMove.from] ?? DIVISION_TONE_FALLBACK)}>
+                  {pendingMove.from}
+                </span>
+                에서{" "}
+                <span className={"rounded px-1 py-0.5 text-[12px] font-semibold " + (DIVISION_TONE[pendingMove.to] ?? DIVISION_TONE_FALLBACK)}>
+                  {pendingMove.to}
+                </span>
+                (으)로 옮깁니다.
+                {pendingMove.grade && <> 등급도 {pendingMove.grade}로 함께 바뀝니다.</>}
+              </p>
+              <p className="mt-1.5 text-[11.5px] text-ink-soft">
+                출결 원본은 바뀌지 않고 화면 표시만 바뀝니다. 수강생 현황에도 함께 반영됩니다.
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={() => setPendingMove(null)}
+                  className="rounded-lg px-3 py-1.5 text-[13px] text-ink-soft transition hover:bg-zion-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmPendingMove}
+                  className="rounded-lg bg-zion-800 px-4 py-1.5 text-[13px] font-semibold text-white transition hover:bg-zion-700"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
     </Card>
   );
 }

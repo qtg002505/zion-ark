@@ -66,6 +66,8 @@ import { weekdayOf } from "../lib/date-format";
 import { CHECKLIST_STANDARDS } from "../content/checklist-standards";
 /* 지파 보충 항목을 표준 뒤에 이어 붙인다 (2026-08-21) — 합치는 규칙은 그 파일 한 곳이다 */
 import { checklistWithExtras } from "../lib/checklist";
+/* 상태 묶음 목록 정본 — 분류 대시보드와 같은 파일을 읽는다 (2026-08-22) */
+import { STATE_GROUPS } from "../content/student-states";
 import { PageHeader, Card } from "./common";
 
 const FELLOWSHIPS: Fellowship[] = ["청년회", "장년회", "부녀회", "자문회"];
@@ -208,6 +210,9 @@ export function StudentDetailPage({
     checklistProgress,
     setChecklistItemScore,
     logStudentAccess,
+    studentStateMarks,
+    addStudentStateMark,
+    removeStudentStateMark,
   } = useStore();
   /**
    * 이 페이지는 원래 「보기 + 고치기」가 한 화면에 섞여 있었다. 2026-08-13 리드 지시로
@@ -746,6 +751,61 @@ export function StudentDetailPage({
               </div>
             </>
           )}
+
+          {/*
+            상태 묶음 체크 (2026-08-22 리드 지시 — 「수강생 현황에서도 해당 항목들을 체크하면
+            분류 대시보드에 반영」). **편집 모드와 무관하게 바로 토글된다** — 대시보드의
+            드래그·추가와 같은 즉시 기록이라 편집 단추 뒤에 숨기지 않는다. 분류 대시보드와 **같은 기록**(`studentStateMarks`)을
+            토글하므로 어느 쪽에서 바꿔도 즉시 같이 보인다. 목록 정본은 `student-states.ts`.
+          */}
+          <div className="mt-3 border-t border-zion-100 pt-2.5">
+            <div className="mb-1.5 text-[11px] font-semibold text-ink-soft">
+              상태 묶음 — 전체 현황의 분류 대시보드와 같은 기록입니다
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {STATE_GROUPS.map((group) => {
+                const mark = studentStateMarks.find(
+                  (m) =>
+                    m.cohortKey === COHORT_KEY &&
+                    m.label === group.label &&
+                    m.studentKey === student.key,
+                );
+                const GroupIcon = group.icon;
+                return (
+                  <label
+                    key={group.label}
+                    className={
+                      "flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-[12px] " +
+                      (rawCanEdit ? "cursor-pointer hover:bg-zion-50 " : "") +
+                      (mark ? "text-ink" : "text-ink-soft")
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={mark !== undefined}
+                      disabled={!rawCanEdit}
+                      onChange={() => {
+                        if (mark) {
+                          removeStudentStateMark(mark.id);
+                        } else {
+                          addStudentStateMark({
+                            cohortKey: COHORT_KEY,
+                            label: group.label,
+                            studentKey: student.key,
+                            createdBy: session.name,
+                            createdByRole: session.roleCode,
+                          });
+                        }
+                      }}
+                      className="h-3.5 w-3.5 accent-[var(--color-zion-700)]"
+                    />
+                    <GroupIcon size={12} className={"shrink-0 " + group.head} />
+                    <span className="min-w-0 truncate">{group.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
 
           {/* 안내 문장은 뺐다(2026-08-13 리드 지시) — 최근 변경 이력만 있으면 보여준다. 오른쪽 정렬 */}
           {override && (

@@ -121,6 +121,25 @@ export const SCHEDULE = {
 export const DIVISIONS = ["1분반", "2분반", "3분반", "4분반"];
 
 /**
+ * 분반(담당 전도사) 표시 색 (2026-08-22 리드 지시 — 「분반별 이름의 배경색상을 다르게,
+ * 상태로 넘어가도 그 분반 색상이 유지」).
+ *
+ * ⚠️ **표시용이다** — 분반은 권한 경계가 아니다(CLAUDE.md). 색값은 `index.css` 토큰이고
+ * 여기는 유틸리티 이름만 짝지어 둔다. 네 조합 전부 **다크 되돌리기 목록에 있는 옅은 면**이라
+ * 어두운 화면에서도 뒤집힌다. 새 분반이 생기면 이 표에 한 줄을 더한다 — 표에 없으면
+ * 화면은 중립색(`bg-zion-50`)으로 낸다.
+ */
+export const DIVISION_TONE: Record<string, string> = {
+  "1분반": "bg-zion-100 text-zion-800 border-zion-300",
+  "2분반": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "3분반": "bg-gold-100 text-gold-700 border-gold-300",
+  "4분반": "bg-level-high-soft text-level-high border-zion-300",
+};
+
+/** 표에 없는 분반의 중립색 — 새 분반이 색 없이도 깨지지 않게 */
+export const DIVISION_TONE_FALLBACK = "bg-zion-50 text-ink border-zion-200";
+
+/**
  * 총 수업 회차 — 월·화·목 수업일을 세어 낸다 (2026-08-13, 종전 상수 92를 대체).
  * 8개월 · 35주 × 3회 = **105회**. 공휴일을 빼지 않는 이유는 `scheduleSummary` 주석에 있다.
  */

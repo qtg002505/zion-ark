@@ -85,6 +85,11 @@ export function StudentsDashboard() {
       return {
         student: s,
         profile,
+        /*
+          분반도 사람이 바꾼 값이 먼저다 (2026-08-22 리드 지시 — 분류 대시보드에서 끌어
+          옮긴 것이 여기에도 보여야 한다). 출결 원본(`s.division`)은 그대로다(불변식 3).
+        */
+        division: ov?.division ?? s.division,
         grade: ov?.grade ?? gradeOf(s),
         enrollmentStatus: ov?.enrollmentStatus ?? ENROLLMENT_STATUS_DEFAULT,
         registrationType: ov?.registrationType ?? base.registrationType,
@@ -97,7 +102,7 @@ export function StudentsDashboard() {
   const filtered = useMemo(
     () =>
       rows
-        .filter((r) => divisionFilter === "all" || r.student.division === divisionFilter)
+        .filter((r) => divisionFilter === "all" || r.division === divisionFilter)
         .filter((r) => gradeFilter === "all" || r.grade === gradeFilter)
         .filter((r) => faithFilter === "all" || r.profile.faithType === faithFilter)
         .filter((r) => !query.trim() || r.student.name.includes(query.trim())),
@@ -112,7 +117,7 @@ export function StudentsDashboard() {
 
   /** 선택한 분반만 — 등급·신앙유형·검색 필터와 무관하게 "그 반 전체" 분석에 쓴다 */
   const divisionScoped = useMemo(
-    () => rows.filter((r) => divisionFilter === "all" || r.student.division === divisionFilter),
+    () => rows.filter((r) => divisionFilter === "all" || r.division === divisionFilter),
     [rows, divisionFilter],
   );
   const divisionGradeCounts = useMemo(() => {
@@ -271,7 +276,7 @@ export function StudentsDashboard() {
                 <DivisionListItem
                   key={d}
                   label={d}
-                  sub={`${DIVISION_EVANGELISTS[d] ?? ""} · ${rows.filter((r) => r.student.division === d).length}명`}
+                  sub={`${DIVISION_EVANGELISTS[d] ?? ""} · ${rows.filter((r) => r.division === d).length}명`}
                   active={divisionFilter === d}
                   onClick={() => setDivisionFilter(d)}
                 />
@@ -360,7 +365,7 @@ export function StudentsDashboard() {
                         분반 하나를 고른 상태에서는 띠가 군더더기라 안 그린다.
                       */}
                       {(divisionFilter === "all"
-                        ? [...new Set(filtered.map((r) => r.student.division))].sort((a, b) =>
+                        ? [...new Set(filtered.map((r) => r.division))].sort((a, b) =>
                             a.localeCompare(b, "ko"),
                           )
                         : [divisionFilter]
@@ -371,13 +376,13 @@ export function StudentsDashboard() {
                               ▸ {div}
                               <span className="ml-1.5 font-normal text-ink-soft">
                                 {DIVISION_EVANGELISTS[div] ?? ""} ·{" "}
-                                {filtered.filter((r) => r.student.division === div).length}명
+                                {filtered.filter((r) => r.division === div).length}명
                               </span>
                             </td>
                           </tr>
                         ) : null,
                         ...filtered
-                          .filter((r) => r.student.division === div)
+                          .filter((r) => r.division === div)
                           .map(({ student: s, profile: p, grade, yuwol, fellowship, enrollmentStatus, registrationType }) => (
                         <tr
                           key={s.key}
@@ -455,7 +460,7 @@ function AiGrowthPanel({
   rows,
   onPick,
 }: {
-  rows: { student: Student; grade: Grade }[];
+  rows: { student: Student; division: string; grade: Grade }[];
   onPick: (key: string) => void;
 }) {
   const { studentFeedback, materials } = useStore();
@@ -496,7 +501,7 @@ function AiGrowthPanel({
         </div>
 
         <ul className="divide-y divide-zion-100">
-          {ranked.map(({ student, grade, score }) => (
+          {ranked.map(({ student, division, grade, score }) => (
             <li key={student.key}>
               <button
                 type="button"
@@ -518,7 +523,7 @@ function AiGrowthPanel({
                   {student.name}
                 </span>
                 <span className="w-16 shrink-0 truncate text-[11px] text-ink-soft max-sm:hidden">
-                  {student.division}
+                  {division}
                 </span>
                 <span className="shrink-0 rounded-full bg-zion-100 px-2 py-0.5 text-[11px] font-semibold text-zion-800">
                   {GRADE_LABELS[grade]}({grade})
